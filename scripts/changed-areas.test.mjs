@@ -102,12 +102,17 @@ function repo(files) {
     return dir;
 }
 
-/** Runs the script in `dir` and returns whether it passed, what it logged and the outputs it wrote. */
+/** Runs the script in `dir` for a pull request and returns whether it passed, what it logged and its outputs. */
 function run(dir, ...args) {
+    return runFor('pull_request', dir, ...args);
+}
+
+/** Runs the script in `dir` for one GitHub event; see `run`. */
+function runFor(event, dir, ...args) {
     const outputs = path.join(dir, 'github-output');
     const result = spawnSync('node', [path.join(dir, 'scripts/changed-areas.mjs'), ...args], {
         cwd: dir,
-        env: { ...process.env, GITHUB_OUTPUT: outputs },
+        env: { ...process.env, GITHUB_OUTPUT: outputs, GITHUB_EVENT_NAME: event },
         encoding: 'utf8',
     });
     return {
@@ -115,6 +120,22 @@ function run(dir, ...args) {
         log: `${result.stdout}${result.stderr}`,
         outputs: fs.existsSync(outputs) ? fs.readFileSync(outputs, 'utf8') : '',
     };
+}
+
+/** Reads `key=value` lines as written to `GITHUB_OUTPUT`. */
+function parseOutputs(text) {
+    return Object.fromEntries(
+        text
+            .split('\n')
+            .filter(Boolean)
+            .map((line) => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)]),
+    );
+}
+
+/** Asserts that the script wrote each `key=value` output in `expected`; other outputs aren't checked. */
+function assertOutputs(actual, expected) {
+    const written = parseOutputs(actual);
+    for (const [key, value] of Object.entries(parseOutputs(expected))) assert.equal(written[key], value, key);
 }
 
 describe('changed-areas', () => {
@@ -144,7 +165,7 @@ describe('changed-areas', () => {
         const base = change(dir, { 'docs/guide.md': '# Guide\n\nMore.\n' });
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=false\nactions=[]\nactions_to_test=[]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=false\nintegration_scope=none\nintegration_extra=\n',
         );
@@ -156,7 +177,7 @@ describe('changed-areas', () => {
         const base = change(dir, { 'docs/diagram.png': 'not really a png\n', LICENSE: 'MIT\n\nmore\n' });
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=false\nactions=[]\nactions_to_test=[]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=false\nintegration_scope=none\nintegration_extra=\n',
         );
@@ -167,7 +188,7 @@ describe('changed-areas', () => {
         const base = change(dir, { 'packages/plug/docs/diagram.png': 'diagram' });
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=false\nactions=[]\nactions_to_test=[]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=false\nintegration_scope=none\nintegration_extra=\n',
         );
@@ -178,7 +199,7 @@ describe('changed-areas', () => {
         const base = change(dir, { 'actions/one/docs/diagram.png': 'diagram' });
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=false\nactions=[]\nactions_to_test=[]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=false\nintegration_scope=none\nintegration_extra=\n',
         );
@@ -189,7 +210,7 @@ describe('changed-areas', () => {
         const base = change(dir, { 'extensions/one/docs/diagram.png': 'diagram' });
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=false\nactions=[]\nactions_to_test=[]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=false\nintegration_scope=none\nintegration_extra=\n',
         );
@@ -200,7 +221,7 @@ describe('changed-areas', () => {
         const base = change(dir, { 'packages/plug/src/index.ts': 'export const a = 1;\n' });
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=true\nactions=[]\nactions_to_test=[]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=false\nintegration_scope=affected\nintegration_extra=\nintegration_packages=["@test/plug"]\n',
         );
@@ -227,7 +248,7 @@ describe('changed-areas', () => {
         const base = change(dir, { 'benchmarks/engine-comparison/src/workload.ts': 'export const value = 2;\n' });
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=true\nactions=[]\nactions_to_test=[]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=false\nintegration_scope=benchmark\nintegration_extra=\n',
         );
@@ -239,7 +260,7 @@ describe('changed-areas', () => {
         const base = change(dir, { 'scripts/check.mjs': 'export const changed = true;\n' });
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=true\nactions=[]\nactions_to_test=[]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=false\nintegration_scope=none\nintegration_extra=\n',
         );
@@ -258,7 +279,7 @@ describe('changed-areas', () => {
         const base = change(dir, { 'tools/minecraft-colors/src/index.ts': 'export const changed = true;\n' });
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=true\nactions=[]\nactions_to_test=[]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=false\nintegration_scope=affected\nintegration_extra=\nintegration_packages=["@test/colors"]\n',
         );
@@ -277,7 +298,7 @@ describe('changed-areas', () => {
         const base = change(dir, { 'tools/test-harness/src/index.ts': 'export const changed = true;\n' });
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=true\nactions=[]\nactions_to_test=[]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=false\nintegration_scope=affected\nintegration_extra=\nintegration_packages=["@test/harness"]\n',
         );
@@ -291,7 +312,7 @@ describe('changed-areas', () => {
         const base = change(dir, { '.github/common/bootstrap/src/setup.sh': 'false\n' });
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=true\nactions=[]\nactions_to_test=[]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=false\nintegration_scope=all\nintegration_extra=\n',
         );
@@ -302,7 +323,7 @@ describe('changed-areas', () => {
         const base = change(dir, { 'pnpm-workspace.yaml': 'packages:\n  - "packages/*"\n  - "tools/*"\n' });
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=true\nactions=[]\nactions_to_test=[]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=true\nintegration_scope=all\nintegration_extra=\n',
         );
@@ -417,7 +438,7 @@ describe('changed-areas', () => {
         const base = change(dir, { 'packages/upnpumpkin/src/plugin.ts': 'export const changed = true;\n' });
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=true\nactions=[]\nactions_to_test=[]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=false\nintegration_scope=affected\nintegration_extra=@pumpkin-plugins/bedrock-addon-manager\nintegration_packages=["@test/upnpumpkin"]\n',
         );
@@ -442,7 +463,7 @@ describe('changed-areas', () => {
         });
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=true\nactions=[]\nactions_to_test=[]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=true\nintegration_scope=all\nintegration_extra=\n',
         );
@@ -454,7 +475,7 @@ describe('changed-areas', () => {
         const base = change(dir, { 'packages/plug/src/index.ts': null, 'docs/guide.md': null });
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=true\nactions=[]\nactions_to_test=[]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=false\nintegration_scope=affected\nintegration_extra=\nintegration_packages=["@test/plug"]\n',
         );
@@ -479,7 +500,7 @@ describe('changed-areas', () => {
         const base = change(dir, { 'packages/plug/src/index.ts': 'export const a = 1;\n' });
         const result = run(dir, base);
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=true\nactions=[]\nactions_to_test=[]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=false\nintegration_scope=affected\nintegration_extra=\nintegration_packages=["@test/plug"]\n',
         );
@@ -490,7 +511,7 @@ describe('changed-areas', () => {
         const base = change(dir, { 'actions/two/action.yml': 'name: Two\ndescription: Updated\n' });
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=false\nactions=["two"]\nactions_to_test=["two"]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=false\nintegration_scope=none\nintegration_extra=\n',
         );
@@ -502,7 +523,7 @@ describe('changed-areas', () => {
         const base = change(dir, { 'extensions/one/src/extension.ts': 'export const changed = true;\n' });
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=false\nactions=[]\nactions_to_test=[]\nextensions=["one"]\nextensions_to_test=["one"]\ngenerated_readmes=false\ngenerator=false\nintegration_scope=none\nintegration_extra=\n',
         );
@@ -521,7 +542,7 @@ describe('changed-areas', () => {
         });
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=true\nactions=["two"]\nactions_to_test=["two"]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=false\nintegration_scope=affected\nintegration_extra=\nintegration_packages=["@test/plug"]\n',
         );
@@ -532,7 +553,7 @@ describe('changed-areas', () => {
         const base = change(dir, { 'actions/one/version.txt': '0.0.1\n' });
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=false\nactions=["one"]\nactions_to_test=[]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=false\nintegration_scope=none\nintegration_extra=\n',
         );
@@ -546,7 +567,7 @@ describe('changed-areas', () => {
             });
             const result = run(dir, base, 'HEAD');
             assert.ok(result.ok, result.log);
-            assert.equal(
+            assertOutputs(
                 result.outputs,
                 'code=false\nactions=[]\nactions_to_test=["common","publish-to-pumpkin-market","sign-pumpkin-plugin","update-pumpkin-market-listing","verify-pumpkin-plugin"]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=false\nintegration_scope=none\nintegration_extra=\n',
             );
@@ -561,7 +582,7 @@ describe('changed-areas', () => {
         });
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=false\nactions=[]\nactions_to_test=[]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=false\nintegration_scope=none\nintegration_extra=\n',
         );
@@ -579,7 +600,7 @@ describe('changed-areas', () => {
         });
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=true\nactions=["sign-pumpkin-plugin"]\nactions_to_test=["common","publish-to-pumpkin-market","sign-pumpkin-plugin","update-pumpkin-market-listing","verify-pumpkin-plugin"]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=false\ngenerator=false\nintegration_scope=affected\nintegration_extra=\nintegration_packages=["@test/plug"]\n',
         );
@@ -591,10 +612,44 @@ describe('changed-areas', () => {
         commit(dir, { 'packages/plug/README.md': '# Plug\n\nGenerated docs.\n' }, 'docs: update generated READMEs');
         const result = run(dir, base, 'HEAD');
         assert.ok(result.ok, result.log);
-        assert.equal(
+        assertOutputs(
             result.outputs,
             'code=false\nactions=[]\nactions_to_test=[]\nextensions=[]\nextensions_to_test=[]\ngenerated_readmes=true\ngenerator=false\nintegration_scope=none\nintegration_extra=\n',
         );
         assert.match(result.log, /Generated README update commit detected/);
     });
+
+    /** Commits each subject in turn, each one changing the plugin's source, and returns the base. */
+    function releasePush(subjects) {
+        const dir = repo({ 'packages/plug/src/plugin.ts': 'export {};\n' });
+        const base = git(dir, 'rev-parse', 'HEAD').trim();
+        subjects.forEach((subject, index) => {
+            commit(dir, { 'packages/plug/src/plugin.ts': `export const step = ${index};\n` }, subject);
+        });
+        return { dir, base };
+    }
+
+    it('skips the expensive suites for a release merge pushed with the release PR follow-up commits', () => {
+        const { dir, base } = releasePush([
+            'chore(master): release plug 1.0.1',
+            'fix(create-pumpkin-plugin): sync starter tool versions',
+            'docs: update generated READMEs',
+        ]);
+        const result = runFor('push', dir, base, 'HEAD');
+        assert.ok(result.ok, result.log);
+        assertOutputs(result.outputs, 'code=true\nskip_expensive_checks=true\n');
+    });
+
+    for (const [name, event, subjects] of [
+        ['a push that also has other commits', 'push', ['chore(master): release plug 1.0.1', 'fix(plug): change']],
+        ['a push of follow-up commits without a release', 'push', ['docs: update generated READMEs']],
+        ['a pull request', 'pull_request', ['chore(master): release plug 1.0.1']],
+    ]) {
+        it(`runs the expensive suites for ${name}`, () => {
+            const { dir, base } = releasePush(subjects);
+            const result = runFor(event, dir, base, 'HEAD');
+            assert.ok(result.ok, result.log);
+            assertOutputs(result.outputs, 'skip_expensive_checks=false\n');
+        });
+    }
 });

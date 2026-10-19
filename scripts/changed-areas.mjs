@@ -11,6 +11,16 @@ const DOCS = [/\.md$/, /^docs\//, /^LICENSE$/, /^(packages|tools|actions|extensi
 /** Label and CodeRabbit settings affect automation configuration, not plugin or repository code. */
 const LABEL_CONFIGURATION = new Set(['.github/labels.yml', '.coderabbit.yaml']);
 const repositoryRoot = path.resolve(import.meta.dirname, '..');
+/** The subject of the release workflow's generated README commit, which reruns the docs checks. */
+const GENERATED_READMES_SUBJECT = 'docs: update generated READMEs';
+/**
+ * Commit subjects that a merged release PR brings to the default branch. The release-pr job in
+ * .github/workflows/release.yml writes the follow-up commits; keep these in step with it.
+ */
+const RELEASE_PR_SUBJECTS = {
+    release: [/^chore\(master\): release /, /^chore: retire first-release pins$/],
+    followUp: [/^fix\(create-pumpkin-plugin\): sync starter tool versions$/, /^docs: update generated READMEs$/],
+};
 
 /** Resolves the generator smoke test's inputs from the checked-out repository. */
 function generatorInputs() {
@@ -363,6 +373,7 @@ if (commitLog.status !== 0) {
     process.exit(1);
 }
 const changedByNonIgnoredCommits = new Set();
+const subjects = [];
 let currentSha;
 let generatedReadmes = false;
 for (const line of commitLog.stdout.split('\n')) {
@@ -370,13 +381,22 @@ for (const line of commitLog.stdout.split('\n')) {
     if (separator !== -1 && /^[a-f\d]{40}$/.test(line.slice(0, separator))) {
         currentSha = line.slice(0, separator);
         const subject = line.slice(separator + 1);
-        if (!ignoredCommitShas.has(currentSha) && subject === 'docs: update generated READMEs') {
+        subjects.push(subject);
+        if (!ignoredCommitShas.has(currentSha) && subject === GENERATED_READMES_SUBJECT) {
             generatedReadmes = true;
         }
         continue;
     }
     if (currentSha && !ignoredCommitShas.has(currentSha) && line) changedByNonIgnoredCommits.add(line);
 }
+const isRelease = (subject) => RELEASE_PR_SUBJECTS.release.some((pattern) => pattern.test(subject));
+const isFollowUp = (subject) => RELEASE_PR_SUBJECTS.followUp.some((pattern) => pattern.test(subject));
+// A merged release PR only bumps versions and regenerates files from commits that already passed
+// CI, so its push skips the expensive suites. CI's push trigger only covers the default branch.
+const skipExpensiveChecks =
+    process.env.GITHUB_EVENT_NAME === 'push' &&
+    subjects.some(isRelease) &&
+    subjects.every((subject) => isRelease(subject) || isFollowUp(subject));
 const changed = diff.stdout.split('\n').filter((file) => file.length > 0 && changedByNonIgnoredCommits.has(file));
 const isDocs = (file) => DOCS.some((pattern) => pattern.test(file));
 const actionPaths = changed.filter((file) => !isDocs(file) && /^actions\/[^/]+\//.test(file));
@@ -480,12 +500,13 @@ if (extensionsToTest.length) console.log(`Extensions to test: ${extensionsToTest
 console.log(`Generator smoke test: ${generator ? 'selected' : 'skipped'}`);
 console.log(`Integration scope: ${integrationScope}`);
 if (generatedReadmes) console.log('Generated README update commit detected.');
+if (skipExpensiveChecks) console.log('Release merge: the expensive suites are skipped.');
 if (integrationExtra) console.log(`Additional integration package: ${integrationExtra}`);
 if (integrationPackages.size) console.log(`Integration packages: ${[...integrationPackages].sort().join(', ')}`);
 
 if (process.env.GITHUB_OUTPUT) {
     appendFileSync(
         process.env.GITHUB_OUTPUT,
-        `code=${code.length > 0}\nactions=${JSON.stringify(actions)}\nactions_to_test=${JSON.stringify(actionsToTest)}\nextensions=${JSON.stringify(extensions)}\nextensions_to_test=${JSON.stringify(extensionsToTest)}\ngenerated_readmes=${generatedReadmes}\ngenerator=${generator}\nintegration_scope=${integrationScope}\nintegration_extra=${integrationExtra}\n${integrationPackages.size ? `integration_packages=${JSON.stringify([...integrationPackages].sort())}\n` : ''}`,
+        `code=${code.length > 0}\nactions=${JSON.stringify(actions)}\nactions_to_test=${JSON.stringify(actionsToTest)}\nextensions=${JSON.stringify(extensions)}\nextensions_to_test=${JSON.stringify(extensionsToTest)}\ngenerated_readmes=${generatedReadmes}\ngenerator=${generator}\nintegration_scope=${integrationScope}\nskip_expensive_checks=${skipExpensiveChecks}\nintegration_extra=${integrationExtra}\n${integrationPackages.size ? `integration_packages=${JSON.stringify([...integrationPackages].sort())}\n` : ''}`,
     );
 }

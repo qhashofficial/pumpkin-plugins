@@ -152,8 +152,9 @@ Pull requests that change only guide pages or other Markdown outside the include
 the main CI workflow entirely.
 
 On `master`, a push made up only of `chore(master): release ...`,
-`chore: retire first-release pins`, and generated README commits skips unit and script tests,
-external-consumer tests, real-server integration, generator smoke tests and Engine comparison. The
+`chore: retire first-release pins`, starter tool version sync and generated README commits skips
+unit and script tests, external-consumer tests, real-server integration, generator smoke tests and
+Engine comparison. `scripts/changed-areas.mjs` holds these commit subjects. The
 integration and generator gates accept these intentional skips. Build, lint, typecheck, Docs and
 config checks, and release processing still run when needed.
 
