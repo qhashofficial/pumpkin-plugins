@@ -67,6 +67,8 @@ export interface BuiltCommand {
  * @param host - Creates the nodes.
  * @param tree - The commands, from `defineCommands`.
  * @param handlers - What runs each command.
+ * @param suggestions - Suggestion handlers keyed by argument name. A handler applies to every argument
+ * with that name anywhere in the tree, and all of them share one host handler id.
  * @returns One entry per command.
  * @throws {Error} When a runnable command has no handler, which the types already prevent.
  */

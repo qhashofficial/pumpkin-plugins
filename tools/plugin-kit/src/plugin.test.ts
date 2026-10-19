@@ -5,7 +5,6 @@ const calls = vi.hoisted(() => ({
     apiLoad: vi.fn(),
     apiHandleTask: vi.fn(),
     apiUnload: vi.fn(),
-    info: vi.fn(),
     pluginLoad: vi.fn(),
     pluginUnload: vi.fn(),
     registerWithUpdates: vi.fn(),
@@ -33,7 +32,6 @@ vi.mock('@pumpkin-plugins/update-check', () => ({
 }));
 
 vi.mock('./host.ts', () => ({
-    hostLogger: { info: calls.info },
     runCommand: calls.runCommand,
     runTask: calls.runTask,
     scheduleDelayed: calls.scheduleDelayed,
@@ -75,7 +73,7 @@ describe('PluginBase', () => {
         });
     });
 
-    it('runs the common and plugin-specific lifecycle behavior without a duplicate load log', () => {
+    it('runs the common and plugin-specific lifecycle behavior', () => {
         const plugin = new ExamplePlugin();
         const ctx = {} as Context;
 
@@ -83,7 +81,6 @@ describe('PluginBase', () => {
         plugin.onUnload(ctx);
 
         expect(calls.apiLoad).toHaveBeenCalledWith(ctx);
-        expect(calls.info).not.toHaveBeenCalled();
         expect(calls.pluginLoad).toHaveBeenCalledWith(ctx);
         expect(calls.apiUnload).toHaveBeenCalledWith(ctx);
         expect(calls.pluginUnload).toHaveBeenCalledWith(ctx);
