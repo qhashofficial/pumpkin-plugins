@@ -19,42 +19,27 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-it('fingerprints Hermes source modules deterministically and invalidates when one changes', () => {
+it('keeps the Hermes build fingerprint when runtime sources change but CMake inputs do not', () => {
     const { options, packageRoot } = fixture();
-    const sourceFile = path.join(packageRoot, 'src/hermes/build.ts');
-    fs.writeFileSync(sourceFile, 'export const version = 1;\n');
-
+    const sources = ['src/hermes/build.ts', 'src/hermes/toolchain-environment.ts', 'src/cli.ts'].map((filename) =>
+        path.join(packageRoot, filename),
+    );
+    for (const source of sources) fs.writeFileSync(source, 'export const version = 1;\n');
     const original = hermesBuildFingerprint(options);
+
+    for (const source of sources) fs.writeFileSync(source, 'export const version = 2;\n');
 
     expect(hermesBuildFingerprint(options)).toBe(original);
-    fs.writeFileSync(sourceFile, 'export const version = 2;\n');
-    expect(hermesBuildFingerprint(options)).not.toBe(original);
 });
 
-it('does not invalidate the Hermes build fingerprint when a colocated test source changes', () => {
-    const { options, packageRoot } = fixture();
-    const testSources = ['build.test.ts', 'build.spec.ts'].map((filename) =>
-        path.join(packageRoot, 'src/hermes', filename),
+it('changes the Hermes build fingerprint when a CMake argument changes', () => {
+    const { options } = fixture();
+    const original = hermesBuildFingerprint(options);
+
+    expect(hermesBuildFingerprint({ ...options, environment: { STATIC_HERMES_ENABLE_JSI_EXTENSIONS: '1' } })).not.toBe(
+        original,
     );
-    for (const testSource of testSources) fs.writeFileSync(testSource, 'export const testVersion = 1;\n');
-
-    const original = hermesBuildFingerprint(options);
-
-    for (const testSource of testSources) {
-        fs.writeFileSync(testSource, 'export const testVersion = 2;\n');
-        expect(hermesBuildFingerprint(options)).toBe(original);
-    }
-});
-
-it('includes the compiled CLI source in the Hermes build fingerprint', () => {
-    const { options, packageRoot } = fixture();
-    const cliSource = path.join(packageRoot, 'src/cli.ts');
-    fs.writeFileSync(cliSource, 'export const version = 1;\n');
-
-    const original = hermesBuildFingerprint(options);
-    fs.writeFileSync(cliSource, 'export const version = 2;\n');
-
-    expect(hermesBuildFingerprint(options)).not.toBe(original);
+    expect(hermesBuildFingerprint({ ...options, gcVariant: 'malloc' })).not.toBe(original);
 });
 
 it('builds missing archives, reuses a current cache, and rebuilds when settings change', async () => {
