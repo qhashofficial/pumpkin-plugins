@@ -1,10 +1,10 @@
 import type { Context } from 'pumpkin:plugin/context@0.1.0';
-import * as logging from 'pumpkin:plugin/logging@0.1.0';
 import type { Server } from 'pumpkin:plugin/server@0.1.0';
 import { now as monotonicNow } from 'wasi:clocks/monotonic-clock@0.2.3';
 import { type ConfigStore, defaultValues } from '@pumpkin-plugins/config';
+import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import { WasiDataDir } from '@pumpkin-plugins/plugin-kit/data-dir';
-import { cancelTask, scheduleRepeating } from '@pumpkin-plugins/plugin-kit/host';
+import { cancelTask, hostLogger, scheduleRepeating } from '@pumpkin-plugins/plugin-kit/host';
 import { ipcSend } from '@pumpkin-plugins/plugin-kit/ipc';
 import { PluginBase, registerPlugin } from '@pumpkin-plugins/plugin-kit/plugin';
 import { registerCommands } from '@pumpkin-plugins/plugin-kit/register-commands';
@@ -34,7 +34,7 @@ class TabDisplay extends PluginBase {
     /** Loads validated config, starts one PIE session and registers operator diagnostics. */
     protected onPluginLoad(ctx: Context): void {
         this.files = WasiDataDir.open();
-        if (this.files === undefined) logging.log('error', `${PLUGIN_NAME}: data-folder permissions are unavailable`);
+        if (this.files === undefined) hostLogger.error(`${PLUGIN_NAME}: data-folder permissions are unavailable`);
 
         const config = this.loadStartupConfig();
         const host = new JavaTabDisplayHost();
@@ -42,7 +42,8 @@ class TabDisplay extends PluginBase {
             provider: config.placeholders.provider,
             send: ipcSend,
             now: monotonicMilliseconds,
-            onTransition: (state) => logging.log('info', `${PLUGIN_NAME}: PumpkinPIE provider is ${state.kind}`),
+            onTransition: (state) =>
+                hostLogger.info(`${PLUGIN_NAME}: PumpkinPIE provider is ${ansi.named.value(state.kind)}`),
         });
         const service = new TabDisplayService({
             host,
@@ -54,7 +55,7 @@ class TabDisplay extends PluginBase {
             },
             now: monotonicMilliseconds,
             config,
-            log: (message) => logging.log('warn', `${PLUGIN_NAME}: ${message}`),
+            log: (message) => hostLogger.warn(`${PLUGIN_NAME}: ${message}`),
         });
 
         this.host = host;
@@ -96,8 +97,7 @@ class TabDisplay extends PluginBase {
                 this.host.snapshotPlayers(5000);
                 this.service.shutdown();
             } catch (error) {
-                logging.log(
-                    'warn',
+                hostLogger.warn(
                     `${PLUGIN_NAME}: could not restore owned tab fields during unload: ${errorMessage(error)}`,
                 );
             } finally {
@@ -123,7 +123,7 @@ class TabDisplay extends PluginBase {
             session.tick();
             service.tick();
         } catch (error) {
-            logging.log('warn', `${PLUGIN_NAME}: display tick failed: ${errorMessage(error)}`);
+            hostLogger.warn(`${PLUGIN_NAME}: display tick failed: ${errorMessage(error)}`);
         } finally {
             host.endTick();
         }
@@ -132,12 +132,12 @@ class TabDisplay extends PluginBase {
     private loadStartupConfig(): TabDisplayConfig {
         try {
             const loaded = loadTabDisplayConfig(this.configStore());
-            for (const warning of loaded.warnings) logging.log('warn', `${PLUGIN_NAME}: ${CONFIG_FILE}: ${warning}`);
+            for (const warning of loaded.warnings)
+                hostLogger.warn(`${PLUGIN_NAME}: ${ansi.named.name(CONFIG_FILE)}: ${warning}`);
             return loaded.config;
         } catch (error) {
-            logging.log(
-                'error',
-                `${PLUGIN_NAME}: invalid or unavailable config; using defaults: ${errorMessage(error)}`,
+            hostLogger.error(
+                `${PLUGIN_NAME}: ${ansi.named.name(CONFIG_FILE)} is invalid or unavailable; using defaults: ${errorMessage(error)}`,
             );
             return defaultValues(configSchema);
         }

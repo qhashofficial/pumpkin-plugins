@@ -29,15 +29,10 @@ export class JavaTabDisplayHost implements TabDisplayHost {
         this.server = server;
     }
 
-    /** Drops the transient server handle after one scheduled callback. */
-    clearServer(): void {
-        this.server = undefined;
-    }
-
     /** Releases player resources and the server handle before the callback returns. */
     endTick(): void {
         this.releaseActivePlayers();
-        this.clearServer();
+        this.server = undefined;
     }
 
     /** Copies at most `limit + 1` snapshots; the extra record reports capacity overflow. */

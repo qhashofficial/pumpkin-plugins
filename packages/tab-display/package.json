@@ -51,6 +51,7 @@
     "dependencies": {
         "@pumpkin-plugins/config": "workspace:*",
         "@pumpkin-plugins/docs": "workspace:*",
+        "@pumpkin-plugins/minecraft-colors": "workspace:*",
         "@pumpkin-plugins/plugin-kit": "workspace:*",
         "@pumpkin-plugins/pumpkin-api": "catalog:",
         "@pumpkin-plugins/pumpkin-pie-api": "catalog:",
