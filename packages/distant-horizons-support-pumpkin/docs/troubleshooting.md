@@ -3,8 +3,9 @@
 ## The client disconnects or never opens a session
 
 Check the plugin README for the supported Distant Horizons release and make sure the client is
-running it. If the protocol versions differ, the plugin closes the session. Only Java Edition
-players can open Distant Horizons sessions.
+running it. If the protocol versions differ, the plugin closes the session and logs a warning with
+the client's and the server's protocol numbers. Only Java Edition players can open Distant Horizons
+sessions.
 
 ## Requests stay pending because terrain is unavailable
 

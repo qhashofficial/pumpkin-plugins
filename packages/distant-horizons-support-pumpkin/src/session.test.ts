@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { readSettings } from './config/load.ts';
 import { LodCache } from './lod/cache.ts';
 import { PLUGIN_NAME } from './name.ts';
-import { Reader } from './protocol/bytes.ts';
+import { Reader, Writer } from './protocol/bytes.ts';
 import { packet } from './protocol/messages.ts';
 import { type Peer, Sessions } from './session.ts';
 
@@ -1258,6 +1258,24 @@ describe('DH sessions', () => {
         expect(changed).toHaveBeenCalledOnce();
         expect(f.cache.has('world:0:0')).toBe(false);
         expect(f.cache.has('world:1:0')).toBe(true);
+    });
+    it('warns once with both protocol numbers when a client uses another DH protocol', () => {
+        const f = fixture();
+        const otherProtocol = new Writer().short(15).short(3).string('minecraft:overworld').finish();
+
+        f.sessions.receive(f.peer, otherProtocol);
+        f.sessions.receive(f.peer, otherProtocol);
+
+        expect(f.log.of('warn')).toHaveLength(1);
+        expect(
+            // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI color codes start with the ESC control character.
+            f.log.of('warn')[0]?.replace(/\u001b\[[0-9;]*m/g, ''),
+        ).toMatch(/\b15\b.*\b16\b/);
+        expect(f.sessions.hasClient('Alice')).toBe(false);
+        const close = new Reader(f.sent[0] ?? new Uint8Array());
+        close.short();
+        expect(close.short()).toBe(1);
+        expect(close.string()).not.toContain('RangeError');
     });
     it('resets pending requests on a world change and closes malformed sessions', () => {
         const f = fixture();

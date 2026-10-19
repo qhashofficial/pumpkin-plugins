@@ -19,10 +19,11 @@ import { PLUGIN_NAME } from './name.ts';
 import { CHUNK_SIZE_BLOCKS, SECTION_DETAIL, SECTION_SIZE_BLOCKS } from './protocol/constants.ts';
 import {
     closeSession,
+    DH_VERSION,
     decode,
     levelInit,
     type Message,
-    packet,
+    PROTOCOL,
     reject,
     type Section,
     type SessionConfiguration,
@@ -112,6 +113,7 @@ export class Sessions {
     private readonly terrainRetries = new Map<string, TerrainRetry>();
     private readonly refreshes = new Map<string, Refresh>();
     private readonly revisions = new Map<string, number>();
+    private readonly protocolWarnings = new Set<string>();
     private readonly workBudget = new AdaptiveWorkBudget({ initialUnits: 8192 });
     private readonly forcedGeneration: ForcedLodGeneration;
     private buffer = 1;
@@ -166,14 +168,21 @@ export class Sessions {
         try {
             message = decode(bytes);
         } catch (err) {
-            this.log.debug(
-                `${logTag} Ignoring malformed DH message from ${ansi.named.name(peer.name)}: ${String(err)}.`,
-            );
-            peer.send(
-                packet(1)
-                    .string(`${PLUGIN_NAME}: ${String(err)}`)
-                    .finish(),
-            );
+            const reason = err instanceof Error ? err.message : String(err);
+            const clientProtocol = bytes.length >= 2 ? (bytes[0] ?? 0) * 256 + (bytes[1] ?? 0) : PROTOCOL;
+            if (clientProtocol !== PROTOCOL) {
+                if (!this.protocolWarnings.has(peer.name)) {
+                    this.protocolWarnings.add(peer.name);
+                    this.log.warn(
+                        `${logTag} ${ansi.named.name(peer.name)} uses DH protocol ${ansi.named.number(clientProtocol)}, but this plugin supports protocol ${ansi.named.number(PROTOCOL)} (Distant Horizons ${ansi.named.version(DH_VERSION)}); closed the DH session.`,
+                    );
+                }
+            } else {
+                this.log.debug(
+                    `${logTag} Closed DH session for ${ansi.named.name(peer.name)} after malformed message: ${reason}.`,
+                );
+            }
+            peer.send(closeSession(`${PLUGIN_NAME}: ${reason}`));
             this.endSession(peer.name);
             return;
         }
@@ -513,6 +522,7 @@ export class Sessions {
     /** Removes a leaving player and cancels their operator capture. */
     playerLeft(name: string): void {
         this.forcedGeneration.left(name);
+        this.protocolWarnings.delete(name);
         this.removeClient(name);
     }
     /** Invalidates a known changed section so pending captures of it start again. */
