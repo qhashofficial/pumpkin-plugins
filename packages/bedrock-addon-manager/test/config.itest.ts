@@ -12,7 +12,7 @@ describe('first start', () => {
         const r = await start({ name: 'first-start' });
         await r.server.waitForLog(/Created config\.toml with the default settings/);
         await r.server.waitForLog(/No packs in packs\//);
-        await r.server.waitForLog(/This plugin does not send pack offers to players\./);
+        await r.server.waitForLog(/run \/baddon export on the server console/);
 
         const config = r.read('config.toml');
         expect(config).toContain('[web]');

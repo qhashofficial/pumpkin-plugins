@@ -55,19 +55,22 @@ export const configSchema = defineConfig(PLUGIN_NAME, {
             }),
             force: bool({
                 description:
-                    'Require pack downloads before players can join. This setting has no effect because BedrockAddonManager does not send pack offers to players.',
+                    'Require players to accept the packs before they can join. `/baddon export` writes it as `resource_pack.bedrock.force`.',
                 default: false,
             }),
         },
     }),
     overrides: table({
         description:
-            'Per-pack overrides, keyed by file name. For packs extracted from a `.mcaddon`, use the name shown by `/baddon list`. All settings are optional. Packs are ordered by `order` (lowest first, default 0), then by file name.',
+            'Per-pack overrides, keyed by file name. For packs extracted from a `.mcaddon`, use the name shown by `/baddon list`. All settings are optional. Packs are ordered by `order` (lowest first, default 0), then by file name. Except for `enabled`, they only reach players through the block `/baddon export` prints.',
         entryName: 'file',
         exampleKey: 'My Pack.mcpack',
         fields: {
             enabled: bool({ description: 'Set to false to leave the pack out entirely.', example: false }),
-            order: int({ description: 'Position in the pack list, lowest first.', example: 10 }),
+            order: int({
+                description: 'Position in the pack list and in the exported block, lowest first.',
+                example: 10,
+            }),
             download_url: httpUrl({
                 description: 'Download the pack from this URL instead of the built-in web server, for example a CDN.',
                 example: 'https://cdn.example.com/my-pack.mcpack',

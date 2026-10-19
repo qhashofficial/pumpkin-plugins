@@ -23,9 +23,10 @@ inner filename may be different.
 
 To leave out a pack, set `overrides."<file>".enabled = false`; you can also change its position
 with the `order` override. Config changes take effect after `/baddon reload` or a server restart.
-BedrockAddonManager does not edit `pumpkin.toml`.
 
 ## Packs are not offered to joining players
 
-BedrockAddonManager hosts pack files, but it does not send resource-pack offers when players join.
-That means clients are not prompted to download the packs, and setting `packs.force` has no effect.
+Pumpkin offers only the packs in the `[resource_pack.bedrock]` section of `pumpkin.toml`. Run
+`/baddon export`, paste the block into `pumpkin.toml` and restart Pumpkin, as described in
+[Offer the packs to players](setup.md#offer-the-packs-to-players). Export again after adding packs
+or changing overrides or the download address.

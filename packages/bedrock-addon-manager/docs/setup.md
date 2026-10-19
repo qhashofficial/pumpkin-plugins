@@ -39,4 +39,21 @@ shown by `/baddon list` as the key under `overrides`.
 
 You can use `overrides` to change pack order, disable a pack, provide a different download URL, or
 set manifest values such as `content_key` and `content_id`. Packs are ordered by `order`, then by
-filename. The plugin doesn't edit the server's `pumpkin.toml`.
+filename. Apart from `enabled`, overrides reach players only through the exported block below.
+
+## Offer the packs to players
+
+Pumpkin builds the pack offer for joining Bedrock players from the `[resource_pack.bedrock]` section
+of its `pumpkin.toml`, and a plugin can't add packs to it. BedrockAddonManager never edits
+`pumpkin.toml`, so you copy the packs in yourself:
+
+1. Set the download address first (see above), so the exported URLs are ones players can reach.
+2. Run `/baddon export` on the server console. It prints a `[resource_pack.bedrock]` block with
+   `enabled = true`, `force` from `packs.force`, and one `[[resource_pack.bedrock.packs]]` table per
+   listed pack, with its exact size, download URL and overrides.
+3. In `pumpkin.toml`, replace the existing `[resource_pack.bedrock]` section, including its
+   `packs = []` line, with the printed block.
+4. Restart Pumpkin. It reads `pumpkin.toml` only on start.
+
+Export again and repeat these steps whenever packs, overrides or the download address change. The
+server log says when the address changes.
