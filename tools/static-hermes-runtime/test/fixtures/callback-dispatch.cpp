@@ -80,10 +80,12 @@ void initializeRuntime() {}
 std::string invokedExport;
 std::vector<Value> receivedArguments;
 Value callbackResult = Value::fromBool(false);
+bool callbackThrows = false;
 int loggedErrors = 0;
 Value callExport(const char *name, Value *arguments, std::size_t count) {
     invokedExport = name;
     receivedArguments.assign(arguments, arguments + count);
+    if (callbackThrows) throw JSError("callback failed");
     return callbackResult;
 }
 void logPluginError(const std::string &message) {
@@ -139,4 +141,19 @@ int main() {
     assert((droppedEntityHandles == std::vector<std::int32_t>{201, 202, 203, 204, 205}));
     assert((droppedChunkHandles == std::vector<std::int32_t>{306}));
     assert(loggedErrors == 0);
+
+    // A throwing handler fails boolean goal callbacks, logs every error and still drops every resource.
+    callbackThrows = true;
+    assert(!exports_plugin_handle_ai_goal_can_start(11, {111}, {211}));
+    assert(!exports_plugin_handle_ai_goal_should_continue(12, {112}, {212}));
+    exports_plugin_handle_ai_goal_start(13, {113}, {213});
+    exports_plugin_handle_ai_goal_tick(14, {114}, {214});
+    exports_plugin_handle_ai_goal_stop(15, {115}, {215});
+    exports_plugin_handle_generate_phase(16, PUMPKIN_PLUGIN_WORLD_GENERATION_PHASE_NOISE, {316});
+    assert(loggedErrors == 6);
+    assert((droppedServerHandles ==
+            std::vector<std::int32_t>{101, 102, 103, 104, 105, 111, 112, 113, 114, 115}));
+    assert((droppedEntityHandles ==
+            std::vector<std::int32_t>{201, 202, 203, 204, 205, 211, 212, 213, 214, 215}));
+    assert((droppedChunkHandles == std::vector<std::int32_t>{306, 316}));
 }
