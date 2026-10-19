@@ -110,6 +110,8 @@ class Waypoints extends PluginBase {
                     this.pendingItemIconInputs.delete(playerKey);
                     return input;
                 }
+                // RCON commands fire no event the plugin can read, so only the console has an input.
+                if (!sender.isConsole()) return undefined;
                 const input = this.pendingServerItemIconInput;
                 this.pendingServerItemIconInput = undefined;
                 return input;

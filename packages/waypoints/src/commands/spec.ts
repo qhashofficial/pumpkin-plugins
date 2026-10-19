@@ -4,7 +4,7 @@ import { PLUGIN_NAME } from '../name.ts';
 /** Permission node for player-readable waypoint commands. */
 export const COMMAND_PERMISSION = `${PLUGIN_NAME}:command.use` as const;
 
-/** Command-tree default for mutations; handlers still verify actual Pumpkin operator status. */
+/** Permission node that handlers check before any waypoint mutation. */
 export const ADMIN_PERMISSION = `${PLUGIN_NAME}:command.admin` as const;
 
 const ADMIN_DEFAULT = { tag: 'op', val: 'three' } as const;
@@ -71,7 +71,7 @@ export const commands = defineCommands(PLUGIN_NAME, {
             list: { description: 'List enabled waypoints you can access' },
             info: { description: 'Show details for an enabled waypoint you can access', arguments: [name] },
             teleport: {
-                description: 'Teleport to a waypoint or, as an operator, teleport selected players',
+                description: 'Teleport to a waypoint or, as an admin, teleport selected players',
                 argumentVariants: teleportVariants,
             },
             tp: {

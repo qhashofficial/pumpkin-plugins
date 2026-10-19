@@ -18,14 +18,21 @@ settings.
 
 ## Create and use waypoints
 
-Operators can create a waypoint at their exact position with `/wp create "Home Base"`, or provide
+Admins can create a waypoint at their exact position with `/wp create "Home Base"`, or provide
 absolute coordinates with `/wp create "Home Base" 120.5 64 -30`. Names are unique across all dimensions.
 Use `/wp list` to see enabled waypoints you can access, `/wp info <name>` for details, and
-`/wp tp <name>` to teleport yourself. Operators can use `/wp tp <name> @a` to teleport a player selector.
+`/wp tp <name>` to teleport yourself. Admins can use `/wp tp <name> @a` to teleport a player selector.
 
-Only server operators can create, edit, enable, disable, grant, or delete waypoints. Every
-administrative handler checks Pumpkin's operator list even if a command permission was manually
-granted. Player grants resolve online names and store UUIDs. A group grant checks the permission
+Creating, editing, enabling, disabling, granting, and deleting waypoints needs the
+`Waypoints:command.admin` permission. It defaults to operator level 3, and a permissions plugin can
+grant it to other players. Server operators can see and teleport to every enabled waypoint,
+regardless of its access rules.
+
+The server console and RCON hold every permission, so they can run the admin commands too. The
+exceptions are `/wp create` and `/wp relocate`, which use the sender's position or world and need a
+player. Over RCON, `/wp set icon` fails because Pumpkin doesn't pass the item to the plugin.
+
+Player grants resolve online names and store UUIDs. A group grant checks the permission
 marker `Waypoints:group.<slug>`; another permission provider must assign that marker to group
 members.
 

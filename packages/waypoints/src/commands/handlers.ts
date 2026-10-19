@@ -16,9 +16,9 @@ import {
     type WaypointMetadataKey,
     waypointNameKey,
 } from '../waypoints/model.ts';
-import type { commands } from './spec.ts';
+import { ADMIN_PERMISSION, type commands } from './spec.ts';
 
-const OPERATOR_ONLY = 'Only server operators can manage waypoints.';
+const NOT_ADMIN = 'You do not have permission to manage waypoints.';
 const PLAYER_ONLY = 'This command can only be used by a player.';
 const INACCESSIBLE = 'Waypoint not found or you do not have access.';
 const STORAGE_ERROR =
@@ -45,16 +45,10 @@ interface Actor {
 /** Builds handlers whose names and values are inferred from the shared command declaration. */
 export function commandHandlers(runtime: WaypointCommandRuntime): CommandHandlers<typeof commands, CommandSender> {
     return {
-        'wp reload': (sender) =>
-            withActorContext(
-                runtime,
-                sender,
-                (actor) => (actor.isOperator ? reloadLines(runtime) : [errorLine(OPERATOR_ONLY)]),
-                () => reloadLines(runtime),
-            ),
+        'wp reload': (sender) => withAdmin(runtime, sender, () => reloadLines(runtime)),
         'wp create': () => [errorLine('Usage: /wp create <name> [<x> <y> <z>].')],
         'wp create <name>': (sender, { name }) =>
-            withOperator(runtime, sender, (actor) =>
+            withAdminPlayer(runtime, sender, (actor) =>
                 withCurrentLocation(actor, (dimension, position) =>
                     mutationLines(
                         runtime.catalog.create({ id: runtime.createWaypointId(), name, dimension, position }),
@@ -63,7 +57,7 @@ export function commandHandlers(runtime: WaypointCommandRuntime): CommandHandler
                 ),
             ),
         'wp create <name> <x> <y> <z>': (sender, { name, x, y, z }) =>
-            withOperator(runtime, sender, (actor) =>
+            withAdminPlayer(runtime, sender, (actor) =>
                 withWorldName(actor, (dimension) =>
                     mutationLines(
                         runtime.catalog.create({
@@ -77,22 +71,20 @@ export function commandHandlers(runtime: WaypointCommandRuntime): CommandHandler
                 ),
             ),
         'wp delete <name>': (sender, { name }) =>
-            withOperator(runtime, sender, () =>
-                mutationLines(runtime.catalog.remove(name), `Deleted waypoint ${name}.`),
-            ),
+            withAdmin(runtime, sender, () => mutationLines(runtime.catalog.remove(name), `Deleted waypoint ${name}.`)),
         'wp rename <name> <newName>': (sender, { name, newName }) =>
-            withOperator(runtime, sender, () =>
+            withAdmin(runtime, sender, () =>
                 mutationLines(runtime.catalog.rename(name, newName), `Renamed waypoint ${name} to ${newName}.`),
             ),
         'wp relocate': () => [errorLine('Usage: /wp relocate <name> [<x> <y> <z>].')],
         'wp relocate <name>': (sender, { name }) =>
-            withOperator(runtime, sender, (actor) =>
+            withAdminPlayer(runtime, sender, (actor) =>
                 withCurrentLocation(actor, (dimension, position) =>
                     mutationLines(runtime.catalog.relocate(name, dimension, position), `Relocated waypoint ${name}.`),
                 ),
             ),
         'wp relocate <name> <x> <y> <z>': (sender, { name, x, y, z }) =>
-            withOperator(runtime, sender, (actor) =>
+            withAdminPlayer(runtime, sender, (actor) =>
                 withWorldName(actor, (dimension) =>
                     mutationLines(
                         runtime.catalog.relocate(name, dimension, { x, y, z }),
@@ -121,15 +113,15 @@ export function commandHandlers(runtime: WaypointCommandRuntime): CommandHandler
         'wp tp <name>': (sender, { name }) => teleportSelf(runtime, sender, name),
         'wp tp <name> <targets>': (sender, { name, targets }) => teleportTargets(runtime, sender, name, targets),
         'wp enable <name>': (sender, { name }) =>
-            withOperator(runtime, sender, () =>
+            withAdmin(runtime, sender, () =>
                 mutationLines(runtime.catalog.setEnabled(name, true), `Enabled waypoint ${name}.`),
             ),
         'wp disable <name>': (sender, { name }) =>
-            withOperator(runtime, sender, () =>
+            withAdmin(runtime, sender, () =>
                 mutationLines(runtime.catalog.setEnabled(name, false), `Disabled waypoint ${name}.`),
             ),
         'wp get <name>': (sender, { name }) =>
-            withOperator(runtime, sender, () => {
+            withAdmin(runtime, sender, () => {
                 if (!runtime.catalog.isAvailable) return [errorLine(STORAGE_ERROR)];
                 const waypoint = runtime.catalog.getByName(name);
                 return waypoint === undefined ? [errorLine('Waypoint not found.')] : [formatAdminDetails(waypoint)];
@@ -157,7 +149,7 @@ export function commandHandlers(runtime: WaypointCommandRuntime): CommandHandler
                 'Waypoint is restricted.',
             ),
         'wp access list <name>': (sender, { name }) =>
-            withOperator(runtime, sender, () => {
+            withAdmin(runtime, sender, () => {
                 const waypoint = runtime.catalog.getByName(name);
                 if (waypoint === undefined) return [errorLine('Waypoint not found.')];
                 return [
@@ -166,7 +158,7 @@ export function commandHandlers(runtime: WaypointCommandRuntime): CommandHandler
                 ];
             }),
         'wp access grant player <name> <player>': (sender, { name, player }) =>
-            withOperator(runtime, sender, () =>
+            withAdmin(runtime, sender, () =>
                 withOnlinePlayer(runtime, player, (target) =>
                     updateGrant(
                         runtime,
@@ -177,13 +169,13 @@ export function commandHandlers(runtime: WaypointCommandRuntime): CommandHandler
                 ),
             ),
         'wp access grant permission <name> <permission>': (sender, { name, permission }) =>
-            withOperator(runtime, sender, () =>
+            withAdmin(runtime, sender, () =>
                 updateGrant(runtime, name, { type: 'permission', node: permission }, true),
             ),
         'wp access grant group <name> <group>': (sender, { name, group }) =>
-            withOperator(runtime, sender, () => updateGrant(runtime, name, { type: 'group', slug: group }, true)),
+            withAdmin(runtime, sender, () => updateGrant(runtime, name, { type: 'group', slug: group }, true)),
         'wp access revoke player <name> <player>': (sender, { name, player }) =>
-            withOperator(runtime, sender, () =>
+            withAdmin(runtime, sender, () =>
                 withOnlinePlayer(runtime, player, (target) =>
                     updateGrant(
                         runtime,
@@ -194,13 +186,13 @@ export function commandHandlers(runtime: WaypointCommandRuntime): CommandHandler
                 ),
             ),
         'wp access revoke permission <name> <permission>': (sender, { name, permission }) =>
-            withOperator(runtime, sender, () =>
+            withAdmin(runtime, sender, () =>
                 updateGrant(runtime, name, { type: 'permission', node: permission }, false),
             ),
         'wp access revoke group <name> <group>': (sender, { name, group }) =>
-            withOperator(runtime, sender, () => updateGrant(runtime, name, { type: 'group', slug: group }, false)),
+            withAdmin(runtime, sender, () => updateGrant(runtime, name, { type: 'group', slug: group }, false)),
         'wp set color <name> <hex>': (sender, { name, hex }) =>
-            withOperator(runtime, sender, () => {
+            withAdmin(runtime, sender, () => {
                 let color: string;
                 try {
                     color = normalizeColor(hex);
@@ -210,7 +202,7 @@ export function commandHandlers(runtime: WaypointCommandRuntime): CommandHandler
                 return mutationLines(runtime.catalog.update(name, { color }), `Updated color for ${name}.`);
             }),
         'wp set icon <name> <item>': (sender, { name, item }) =>
-            withOperator(runtime, sender, () => {
+            withAdmin(runtime, sender, () => {
                 const pendingInput = runtime.consumePendingItemIconInput?.(sender);
                 const itemIdentifier = item || pendingInput || '';
                 if (itemIdentifier === '') {
@@ -227,66 +219,61 @@ export function commandHandlers(runtime: WaypointCommandRuntime): CommandHandler
                     : [errorLine('That item identifier is not present in the server item registry.')];
             }),
         'wp set label <name> <label>': (sender, { name, label }) =>
-            withOperator(runtime, sender, () =>
+            withAdmin(runtime, sender, () =>
                 mutationLines(runtime.catalog.update(name, { label }), `Updated label for ${name}.`),
             ),
         'wp set description <name> <description>': (sender, { name, description }) =>
-            withOperator(runtime, sender, () =>
+            withAdmin(runtime, sender, () =>
                 mutationLines(runtime.catalog.update(name, { description }), `Updated description for ${name}.`),
             ),
         'wp set visibility-range <name> <range>': (sender, { name, range }) =>
-            withOperator(runtime, sender, () =>
+            withAdmin(runtime, sender, () =>
                 mutationLines(
                     runtime.catalog.update(name, { visibilityRange: range }),
                     `Updated visibility range for ${name}.`,
                 ),
             ),
         'wp reset <property> <name>': (sender, { property, name }) =>
-            withOperator(runtime, sender, () => resetProperty(runtime, name, property)),
+            withAdmin(runtime, sender, () => resetProperty(runtime, name, property)),
     };
 }
 
 /** Suggests waypoint names visible to this sender, using the same access policy as commands. */
 export function waypointNameSuggestions(runtime: WaypointCommandRuntime): CommandSuggestionHandler<CommandSender> {
-    return (sender, request) =>
-        withActorContext(
+    return (sender, request) => {
+        if (!runtime.catalog.isAvailable) return [];
+        const prefix = suggestionPrefix(request.remaining);
+        const names = (include: (waypoint: Waypoint) => boolean) =>
+            runtime.catalog
+                .list()
+                .filter((waypoint) => include(waypoint) && waypointNameKey(waypoint.name).startsWith(prefix))
+                .sort((left, right) => waypointNameKey(left.name).localeCompare(waypointNameKey(right.name)))
+                .map((waypoint) => quoteWaypointName(waypoint.name));
+        if (isAdmin(runtime, sender)) return names(() => true);
+        return withActorContext(
             runtime,
             sender,
-            (actor) => {
-                if (!runtime.catalog.isAvailable) return [];
-                const prefix = suggestionPrefix(request.remaining);
-                return runtime.catalog
-                    .list()
-                    .filter((waypoint) => (waypoint.enabled || actor.isOperator) && canAccessWaypoint(waypoint, actor))
-                    .filter((waypoint) => waypointNameKey(waypoint.name).startsWith(prefix))
-                    .sort((left, right) => waypointNameKey(left.name).localeCompare(waypointNameKey(right.name)))
-                    .map((waypoint) => quoteWaypointName(waypoint.name));
-            },
+            (actor) => names((waypoint) => waypoint.enabled && canAccessWaypoint(waypoint, actor)),
             () => [],
         );
+    };
 }
 
-/** Suggests matching online player names to operators managing waypoint access. */
+/** Suggests matching online player names to admins managing waypoint access. */
 export function onlinePlayerNameSuggestions(runtime: WaypointCommandRuntime): CommandSuggestionHandler<CommandSender> {
-    return (sender, request) =>
-        withActorContext(
-            runtime,
-            sender,
-            (actor) => {
-                if (!actor.isOperator) return [];
-                const prefix = suggestionPrefix(request.remaining);
-                const players = runtime.server.getAllPlayers();
-                try {
-                    return players
-                        .map((player) => player.getName())
-                        .filter((name) => name.toLowerCase().normalize('NFC').startsWith(prefix))
-                        .sort((left, right) => left.toLowerCase().localeCompare(right.toLowerCase()));
-                } finally {
-                    for (const player of players) disposeWasiResource(player);
-                }
-            },
-            () => [],
-        );
+    return (sender, request) => {
+        if (!isAdmin(runtime, sender)) return [];
+        const prefix = suggestionPrefix(request.remaining);
+        const players = runtime.server.getAllPlayers();
+        try {
+            return players
+                .map((player) => player.getName())
+                .filter((name) => name.toLowerCase().normalize('NFC').startsWith(prefix))
+                .sort((left, right) => left.toLowerCase().localeCompare(right.toLowerCase()));
+        } finally {
+            for (const player of players) disposeWasiResource(player);
+        }
+    };
 }
 
 /** Suggests each property that `/wp reset` can reset, narrowed to the typed prefix. */
@@ -352,12 +339,26 @@ function quoteWaypointName(name: string): string {
     return `"${name.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`;
 }
 
-function withOperator(
+// Pumpkin grants every permission to the console and RCON, so they pass this check.
+function isAdmin(runtime: WaypointCommandRuntime, sender: CommandSender): boolean {
+    return sender.hasPermission(runtime.server, ADMIN_PERMISSION);
+}
+
+function withAdmin(
+    runtime: WaypointCommandRuntime,
+    sender: CommandSender,
+    run: () => readonly CommandLine[],
+): CommandLine[] {
+    return isAdmin(runtime, sender) ? [...run()] : [errorLine(NOT_ADMIN)];
+}
+
+/** For admin commands that read the sender's position or world. */
+function withAdminPlayer(
     runtime: WaypointCommandRuntime,
     sender: CommandSender,
     run: (actor: Actor) => readonly CommandLine[],
 ): CommandLine[] {
-    return withActor(runtime, sender, (actor) => (actor.isOperator ? run(actor) : [errorLine(OPERATOR_ONLY)]));
+    return withAdmin(runtime, sender, () => withActor(runtime, sender, run));
 }
 
 function reloadLines(runtime: WaypointCommandRuntime): CommandLine[] {
@@ -434,7 +435,7 @@ function updateAccess(
     update: (current: Waypoint['access']) => Waypoint['access'],
     success: string,
 ): CommandLine[] {
-    return withOperator(runtime, sender, () => {
+    return withAdmin(runtime, sender, () => {
         const waypoint = runtime.catalog.getByName(name);
         if (waypoint === undefined) return [errorLine('Waypoint not found.')];
         return mutationLines(runtime.catalog.update(name, { access: update(waypoint.access) }), success);
@@ -506,7 +507,7 @@ function teleportTargets(
     name: string,
     targets: readonly { readonly id: string; readonly name: string }[],
 ): CommandLine[] {
-    return withOperator(runtime, sender, (actor) => {
+    return withAdminPlayer(runtime, sender, (actor) => {
         const waypoint = accessibleWaypoint(runtime, actor, name);
         if (waypoint === undefined) return [errorLine(INACCESSIBLE)];
         if (targets.length === 0) return [errorLine('The selector did not match any online players.')];
