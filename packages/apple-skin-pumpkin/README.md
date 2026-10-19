@@ -29,8 +29,9 @@ AppleSkin is a Java Edition mod, so Bedrock players are skipped.
 ## Seeing what it does
 
 Set `log.level` to `debug` in your Pumpkin config. Every packet the plugin sends is then logged with
-the player and the value, along with players joining, leaving and being skipped. Ticks where nothing
-changed are silent, which is the point of only sending on a change.
+the player and the value, along with players joining, leaving and being skipped. After one line for
+the first tick, ticks where nothing changed are silent, which is the point of only sending on a
+change.
 
 ## Permissions
 

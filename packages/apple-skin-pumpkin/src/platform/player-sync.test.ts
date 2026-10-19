@@ -284,7 +284,9 @@ describe('PlayerSync', () => {
         sync.tick(server.host);
 
         expect(player.sent).toEqual([]);
-        expect(log.of('debug')).toEqual([
+        sync.tick(server.host);
+
+        expect(log.of('debug').filter((line) => line.includes('Java Edition'))).toEqual([
             `${ansi.named.name('AppleSkinPumpkin')} ${ansi.named.name('ada')} is not on Java Edition, so there is nothing to sync.`,
         ]);
     });
@@ -314,9 +316,22 @@ describe('PlayerSync', () => {
         ]);
     });
 
+    it('says once, after its first tick, that it is syncing', () => {
+        const { sync, log } = setup();
+        const empty = new FakeServer().host;
+
+        sync.tick(empty);
+        sync.tick(empty);
+
+        expect(log.of('debug')).toEqual([
+            `${ansi.named.name('AppleSkinPumpkin')} Finished the first tick, syncing hunger on every tick from now on.`,
+        ]);
+    });
+
     it('says nothing on a tick where nothing moved, which is most of them', () => {
         const { player, server, sync, log } = setup();
         sync.joined(player.host);
+        sync.tick(server.host);
         log.lines.length = 0;
         player.sent.length = 0;
 
