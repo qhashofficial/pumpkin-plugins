@@ -115,22 +115,16 @@ runs:
               key: static-hermes-wit-bindgen-${{ steps.versions.outputs.wit-bindgen-version }}-${{ runner.os }}-${{ runner.arch }}-rust-${{ steps.versions.outputs.rust-toolchain-version }}
 
         - name: 🦀 Install Rust ${{ steps.versions.outputs.rust-toolchain-version }} and wit-bindgen ${{ steps.versions.outputs.wit-bindgen-version }}
+          if: steps['wit-bindgen-cache'].outputs['cache-hit'] != 'true'
           shell: bash
           env:
               RUST_TOOLCHAIN_VERSION: ${{ steps.versions.outputs.rust-toolchain-version }}
               WIT_BINDGEN_VERSION: ${{ steps.versions.outputs.wit-bindgen-version }}
           run: |
               set -euo pipefail
-              install_root="$RUNNER_TEMP/wit-bindgen-$WIT_BINDGEN_VERSION"
-              wit_bindgen="$install_root/bin/wit-bindgen"
-              if [[ "$RUNNER_OS" == 'Windows' ]]; then
-                  wit_bindgen="$wit_bindgen.exe"
-              fi
               rustup toolchain install "$RUST_TOOLCHAIN_VERSION" --profile minimal
-              if [[ ! -f "$wit_bindgen" ]]; then
-                  cargo "+$RUST_TOOLCHAIN_VERSION" install wit-bindgen-cli --version "$WIT_BINDGEN_VERSION" --locked \
-                      --root "$install_root"
-              fi
+              cargo "+$RUST_TOOLCHAIN_VERSION" install wit-bindgen-cli --version "$WIT_BINDGEN_VERSION" --locked \
+                  --root "$RUNNER_TEMP/wit-bindgen-$WIT_BINDGEN_VERSION"
 
         - name: 💾 Cache Static Hermes build
           id: hermes-workspace-cache

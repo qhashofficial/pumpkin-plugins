@@ -65,6 +65,52 @@ describe('setup-static-hermes action', () => {
         assert.doesNotMatch(`${witBindgenCache.key} ${hermesCache.key}`, /wasi-sdk-34|wit-bindgen-0\.62|rust-1\.99/);
     });
 
+    it('installs Rust and wit-bindgen only when the wit-bindgen cache misses', () => {
+        const install = steps.find((candidate) => candidate.run?.includes('install wit-bindgen-cli'));
+        const runsWhen = (cacheHit) =>
+            runInNewContext(String(install.if ?? 'true').replace(/^\$\{\{|\}\}$/g, ''), {
+                steps: { 'wit-bindgen-cache': { outputs: { 'cache-hit': cacheHit } } },
+            });
+        assert.equal(runsWhen('true'), false);
+        assert.equal(runsWhen(''), true);
+    });
+
+    it('lets the external consumer install the Rust toolchain it checks after a wit-bindgen cache hit', () => {
+        const consumer = parse(
+            fs.readFileSync(path.join(scripts, '../.github/workflows/external-consumer.yml'), 'utf8'),
+        );
+        const check = consumer.jobs['external-consumer'].steps.find((candidate) => candidate.run?.includes('rustc'));
+        const bin = repo({});
+        const calls = path.join(bin, 'calls');
+        const tools = { cmake: 'echo "cmake version 9.8.7"', ninja: 'echo 6.5.4', rustup: '', rustc: '', cargo: '' };
+        for (const [tool, output] of Object.entries(tools)) {
+            fs.writeFileSync(path.join(bin, tool), `#!/usr/bin/env bash\necho "${tool} $*" >> "${calls}"\n${output}\n`);
+            fs.chmodSync(path.join(bin, tool), 0o755);
+        }
+        const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', check.run], {
+            encoding: 'utf8',
+            env: {
+                ...process.env,
+                PATH: `${bin}${path.delimiter}${process.env.PATH}`,
+                RUNNER_OS: 'Linux',
+                CMAKE_VERSION: '9.8.7',
+                NINJA_VERSION: '6.5.4',
+                RUST_VERSION: '1.2.3',
+            },
+        });
+        assert.equal(result.status, 0, result.stderr);
+        const rustCalls = fs
+            .readFileSync(calls, 'utf8')
+            .trim()
+            .split('\n')
+            .filter((call) => /^(?:rustup|rustc|cargo) /.test(call));
+        assert.deepEqual(rustCalls, [
+            'rustup toolchain install 1.2.3 --profile minimal',
+            'rustc +1.2.3 --version',
+            'cargo +1.2.3 --version',
+        ]);
+    });
+
     it('reads every toolchain version from the config files', () => {
         const workspace = repo({
             'config/wasi-sdk.lock.json': JSON.stringify({ version: '99' }),
