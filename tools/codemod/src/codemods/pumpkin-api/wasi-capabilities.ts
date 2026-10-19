@@ -1,6 +1,6 @@
 import * as path from 'node:path';
 import { type AnalysisDiagnostic, analyzeModuleGraph, type ModuleGraph } from '@pumpkin-plugins/static-analysis';
-import { type Capability, capabilitiesForInterface } from '@pumpkin-plugins/wasi-capabilities';
+import { type Capability, capabilitiesForInterface, EXTERNAL_MODULES } from '@pumpkin-plugins/wasi-capabilities';
 import { normalizePackagePath } from './package-path.ts';
 
 /** Capabilities found in a production graph and any limits that need user review. */
@@ -28,7 +28,7 @@ export async function inferWasiCapabilities(projectRoot: string, entry: string):
         graph = await analyzeModuleGraph({
             projectRoot,
             entryPoints: [normalizedEntry],
-            resolution: { external: ['pumpkin:plugin/*', 'wasi:*'], platform: 'browser' },
+            resolution: { external: [...EXTERNAL_MODULES], platform: 'browser' },
         });
     } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);
