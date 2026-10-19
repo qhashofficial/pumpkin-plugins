@@ -29,6 +29,7 @@ import { itemIconInputFromCommand } from './commands/item-input.ts';
 import { commands } from './commands/spec.ts';
 import { info } from './info.ts';
 import { WaypointPlaceholderService } from './placeholders/service.ts';
+import { JAVA_DISPLAY_VERSION } from './rendering/java-version.ts';
 import { WaypointHudService } from './rendering/pumpkin-hud.ts';
 import { WaypointCatalog } from './waypoints/catalog.ts';
 import { normalizeItemIdentifier } from './waypoints/model.ts';
@@ -72,6 +73,10 @@ class Waypoints extends PluginBase {
         const hud = new WaypointHudService(server, catalog, {
             onError: (viewerId, error) =>
                 log.warn(`waypoint HUD update failed for ${ansi.named.uuid(viewerId)}: ${String(error)}`),
+            onUnsupportedVersion: (viewerId, version) =>
+                log.info(
+                    `no waypoint HUD for ${ansi.named.uuid(viewerId)}: client version ${ansi.named.value(version)}, HUD needs ${ansi.named.value(JAVA_DISPLAY_VERSION)}`,
+                ),
         });
         this.hud = hud;
         this.placeholders = new WaypointPlaceholderService(server, catalog, {
