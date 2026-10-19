@@ -33,6 +33,7 @@ export function buildProbePlugin(name: string, source: string): ProbePlugin {
         JSON.stringify({
             name,
             version: '0.0.0',
+            dependencies: { '@pumpkin-plugins/pumpkin-api': `link:${api}` },
             pumpkinPlugin: { entry: 'plugin.ts', output: 'plugin.wasm', engine: 'static-hermes', wasi: [] },
         }),
     );
