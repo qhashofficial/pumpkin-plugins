@@ -408,14 +408,9 @@ function isPackedFile(file, patterns) {
 }
 
 function matchesFilePattern(file, pattern) {
-    const normalizedFile = file.replaceAll('\\', '/');
-    if (!pattern.includes('*')) return normalizedFile === pattern || normalizedFile.startsWith(`${pattern}/`);
-    const expressionSource = pattern
-        .split('**')
-        .map((part) => escapeRegExp(part).replaceAll('*', '[^/]*'))
-        .join('.*');
-    const expression = new RegExp(`^${expressionSource}$`);
-    return expression.test(normalizedFile);
+    // npm packs everything below a directory that a `files` pattern matches.
+    const segments = file.replaceAll('\\', '/').split('/');
+    return segments.some((_, index) => path.posix.matchesGlob(segments.slice(0, index + 1).join('/'), pattern));
 }
 
 function toWorkspacePath(root, directory) {
