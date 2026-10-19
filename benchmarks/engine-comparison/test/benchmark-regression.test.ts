@@ -13,6 +13,15 @@ it('flags workload changes only when they exceed the jitter threshold', () => {
     expect(comparison.changes.find(({ workload: name }) => name === 'stable')?.status).toBe('within-jitter');
 });
 
+it('treats median changes under one millisecond as jitter even when the percentage is large', () => {
+    const baseline = [engine('quickjs', [workload('tiny', [2]), workload('large', [20])])];
+    const current = [engine('quickjs', [workload('tiny', [2.8]), workload('large', [28])])];
+    const comparison = compareBenchmarkResults(current, baseline, 10);
+
+    expect(comparison.changes.find(({ workload: name }) => name === 'tiny')?.status).toBe('within-jitter');
+    expect(comparison.regressions.map(({ workload: name }) => name)).toEqual(['large']);
+});
+
 it('celebrates meaningful improvements and ignores zero-millisecond baselines', () => {
     const baseline = [engine('quickjs', [workload('faster', [100]), workload('unresolved', [0])])];
     const current = [engine('quickjs', [workload('faster', [85]), workload('unresolved', [5])])];
