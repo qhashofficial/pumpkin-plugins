@@ -13,16 +13,24 @@ instance with `registerPlugin` to enable the non-blocking Pumpkin Market update 
 `handleTask` from your plugin entry point as well; it dispatches the kit's scheduled work and then
 passes other task IDs to the Pumpkin API handler.
 
-The scheduling helpers accept whole, nonnegative tick counts. Repeating tasks must run at least
-once per tick, while delayed tasks may run immediately with a delay of zero. If scheduling fails,
-the kit releases the callback; when a delayed callback runs, it releases it before execution.
+The scheduling helpers accept whole, nonnegative tick counts. A repeating period must be at least
+one tick; a delayed task may use a delay of zero. `cancelTask` stops either kind and releases its
+callback. If scheduling fails, the kit releases the callback; when a delayed callback runs, it
+releases it before execution.
+
+Use `hostLogger` to write to the server log. Format values worth scanning, such as names, file
+names, URLs and versions, with `ansi.named` from `@pumpkin-plugins/minecraft-colors`, as the
+[console color convention](../../../docs/code-style.md#color-in-console-logs) describes.
 
 ## Data, commands, and tests
 
 When the plugin has the `fs.*.data` permission, the WASI data-folder adapter provides access to its
 mounted `data` directory. Its paths are relative to that directory. You can list entries, inspect
 files, read them in full or at chosen offsets, create directories, replace files atomically, and
-remove files or empty directories.
+remove files or empty directories. `writeFile` writes to an exclusively created temporary sibling,
+syncs its data to disk and renames it over the target, so readers never see half a file. If any of
+those steps fails, the temporary file is removed and the original error is reported. Removing a
+symlink removes the link, not its target.
 
 The command helpers build a typed command tree and register its handlers. The same tree supplies
 the documented command paths, so the registered commands and their documentation stay aligned.
@@ -31,4 +39,5 @@ The generated API reference lists the kit's module entry points and exact types.
 For unit tests, use `MemoryFiles`, the fake command host, and the in-memory logger to stand in for
 filesystem, command, and logging services. These fakes also expose common mistakes: for example,
 `MemoryFiles` rejects file and directory conflicts and operations on missing directories, and its
-file handles reject reads after they are closed.
+file handles reject reads after they are closed. Seed fixtures with `put`, which creates missing
+parent directories; `writeFile` requires the parent to exist, as the WASI adapter does.
