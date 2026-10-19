@@ -1255,13 +1255,14 @@ bool setCommandFailure(plugin_command_error_t *error,
         const auto tag = object.getProperty(*jsRuntime, "tag");
         if (!tag.isString() || utf8(*jsRuntime, tag) != "command-failed")
             return false;
-        auto text = std::dynamic_pointer_cast<TextObject>(
-            nativeResource(*jsRuntime, object.getProperty(*jsRuntime, "val")));
-        if (!text || !text->state()->owned)
+        const auto text = getWitResourceState(
+            *jsRuntime, object.getProperty(*jsRuntime, "val"), "text",
+            "text-component");
+        if (!text->owned)
             return false;
         error->tag = PUMPKIN_PLUGIN_COMMAND_COMMAND_ERROR_COMMAND_FAILED;
-        error->val.command_failed.__handle = text->state()->handle;
-        text->state()->transfer();
+        error->val.command_failed.__handle = text->handle;
+        text->transfer();
         return true;
     } catch (...) {
         return false;
