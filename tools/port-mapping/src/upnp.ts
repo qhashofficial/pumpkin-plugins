@@ -56,7 +56,8 @@ const parser = new XMLParser({ removeNSPrefix: true, ignoreAttributes: true, par
 const WAN_SERVICE = /^urn:schemas-upnp-org:service:WAN(?:IP|PPP)Connection:\d+$/;
 const PERMANENT_LEASE_ONLY = 725;
 const MAX_IDENTITY_LENGTH = 64;
-const CONFLICT_CODES = new Set([718, 724, 727, 729]);
+/** ConflictInMappingEntry and ConflictWithOtherMechanisms: another port may work. */
+const CONFLICT_CODES = new Set([718, 729]);
 
 /** Service versions in the order to try them: IP connections first, newest first. */
 const rank = (type: string) => (type.includes('WANIPConnection:2') ? 0 : type.includes('WANIPConnection') ? 1 : 2);
