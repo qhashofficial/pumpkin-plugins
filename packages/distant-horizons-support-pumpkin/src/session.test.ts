@@ -1259,6 +1259,21 @@ describe('DH sessions', () => {
         expect(f.cache.has('world:0:0')).toBe(false);
         expect(f.cache.has('world:1:0')).toBe(true);
     });
+    it('closes sessions in a world without a known height and names the setting once', () => {
+        const f = fixture();
+        f.peer.level = 'custom';
+        f.peer.dimension = 'example:custom';
+        f.peer.terrain.height = 0;
+        const init = packet(3).string('example:custom').finish();
+
+        f.sessions.receive(f.peer, init);
+        f.sessions.receive(f.peer, init);
+
+        expect(f.sessions.hasClient('Alice')).toBe(false);
+        expect(f.ids()).toEqual([1, 1]);
+        expect(f.log.of('warn')).toHaveLength(1);
+        expect(f.log.of('warn')[0]).toContain('[worlds."custom"]');
+    });
     it('warns once with both protocol numbers when a client uses another DH protocol', () => {
         const f = fixture();
         const otherProtocol = new Writer().short(15).short(3).string('minecraft:overworld').finish();
