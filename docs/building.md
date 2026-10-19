@@ -257,9 +257,10 @@ prepare Hermes when needed.
 #### Keep cache keys tied to dependencies
 
 Most workspace packages are used as source because their `exports` point at `src/`; nothing is built
-before a dependent task runs, so Turborepo has no reason to look at a dependency's files. The public
-`@pumpkin-plugins/wasi-capabilities` package is compiled to `dist/` so Node can load it from
-`node_modules`, and its build runs before dependent package tasks.
+before a dependent task runs, so Turborepo has no reason to look at a dependency's files. Tools with
+a `build` script that writes `dist/`, such as `@pumpkin-plugins/build`,
+`@pumpkin-plugins/static-hermes-runtime` and `@pumpkin-plugins/wasi-capabilities`, are compiled so
+Node can load them from `node_modules`; the tasks that import them depend on their builds.
 
 The `transit` task is Turborepo's "transit nodes" pattern. It has no script and depends on
 `^transit`. The `build`, `typecheck`, and `test` tasks depend on it, so changes in a package's
