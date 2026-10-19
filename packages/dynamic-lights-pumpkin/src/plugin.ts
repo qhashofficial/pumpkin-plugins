@@ -150,6 +150,8 @@ class DynamicLightsPumpkin extends PluginBase {
             this.forgetPlayer(event.player.getName());
             this.deferPlayerSync(event.player.getName());
         });
+        // `lowest` asks to run after other plugins so `cancelled` is final. Pumpkin 0.2.0+26.3-26.51
+        // ignores priority and runs handlers in registration order, so a later plugin can still cancel.
         this.registerEvent(
             ctx,
             'player-drop-item-event',
