@@ -85,6 +85,7 @@ export class TabDisplayService {
     private readonly disableResetPending = new Set<string>();
     private latestPlayers: readonly PlayerSnapshot[] = [];
     private disabled = false;
+    private overLimit = false;
 
     /** Creates the service from a validated config snapshot. */
     constructor(private readonly options: TabDisplayServiceOptions) {
@@ -130,7 +131,13 @@ export class TabDisplayService {
         if (snapshots.length > this.config.general.max_players) {
             this.pending = undefined;
             this.lastFailure = `Online player count exceeds general.max_players (${this.config.general.max_players})`;
+            if (!this.overLimit) this.options.log?.(`${this.lastFailure}; display updates are paused`);
+            this.overLimit = true;
             return;
+        }
+        if (this.overLimit) {
+            this.overLimit = false;
+            this.options.log?.('Online player count is within general.max_players again; display updates resumed');
         }
         this.latestPlayers = snapshots.map(copySnapshot);
         this.syncPlayerCapabilities(this.latestPlayers);

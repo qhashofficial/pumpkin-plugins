@@ -249,6 +249,31 @@ describe('TabDisplayService', () => {
         expect(service.status().lastFailure).toBeUndefined();
     });
 
+    it('logs once when the player limit is exceeded and once when it clears', () => {
+        const host = new FakeHost(viewers);
+        const config = baseConfig();
+        config.general.max_players = 1;
+        const messages: string[] = [];
+        const service = new TabDisplayService({
+            host,
+            resolver: { resolveBatch: (requests) => requests.map(({ text }) => ({ text, unresolved: [] })) },
+            now: () => 0,
+            config: validConfig(config),
+            log: (message) => messages.push(message),
+        });
+
+        service.tick();
+        service.tick();
+        expect(messages).toHaveLength(1);
+        expect(messages[0]).toContain('general.max_players');
+
+        host.players = [viewers[0]];
+        service.tick();
+        service.tick();
+        expect(messages).toHaveLength(2);
+        expect(host.names.size).toBe(1);
+    });
+
     it('rejects mismatched placeholder batches without applying shifted player data', () => {
         const host = new FakeHost(viewers);
         const resolver: TabPlaceholderResolver = { resolveBatch: () => [{ text: 'wrong', unresolved: [] }] };

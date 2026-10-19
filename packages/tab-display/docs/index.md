@@ -61,7 +61,8 @@ empty on disable or unload under exclusive ownership.
 ## Work limits and measurements
 
 Defaults refresh templates every 20 ticks and snapshot at most 500 players; `general.max_players` is
-bounded at 5,000. Placeholder resolution processes at most 256 requests and 1 MiB per batch on a
+bounded at 5,000. While more players are online than `general.max_players`, TabDisplay stops updating
+and logs one warning, then logs again when the count drops back. Placeholder resolution processes at most 256 requests and 1 MiB per batch on a
 tick. A rendered field longer than 8 KiB is cut to fit. When the provider is unavailable, the last
 successful frame is retained for up to 30 seconds before configured fallback text is applied.
 
