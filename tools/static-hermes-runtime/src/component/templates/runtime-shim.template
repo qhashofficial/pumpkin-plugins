@@ -299,8 +299,11 @@ std::shared_ptr<HostObject> nativeResource(Runtime &runtime,
     auto object = value.asObject(runtime);
     for (unsigned int depth = 0; depth < 16; ++depth) {
         auto wrapped = object.getProperty(runtime, "__staticHermesResource");
-        if (!wrapped.isObject())
+        if (!wrapped.isObject()) {
+            if (!object.isHostObject(runtime))
+                throw JSError(runtime, "Expected a Pumpkin resource");
             return object.getHostObject(runtime);
+        }
         object = wrapped.asObject(runtime);
     }
     throw JSError(runtime, "Pumpkin resource wrapper nesting is too deep");
