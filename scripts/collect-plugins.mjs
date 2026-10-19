@@ -6,6 +6,7 @@ import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { discoverComponents } from '@pumpkin-plugins/docs/node';
 import { Command } from 'commander';
+import { loadPluginInfo } from './utils/plugin-info.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 
@@ -36,12 +37,7 @@ export async function collectPlugins({ root: repoRoot = root, dist = path.join(r
         console.log(`dist/${file} (${(bytes.length / 1024).toFixed(0)} KiB)`);
 
         if (manifestFile) {
-            const infoFile = path.resolve(pkgDir, pkg.pumpkinPlugin?.info ?? 'src/info.ts');
-            const info = await import(pathToFileURL(infoFile).href);
-            const pluginName = (info.info ?? info.default)?.name;
-            if (typeof pluginName !== 'string') {
-                throw new Error(`${infoFile} must export an \`info\` object with a name`);
-            }
+            const pluginName = (await loadPluginInfo(pkgDir, pkg)).info.name;
             plugins.push({ 'plugin-name': pluginName, version: pkg.version, 'wasm-file': path.join(dist, file) });
         }
     }

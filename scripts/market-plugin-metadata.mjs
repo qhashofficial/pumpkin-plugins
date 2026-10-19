@@ -1,9 +1,9 @@
 // Prints the Market description from a plugin's README and commands from its info module.
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { stripGeneratedBlocks } from '@pumpkin-plugins/docs/markdown';
 import { Command } from 'commander';
+import { loadPluginInfo } from './utils/plugin-info.mjs';
 
 const program = new Command()
     .name('market-plugin-metadata')
@@ -13,10 +13,8 @@ const program = new Command()
 const [pluginDir] = program.args;
 
 const pkg = JSON.parse(fs.readFileSync(path.join(pluginDir, 'package.json'), 'utf8'));
-const infoFile = path.resolve(pluginDir, pkg.pumpkinPlugin?.info ?? 'src/info.ts');
-const mod = await import(pathToFileURL(infoFile).href);
-const info = mod.info ?? mod.default;
-if (!info || typeof info.description !== 'string' || !info.description.trim()) {
+const { file: infoFile, info } = await loadPluginInfo(pluginDir, pkg);
+if (typeof info.description !== 'string' || !info.description.trim()) {
     throw new Error(`${infoFile} must export plugin info with a description`);
 }
 
