@@ -899,8 +899,11 @@ Value callExport(const char *name, const Value *args, std::size_t count) {
     if (!jsRuntime)
         throw std::runtime_error("Static Hermes Runtime is not initialized");
     auto exports = exportsObject(*jsRuntime);
-    return exports.getPropertyAsFunction(*jsRuntime, name)
-        .call(*jsRuntime, args, count);
+    auto result = exports.getPropertyAsFunction(*jsRuntime, name)
+                      .call(*jsRuntime, args, count);
+    // Promise jobs only run when drained, so run the ones this callback queued.
+    jsRuntime->drainMicrotasks();
+    return result;
 }
 
 void initializeRuntime() {
@@ -1219,6 +1222,8 @@ void initializeRuntime() {
     /* <PUMPKIN_WASI_INITIALIZATION> */
     jsRuntime->global().setProperty(*jsRuntime, "__pumpkinHost",
                                     std::move(host));
+    // Run the promise jobs the bundle queued while it was evaluated.
+    jsRuntime->drainMicrotasks();
 }
 
 void resetRuntime() {
