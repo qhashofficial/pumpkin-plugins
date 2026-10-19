@@ -24,6 +24,7 @@ after(() => {
 function generate(generatorName, args, prepare) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'generator-'));
     temporaryRoots.push(root);
+    fs.symlinkSync(path.join(workspaceRoot, 'scripts'), path.join(root, 'scripts'));
     for (const file of [
         'package.json',
         'LICENSE',
@@ -52,7 +53,16 @@ function generate(generatorName, args, prepare) {
             '--args',
             ...args,
         ],
-        { cwd: root, stdio: 'pipe', env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}` } },
+        {
+            cwd: root,
+            stdio: 'pipe',
+            env: {
+                ...process.env,
+                PATH: `${bin}${path.delimiter}${process.env.PATH}`,
+                // Lets the repository scripts the generator runs work on the scratch root.
+                PUMPKIN_PLUGINS_ROOT: root,
+            },
+        },
     );
     return root;
 }
@@ -120,4 +130,56 @@ test('a generated extension README keeps the display name and description as typ
     // scripts/check-docs.mjs requires the README to mention the package.json displayName.
     assert.match(readme, /^# Terms & Tools$/m);
     assert.match(readme, /^Looks up <terms> & tools$/m);
+});
+
+/** Moves the scratch root to another owner and repository, so derived metadata can be told apart. */
+function moveToAnotherOwner(root) {
+    const manifestFile = path.join(root, 'package.json');
+    const manifest = readJson(manifestFile);
+    Object.assign(manifest, {
+        homepage: 'https://github.com/example/fork',
+        bugs: { url: 'https://github.com/example/fork/issues' },
+        repository: { type: 'git', url: 'git+https://github.com/example/fork.git' },
+        funding: [{ type: 'github', url: 'https://github.com/sponsors/example' }],
+        author: 'Example Person <person@example.com> (https://example.com)',
+        contributors: ['Example Person <person@example.com> (https://example.com)'],
+    });
+    fs.writeFileSync(manifestFile, JSON.stringify(manifest));
+    const license = fs.readFileSync(path.join(root, 'LICENSE'), 'utf8');
+    fs.writeFileSync(
+        path.join(root, 'LICENSE'),
+        license.replace(/^Copyright .*$/m, 'Copyright (c) 2026 Example Person'),
+    );
+}
+
+test('generated plugins and extensions take owner metadata from the root package', { skip: skipOnWindows }, () => {
+    const pluginRoot = generate('plugin', ['my-plugin', 'MyPlugin', 'Does a thing'], moveToAnotherOwner);
+    const extensionRoot = generate('extension', ['my-extension', 'My Extension', 'Does a thing'], moveToAnotherOwner);
+
+    for (const [root, dir] of [
+        [pluginRoot, 'packages/my-plugin'],
+        [extensionRoot, 'extensions/my-extension'],
+    ]) {
+        const manifest = readJson(path.join(root, dir, 'package.json'));
+        assert.equal(manifest.homepage, `https://github.com/example/fork/tree/master/${dir}#readme`);
+        assert.deepEqual(manifest.bugs, { url: 'https://github.com/example/fork/issues' });
+        assert.deepEqual(manifest.repository, {
+            type: 'git',
+            url: 'git+https://github.com/example/fork.git',
+            directory: dir,
+        });
+        assert.equal(manifest.license, 'MIT');
+        assert.equal(manifest.author, 'Example Person <person@example.com> (https://example.com)');
+        assert.deepEqual(manifest.contributors, ['Example Person <person@example.com> (https://example.com)']);
+        assert.deepEqual(manifest.funding, [{ type: 'github', url: 'https://github.com/sponsors/example' }]);
+    }
+    const extensionLicense = fs.readFileSync(path.join(extensionRoot, 'extensions/my-extension/LICENSE'), 'utf8');
+    assert.match(extensionLicense, /^Copyright \(c\) 2026 Example Person$/m);
+});
+
+test('a generated action names the root package author', { skip: skipOnWindows }, () => {
+    const root = generate('action', ['my-action', 'My Action', 'Does a thing'], moveToAnotherOwner);
+    const action = fs.readFileSync(path.join(root, 'actions/my-action/action.yml'), 'utf8');
+
+    assert.match(action, /^author: "?Example Person"?$/m);
 });
