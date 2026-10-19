@@ -21,6 +21,23 @@ interface HermesToolchainConfig {
     tools: Record<string, string>;
 }
 
+interface WasmToolsLock {
+    /** Trusted release archive names and lowercase SHA-256 digests indexed by Node platform and architecture. */
+    assets: Record<string, { name: string; sha256: string }>;
+    /** GitHub repository that publishes the release. */
+    repository: string;
+}
+
+/** A pinned wasm-tools release archive for one platform. */
+interface WasmToolsAsset {
+    /** Trusted lowercase SHA-256 digest from the lock file. */
+    digest: string;
+    /** Archive filename. */
+    name: string;
+    /** HTTPS download URL. */
+    url: string;
+}
+
 interface WasiSdkReleaseAsset {
     browser_download_url?: string;
     digest?: string;
@@ -69,6 +86,8 @@ interface WitBindgenInstallOptions {
 
 interface WasmToolsInstallOptions {
     arch: string;
+    /** Release archive selected from `wasm-tools.lock.json`. */
+    asset: WasmToolsAsset;
     destination: string;
     fetchImpl: typeof fetch;
     platform: NodeJS.Platform;
@@ -103,6 +122,8 @@ export interface HermesToolchainSetupOptions {
     toolchainConfig?: HermesToolchainConfig;
     /** WASI SDK version, GitHub repository, and trusted platform SHA-256 checksums. */
     wasiSdkConfig?: WasiSdkConfig;
+    /** wasm-tools release repository and trusted platform archives for the pinned `tools.wasm-tools` version. */
+    wasmToolsLock?: WasmToolsLock;
     /** Root of the `pumpkin-plugins` workspace. */
     workspaceRoot: string;
 }
@@ -128,6 +149,9 @@ const DEFAULT_WASI_SDK_CONFIG = JSON.parse(
 const DEFAULT_TOOLCHAIN_CONFIG = JSON.parse(
     fs.readFileSync(path.join(packageRoot, 'toolchain-versions.json'), 'utf8'),
 ) as HermesToolchainConfig;
+const DEFAULT_WASM_TOOLS_LOCK = JSON.parse(
+    fs.readFileSync(path.join(packageRoot, 'wasm-tools.lock.json'), 'utf8'),
+) as WasmToolsLock;
 
 /**
  * Resolve or install the selected tools needed by a Static Hermes build.
@@ -153,6 +177,7 @@ export async function setupHermesToolchainEnvironment({
     includeWasmTools = false,
     wasiSdkConfig = DEFAULT_WASI_SDK_CONFIG,
     toolchainConfig = DEFAULT_TOOLCHAIN_CONFIG,
+    wasmToolsLock = DEFAULT_WASM_TOOLS_LOCK,
     fetchImpl = globalThis.fetch,
     installWasiSdk = installPinnedWasiSdk,
     installWitBindgen = installPinnedWitBindgen,
@@ -208,7 +233,15 @@ export async function setupHermesToolchainEnvironment({
         const configuredWasmTools = env.WASM_TOOLS;
         const wasmToolsPath = configuredWasmTools
             ? validateWasmTools(path.resolve(configuredWasmTools), version, 'configured wasm-tools')
-            : await resolveWasmTools({ toolchainRoot, version, platform, arch, installWasmTools, fetchImpl });
+            : await resolveWasmTools({
+                  toolchainRoot,
+                  version,
+                  asset: selectWasmToolsAsset(wasmToolsLock, { version, platform, arch }),
+                  platform,
+                  arch,
+                  installWasmTools,
+                  fetchImpl,
+              });
         environment.WASM_TOOLS = wasmToolsPath;
     }
 
@@ -347,6 +380,7 @@ async function resolveWitBindgen({
 async function resolveWasmTools({
     toolchainRoot,
     version,
+    asset,
     platform,
     arch,
     installWasmTools,
@@ -354,6 +388,7 @@ async function resolveWasmTools({
 }: {
     toolchainRoot: string;
     version: string;
+    asset: WasmToolsAsset;
     platform: NodeJS.Platform;
     arch: string;
     installWasmTools: NonNullable<HermesToolchainSetupOptions['installWasmTools']>;
@@ -375,7 +410,14 @@ async function resolveWasmTools({
         }
 
         try {
-            const installed = await installWasmTools({ destination: executable, version, platform, arch, fetchImpl });
+            const installed = await installWasmTools({
+                destination: executable,
+                version,
+                asset,
+                platform,
+                arch,
+                fetchImpl,
+            });
             return validateWasmTools(path.resolve(installed), version, 'automatically installed wasm-tools');
         } catch (error) {
             try {
@@ -392,11 +434,10 @@ async function resolveWasmTools({
 async function installPinnedWasmTools({
     destination,
     version,
+    asset,
     platform,
-    arch,
     fetchImpl = globalThis.fetch,
 }: WasmToolsInstallOptions): Promise<string> {
-    const asset = selectWasmToolsAsset({ version, platform, arch });
     const installRoot = path.dirname(path.dirname(destination));
     const parent = path.dirname(installRoot);
     fs.mkdirSync(parent, { recursive: true });
@@ -603,43 +644,61 @@ export async function verifyWasiSdkArchiveChecksum(archivePath: string, expected
     }
 }
 
-const WASM_TOOLS_RELEASE_ASSETS = {
-    'darwin/arm64': ['aarch64-macos', '94c4fc9baeada6e793f0d4adeca537633b5d93e9dc6bf718be2f478f4afe0296'],
-    'darwin/x64': ['x86_64-macos', '354a84ffeede30ba11f29bc72de76875a977cf43bf1c5bdc3e91e2313e8a854b'],
-    'linux/arm64': ['aarch64-linux', '6f19389a69e21c7dbd2a4e7ae72f807dc999988b48782c706c4102bad3e44487'],
-    'linux/x64': ['x86_64-linux', 'ad62b2176037e93e1348cb65d6212d128ca9f097b63d155569f25215818ff7b1'],
-    'win32/arm64': ['aarch64-windows', '284a9010b7d8bf35270c7814f853c4d0e87b0c9a697d696b3273e5bf07565d23'],
-    'win32/x64': ['x86_64-windows', '250c6ee7d8073865a5cb42e1077f4246c72516af9b09d41d8a2734985ae673fd'],
-} satisfies Record<string, readonly [string, string]>;
-const WASM_TOOLS_ASSETS_BY_TARGET: Readonly<Record<string, readonly [string, string]>> = WASM_TOOLS_RELEASE_ASSETS;
-
 /**
  * Return the pinned wasm-tools archive and checksum for a supported platform.
  *
+ * @param lock - Release repository and per-platform archives from `wasm-tools.lock.json`.
  * @param target - Pinned release version, platform, and architecture.
  * @returns Archive filename, HTTPS download URL, and lowercase SHA-256 digest.
- * @throws {Error} If the version or platform/architecture pair has no pinned binary.
+ * @throws {Error} If the lock does not pin assets for the version or has no binary for the platform/architecture pair.
  */
-export function selectWasmToolsAsset({
-    version,
-    platform,
-    arch,
-}: {
-    version: string;
-    platform: NodeJS.Platform;
-    arch: string;
-}): { name: string; url: string; digest: string } {
-    if (version !== '1.261.0') throw new Error(`no pinned wasm-tools release ${version}`);
-    const asset = WASM_TOOLS_ASSETS_BY_TARGET[`${platform}/${arch}`];
+export function selectWasmToolsAsset(
+    lock: WasmToolsLock,
+    {
+        version,
+        platform,
+        arch,
+    }: {
+        version: string;
+        platform: NodeJS.Platform;
+        arch: string;
+    },
+): WasmToolsAsset {
+    validateWasmToolsLock(lock, version);
+    const asset = lock.assets[`${platform}/${arch}`];
     if (!asset) throw new Error(`no pinned wasm-tools ${version} binary for ${platform}/${arch}`);
-    const [target, digest] = asset;
-    const extension = platform === 'win32' ? '.zip' : '.tar.gz';
-    const name = `wasm-tools-${version}-${target}${extension}`;
+    const repository = lock.repository.replace(/\/+$/, '');
     return {
-        name,
-        url: `https://github.com/bytecodealliance/wasm-tools/releases/download/v${version}/${name}`,
-        digest,
+        name: asset.name,
+        url: `${repository}/releases/download/v${version}/${asset.name}`,
+        digest: asset.sha256,
     };
+}
+
+/** Validate that the wasm-tools lock pins HTTPS release archives and SHA-256 digests for one version. */
+function validateWasmToolsLock(lock: WasmToolsLock, version: string): void {
+    const archiveName = new RegExp(`^wasm-tools-${escapeRegExp(version)}-[a-z0-9_]+-[a-z0-9_]+\\.(?:tar\\.gz|zip)$`);
+    if (
+        !lock ||
+        typeof lock.repository !== 'string' ||
+        !lock.repository.startsWith('https://') ||
+        !lock.assets ||
+        typeof lock.assets !== 'object' ||
+        Array.isArray(lock.assets) ||
+        Object.keys(lock.assets).length === 0 ||
+        Object.entries(lock.assets).some(
+            ([target, asset]) =>
+                !/^(?:darwin|linux|win32)\/(?:arm64|riscv64|x64)$/.test(target) ||
+                typeof asset?.name !== 'string' ||
+                !archiveName.test(asset.name) ||
+                typeof asset.sha256 !== 'string' ||
+                !/^[0-9a-f]{64}$/.test(asset.sha256),
+        )
+    ) {
+        throw new Error(
+            `wasm-tools.lock.json must pin wasm-tools ${version} release archives with platform SHA-256 checksums`,
+        );
+    }
 }
 
 /** Validate the WASI SDK version, release repository, and per-target SHA-256 pins. */

@@ -59,6 +59,7 @@
         "hermes-source.lock.json",
         "toolchain-versions.json",
         "wasi-sdk.lock.json",
+        "wasm-tools.lock.json",
         "README.md"
     ],
     "scripts": {

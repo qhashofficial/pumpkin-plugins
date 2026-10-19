@@ -8,7 +8,10 @@ import * as toolchainEnvironment from '../src/hermes/toolchain-environment.ts';
 const { fetchWasiSdkRelease, prepareStaticHermesBuild, selectWasiSdkAsset, setupHermesToolchainEnvironment } =
     toolchainEnvironment;
 const { selectWasmToolsAsset } = toolchainEnvironment;
-const wasiSdkLock = JSON.parse(fs.readFileSync(new URL('../wasi-sdk.lock.json', import.meta.url), 'utf8'));
+const readJson = (file) => JSON.parse(fs.readFileSync(new URL(file, import.meta.url), 'utf8'));
+const wasiSdkLock = readJson('../wasi-sdk.lock.json');
+const wasmToolsLock = readJson('../wasm-tools.lock.json');
+const toolchainVersions = readJson('../toolchain-versions.json');
 
 const temporaryDirs = [];
 
@@ -316,54 +319,74 @@ it('verifies downloaded WASI SDK bytes against the lock checksum', async () => {
 });
 
 it.each([
-    [
-        'darwin',
-        'arm64',
-        'wasm-tools-1.261.0-aarch64-macos.tar.gz',
-        '94c4fc9baeada6e793f0d4adeca537633b5d93e9dc6bf718be2f478f4afe0296',
-    ],
-    [
-        'darwin',
-        'x64',
-        'wasm-tools-1.261.0-x86_64-macos.tar.gz',
-        '354a84ffeede30ba11f29bc72de76875a977cf43bf1c5bdc3e91e2313e8a854b',
-    ],
-    [
-        'linux',
-        'arm64',
-        'wasm-tools-1.261.0-aarch64-linux.tar.gz',
-        '6f19389a69e21c7dbd2a4e7ae72f807dc999988b48782c706c4102bad3e44487',
-    ],
-    [
-        'linux',
-        'x64',
-        'wasm-tools-1.261.0-x86_64-linux.tar.gz',
-        'ad62b2176037e93e1348cb65d6212d128ca9f097b63d155569f25215818ff7b1',
-    ],
-    [
-        'win32',
-        'arm64',
-        'wasm-tools-1.261.0-aarch64-windows.zip',
-        '284a9010b7d8bf35270c7814f853c4d0e87b0c9a697d696b3273e5bf07565d23',
-    ],
-    [
-        'win32',
-        'x64',
-        'wasm-tools-1.261.0-x86_64-windows.zip',
-        '250c6ee7d8073865a5cb42e1077f4246c72516af9b09d41d8a2734985ae673fd',
-    ],
-])('pins the wasm-tools archive and checksum for %s/%s', (platform, arch, name, digest) => {
-    expect(selectWasmToolsAsset({ version: '1.261.0', platform, arch })).toEqual({
+    ['darwin', 'arm64', 'aarch64-macos.tar.gz'],
+    ['darwin', 'x64', 'x86_64-macos.tar.gz'],
+    ['linux', 'arm64', 'aarch64-linux.tar.gz'],
+    ['linux', 'x64', 'x86_64-linux.tar.gz'],
+    ['win32', 'arm64', 'aarch64-windows.zip'],
+    ['win32', 'x64', 'x86_64-windows.zip'],
+])('pins the wasm-tools archive and checksum for %s/%s', (platform, arch, suffix) => {
+    const version = toolchainVersions.tools['wasm-tools'];
+    const name = `wasm-tools-${version}-${suffix}`;
+    expect(selectWasmToolsAsset(wasmToolsLock, { version, platform, arch })).toEqual({
         name,
-        url: `https://github.com/bytecodealliance/wasm-tools/releases/download/v1.261.0/${name}`,
-        digest,
+        url: `https://github.com/bytecodealliance/wasm-tools/releases/download/v${version}/${name}`,
+        digest: expect.stringMatching(/^[0-9a-f]{64}$/),
     });
 });
 
 it('fails clearly for a platform without a pinned wasm-tools binary', () => {
-    expect(() => selectWasmToolsAsset({ version: '1.261.0', platform: 'freebsd', arch: 'x64' })).toThrow(
-        'no pinned wasm-tools 1.261.0 binary for freebsd/x64',
+    const version = toolchainVersions.tools['wasm-tools'];
+    expect(() => selectWasmToolsAsset(wasmToolsLock, { version, platform: 'freebsd', arch: 'x64' })).toThrow(
+        `no pinned wasm-tools ${version} binary for freebsd/x64`,
     );
+});
+
+it('downloads the wasm-tools archive that the lock file pins for the configured version', async () => {
+    const workspaceRoot = temporaryDirectory('static-hermes-wasm-tools-lock-');
+    const name = 'wasm-tools-1.262.0-x86_64-linux.tar.gz';
+    const fetchImpl = vi.fn(async () => ({ ok: false, status: 404 }));
+
+    await expect(
+        setupHermesToolchainEnvironment({
+            workspaceRoot,
+            env: {},
+            platform: 'linux',
+            arch: 'x64',
+            includeWasiSdk: false,
+            includeWitBindgen: false,
+            includeWasmTools: true,
+            toolchainConfig: { tools: { 'wasm-tools': '1.262.0', 'wit-bindgen': '0.62.0', rust: '1.99.0' } },
+            wasmToolsLock: {
+                repository: 'https://github.com/bytecodealliance/wasm-tools',
+                assets: { 'linux/x64': { name, sha256: 'c'.repeat(64) } },
+            },
+            fetchImpl,
+        }),
+    ).rejects.toThrow(`Could not download ${name}: HTTP 404`);
+    expect(fetchImpl).toHaveBeenCalledWith(
+        `https://github.com/bytecodealliance/wasm-tools/releases/download/v1.262.0/${name}`,
+    );
+});
+
+it('rejects a wasm-tools lock file whose assets belong to another version', async () => {
+    const workspaceRoot = temporaryDirectory('static-hermes-wasm-tools-stale-lock-');
+    const fetchImpl = vi.fn();
+
+    await expect(
+        setupHermesToolchainEnvironment({
+            workspaceRoot,
+            env: {},
+            platform: 'linux',
+            arch: 'x64',
+            includeWasiSdk: false,
+            includeWitBindgen: false,
+            includeWasmTools: true,
+            toolchainConfig: { tools: { 'wasm-tools': '1.262.0', 'wit-bindgen': '0.62.0', rust: '1.99.0' } },
+            fetchImpl,
+        }),
+    ).rejects.toThrow(/wasm-tools\.lock\.json must pin wasm-tools 1\.262\.0/);
+    expect(fetchImpl).not.toHaveBeenCalled();
 });
 
 it('rejects a configured wasm-tools executable with the wrong pinned version', async () => {

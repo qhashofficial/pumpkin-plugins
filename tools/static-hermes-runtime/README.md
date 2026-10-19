@@ -44,13 +44,14 @@ Plugin builds prepare Hermes automatically when `engine` is omitted or set to `"
 Run the command above to prewarm Hermes or prepare it explicitly before a build. A full component
 build also resolves the pinned `wit-bindgen` and `wasm-tools` versions from
 `toolchain-versions.json` and sets them up automatically. If `WASM_TOOLS` is unset and no valid
-cached binary is available, setup downloads the pinned `wasm-tools` release and replaces an invalid
-cache entry. A valid `WIT_BINDGEN` override, shared-cache binary, or `~/.cargo/bin/wit-bindgen` is
-reused. With no `WIT_BINDGEN` override and no cached or user-installed executable, setup installs
-`wit-bindgen` and needs Rust/Cargo (using the pinned Rust toolchain through `rustup` when
-available). An executable that reports the wrong pinned version fails setup.
+cached binary is available, setup downloads the platform archive pinned in `wasm-tools.lock.json`,
+checks its SHA-256 digest, and replaces an invalid cache entry. A valid `WIT_BINDGEN` override,
+shared-cache binary, or `~/.cargo/bin/wit-bindgen` is reused. With no `WIT_BINDGEN` override and no
+cached or user-installed executable, setup installs `wit-bindgen` and needs Rust/Cargo (using the
+pinned Rust toolchain through `rustup` when available). An executable that reports the wrong pinned
+version fails setup.
 
-The pin files follow the
+The WASI SDK, Hermes source, and toolchain version pins follow the
 [WASI SDK release pin schema](https://raw.githubusercontent.com/filiphsps/pumpkin-plugins/master/schemas/wasi-sdk-release-pin.schema.json),
 [upstream Git pin schema](https://raw.githubusercontent.com/filiphsps/pumpkin-plugins/master/schemas/upstream-git-pin.schema.json), and
 [toolchain versions schema](https://raw.githubusercontent.com/filiphsps/pumpkin-plugins/master/schemas/toolchain-versions.schema.json).
