@@ -1,10 +1,9 @@
-import { strFromU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import type { RouterIdentity } from './identify.ts';
 import { PortMapper } from './mapper.ts';
 import { Task } from './task.ts';
 import { FakeIgd } from './testing/fake-igd.ts';
-import { FakeNetwork, runSteps } from './testing/fake-network.ts';
+import { delayReplies, FakeNetwork, runSteps } from './testing/fake-network.ts';
 
 const spec = { protocol: 'tcp', port: 8123, description: 'Packs' } as const;
 
@@ -25,35 +24,6 @@ function setup(igd: FakeIgd | null = new FakeIgd(), extra: Partial<ConstructorPa
         mapper.tick();
     };
     return { net, igd: igd ?? undefined, mapper, log, settle };
-}
-
-function delayMappingReply(net: FakeNetwork, action = 'AddPortMapping', shouldDelay = () => true) {
-    const dial = net.dial.bind(net);
-    let blocked = true;
-    net.dial = (to) => {
-        const original = dial(to);
-        return {
-            abort: () => original.abort(),
-            poll: () => {
-                const connection = original.poll();
-                if (!connection) return undefined;
-                let mapping = false;
-                return {
-                    localAddress: connection.localAddress,
-                    writable: () => connection.writable(),
-                    close: () => connection.close(),
-                    write: (bytes) => {
-                        mapping ||= strFromU8(bytes).includes(`#${action}`);
-                        connection.write(bytes);
-                    },
-                    read: (max) => (mapping && blocked && shouldDelay() ? null : connection.read(max)),
-                };
-            },
-        };
-    };
-    return () => {
-        blocked = false;
-    };
 }
 
 const open = (state: unknown) => (state as { kind: string }).kind === 'open';
@@ -171,7 +141,7 @@ describe('PortMapper', () => {
 
     it('retains a pending mapping when its initiating owner leaves but another owner remains', () => {
         const { igd, mapper, settle, net } = setup(new FakeIgd({ natPmp: false }));
-        const resume = delayMappingReply(net);
+        const resume = delayReplies(net, 'AddPortMapping');
         mapper.request('first', spec);
         mapper.request('second', { ...spec, description: 'Other owner' });
         settle(() => igd?.mappings.has('tcp:8123') === true);
@@ -187,7 +157,7 @@ describe('PortMapper', () => {
 
     it.each(['AddPortMapping', 'GetExternalIPAddress'])('compensates a mapping released during %s', (action) => {
         const { igd, mapper, settle, net } = setup(new FakeIgd({ natPmp: false }));
-        const resume = delayMappingReply(net, action, () => (igd?.mappings.size ?? 0) > 0);
+        const resume = delayReplies(net, action, () => (igd?.mappings.size ?? 0) > 0);
         mapper.request('web', spec);
         settle(() => igd?.mappings.has('tcp:8123') === true && igd.actions.includes(action));
         expect(igd?.mappings.size).toBe(1);
@@ -202,7 +172,7 @@ describe('PortMapper', () => {
 
     it('finishes stale creation cleanup before opening an incompatible replacement', () => {
         const { igd, mapper, settle, net } = setup(new FakeIgd({ natPmp: false }));
-        const resume = delayMappingReply(net);
+        const resume = delayReplies(net, 'AddPortMapping');
         mapper.request('web', spec);
         settle(() => igd?.mappings.has('tcp:8123') === true);
         mapper.request('web', { ...spec, port: 8124 });
@@ -215,7 +185,7 @@ describe('PortMapper', () => {
 
     it.each([false, true])('waits for in-flight creation before releaseAll cleanup (permanent=%s)', (permanent) => {
         const { igd, mapper, settle, net } = setup(new FakeIgd({ natPmp: false, permanentLeasesOnly: permanent }));
-        const resume = delayMappingReply(net, 'AddPortMapping', () => (igd?.mappings.size ?? 0) > 0);
+        const resume = delayReplies(net, 'AddPortMapping', () => (igd?.mappings.size ?? 0) > 0);
         mapper.request('web', spec);
         settle(() => igd?.mappings.size === 1);
         expect(igd?.mappings.get('tcp:8123')?.leaseSeconds).toBe(permanent ? 0 : 3600);
@@ -256,7 +226,7 @@ describe('PortMapper', () => {
 
     it('accounts for permanent-lease fallback after release of its initial attempt', () => {
         const { igd, mapper, settle, net } = setup(new FakeIgd({ natPmp: false, permanentLeasesOnly: true }));
-        const resume = delayMappingReply(net);
+        const resume = delayReplies(net, 'AddPortMapping');
         mapper.request('web', spec);
         settle(() => igd?.actions.includes('AddPortMapping') === true);
         expect(igd?.mappings.size).toBe(0);
@@ -270,7 +240,7 @@ describe('PortMapper', () => {
 
     it('retains a compatible replacement after stale creation completes', () => {
         const { igd, mapper, settle, net } = setup(new FakeIgd({ natPmp: false }));
-        const resume = delayMappingReply(net);
+        const resume = delayReplies(net, 'AddPortMapping');
         mapper.request('web', spec);
         settle(() => igd?.mappings.size === 1);
         mapper.request('web', { ...spec, description: 'Replacement' });
@@ -285,7 +255,7 @@ describe('PortMapper', () => {
 
     it('attempts bounded cleanup and warns when a released creation reply is lost', () => {
         const { igd, mapper, settle, net, log } = setup(new FakeIgd({ natPmp: false, permanentLeasesOnly: true }));
-        delayMappingReply(net, 'AddPortMapping', () => (igd?.mappings.size ?? 0) > 0);
+        delayReplies(net, 'AddPortMapping', () => (igd?.mappings.size ?? 0) > 0);
         mapper.request('web', spec);
         settle(() => igd?.mappings.size === 1);
         mapper.release('web');
@@ -297,7 +267,7 @@ describe('PortMapper', () => {
 
     it('cleans up an unacknowledged creation even when its owner releases after timeout', () => {
         const { igd, mapper, settle, net, log } = setup(new FakeIgd({ natPmp: false }));
-        delayMappingReply(net);
+        delayReplies(net, 'AddPortMapping');
         mapper.request('web', spec);
         settle(() => mapper.state('web')?.kind === 'failed');
         mapper.release('web');
@@ -309,7 +279,7 @@ describe('PortMapper', () => {
 
     it('bounds unsuccessful deletion and reports that remote cleanup was not confirmed', () => {
         const { igd, mapper, settle, net, log } = setup(new FakeIgd({ natPmp: false }));
-        delayMappingReply(net, 'DeletePortMapping');
+        delayReplies(net, 'DeletePortMapping');
         mapper.request('web', spec);
         settle(() => open(mapper.state('web')));
         mapper.release('web');
@@ -321,7 +291,7 @@ describe('PortMapper', () => {
 
     it('closes transports and reports unresolved cleanup when shutdown is cancelled', () => {
         const { igd, mapper, settle, net, log } = setup(new FakeIgd({ natPmp: false }));
-        delayMappingReply(net);
+        delayReplies(net, 'AddPortMapping');
         mapper.request('web', spec);
         settle(() => igd?.mappings.size === 1);
         const closing = new Task(mapper.releaseAll());
