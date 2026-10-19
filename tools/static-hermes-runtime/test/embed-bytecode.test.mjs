@@ -2,16 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { renderEmbeddedBytecode } from '../src/component/embed-bytecode.ts';
 
 describe('embedded Hermes bytecode', () => {
-    it('renders bytecode bytes and their size as a C++ header', () => {
-        expect(renderEmbeddedBytecode(Buffer.from([0, 127, 255]))).toContain(
-            'static constexpr std::uint8_t pluginBundleBytecode[] = {\n    0x00, 0x7f, 0xff\n};',
-        );
-        expect(renderEmbeddedBytecode(Buffer.from([0, 127, 255]))).toContain(
-            'static constexpr std::size_t pluginBundleBytecodeSize = sizeof(pluginBundleBytecode);',
-        );
+    it('embeds the bytecode file from the header directory and keeps its size symbol', () => {
+        const header = renderEmbeddedBytecode('plugin_bundle.hbc', 3);
+
+        expect(header).toMatch(/pluginBundleBytecode\[\] = \{\s*#embed "plugin_bundle\.hbc"\s*\};/);
+        expect(header).toContain('pluginBundleBytecodeSize = sizeof(pluginBundleBytecode)');
+        expect(header).not.toContain('0x');
     });
 
     it('rejects an empty bytecode file', () => {
-        expect(() => renderEmbeddedBytecode(Buffer.alloc(0))).toThrow(/empty/);
+        expect(() => renderEmbeddedBytecode('plugin_bundle.hbc', 0)).toThrow(/empty/);
     });
 });

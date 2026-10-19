@@ -89,6 +89,7 @@ it.each([
     );
     expect(fs.readFileSync(bundle)).toEqual(bundleBytes);
     expect(fs.readFileSync(path.join(temporaryDirectory, 'plugin-bytecode.generated.h'), 'utf8')).toContain(
-        '0x00, 0x01, 0x02',
+        '#embed "plugin_bundle.hbc"',
     );
+    expect(fs.readFileSync(path.join(temporaryDirectory, 'plugin_bundle.hbc'))).toEqual(Buffer.from([0, 1, 2]));
 });
