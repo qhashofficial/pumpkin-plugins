@@ -21,5 +21,9 @@ listing, or a listing that hasn't been published before makes the action fail by
 `warn: true` to turn those cases into a warning and skip the upload. Lookup and upload errors still
 fail the action.
 
+If the listing's current version already equals `version`, the action skips the upload and still
+reports `status: success`. That lets you re-run a release job whose upload succeeded before a later
+step failed.
+
 After a successful upload, later workflow steps can use the resolved listing ID and name, operation
 status, and published version from the action's outputs.

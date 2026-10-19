@@ -55,6 +55,20 @@ async function publish() {
         return;
     }
 
+    // A retried release job finds the version it uploaded on the first attempt.
+    if (listing.version === version) {
+        setListingOutputs(listing);
+        setOutput('status', 'success');
+        setOutput('published-version', version);
+        const message = `Market listing ${listing.id} already has ${listing.name} ${version}; skipped the upload.`;
+        console.log(escapeWorkflowCommand(message));
+        appendSummary(
+            `### 🛒 ${escapeMarkdownText(listing.name)} ${escapeMarkdownText(version)}: already on Pumpkin Market\n` +
+                `${escapeMarkdownText(message)}\n`,
+        );
+        return;
+    }
+
     const metadata = { version, track, releaseNotes };
     const form = new FormData();
     form.append('wasm', new Blob([fs.readFileSync(file)], { type: 'application/wasm' }), path.basename(file));
