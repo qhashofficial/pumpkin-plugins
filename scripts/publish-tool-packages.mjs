@@ -1,5 +1,4 @@
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -8,11 +7,10 @@ import {
     assertPublicToolPackage,
     assertPublicToolPackageContents,
     discoverPublicToolPackages,
-    embeddedPackageManifestEntries,
     getPublicToolReleasePrerequisites,
     nodeEngineRange,
     orderPublicToolReleasePaths,
-    parseTarEntries,
+    packAndInspect,
     publicToolPackageVersions,
 } from './utils/tool-packages.mjs';
 
@@ -329,33 +327,11 @@ async function readRegistryJson(response) {
 function packPublicToolPackage(packagePath, root) {
     const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'pumpkin-tool-package-'));
     try {
-        const packageDirectory = path.join(root, packagePath);
-        execFileSync('pnpm', ['pack', '--pack-destination', temporaryDirectory], {
-            cwd: packageDirectory,
-            encoding: 'utf8',
-            stdio: ['ignore', 'pipe', 'pipe'],
-        });
-        const tarballs = fs.readdirSync(temporaryDirectory).filter((file) => file.endsWith('.tgz'));
-        if (tarballs.length !== 1) {
-            throw new Error(`pnpm pack produced ${tarballs.length} tarballs for ${packagePath}; expected exactly one`);
-        }
-        const tarballPath = path.join(temporaryDirectory, tarballs[0]);
-        const entries = parseTarEntries(execFileSync('tar', ['-tzf', tarballPath], { encoding: 'utf8' }));
-        const packageJson = readPackedJson(tarballPath, 'package/package.json');
-        const embeddedPackageJsons = embeddedPackageManifestEntries(entries).map((entry) =>
-            readPackedJson(tarballPath, entry),
-        );
-        const integrity = `sha512-${createHash('sha512').update(fs.readFileSync(tarballPath)).digest('base64')}`;
-        return { temporaryDirectory, tarballPath, entries, packageJson, embeddedPackageJsons, integrity };
+        return { temporaryDirectory, ...packAndInspect(path.join(root, packagePath), temporaryDirectory) };
     } catch (error) {
         fs.rmSync(temporaryDirectory, { recursive: true, force: true });
         throw error;
     }
-}
-
-function readPackedJson(tarballPath, entry) {
-    const contents = execFileSync('tar', ['-xOzf', tarballPath, entry], { encoding: 'utf8' });
-    return JSON.parse(contents);
 }
 
 /**

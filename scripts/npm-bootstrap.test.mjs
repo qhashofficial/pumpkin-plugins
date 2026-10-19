@@ -114,15 +114,16 @@ function makeFixture({
             install: async (sourceRoot) => events.installed.push(sourceRoot),
             pack: async (packageDirectory, destination) => {
                 events.packed.push(packageDirectory);
-                const tarball = path.join(destination, `${path.basename(packageDirectory)}-0.1.0.tgz`);
-                fs.writeFileSync(tarball, packedBytes);
-                return tarball;
+                const tarballPath = path.join(destination, `${path.basename(packageDirectory)}-0.1.0.tgz`);
+                fs.writeFileSync(tarballPath, packedBytes);
+                return {
+                    tarballPath,
+                    integrity: expectedIntegrity,
+                    entries: packedEntries ?? contentEntries(),
+                    packageJson: packedManifest ?? manifest(packagePath),
+                    embeddedPackageJsons,
+                };
             },
-            inspectPackage: async () => ({
-                entries: packedEntries ?? contentEntries(),
-                packageJson: packedManifest ?? manifest(packagePath),
-                embeddedPackageJsons,
-            }),
         },
         registry: {
             getPackage: async (name) => {
