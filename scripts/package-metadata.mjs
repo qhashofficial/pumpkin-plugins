@@ -32,14 +32,15 @@ const benchmarkPackageDirs = () => {
         .map((entry) => `benchmarks/${entry.name}`);
 };
 
+const rootPackage = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+const repository = rootPackage.repository;
+const repositoryUrl = typeof repository === 'string' ? repository : repository?.url;
+if (typeof repositoryUrl !== 'string') throw new Error('root package.json must declare repository.url');
+const webRepositoryUrl = repositoryUrl.replace(/^git\+/, '').replace(/\.git$/, '');
+
 /** What the package.json of `dir` can derive from the workspace and its own exports. */
 function expected(dir, pkg) {
     const isRoot = dir === '.';
-    const rootPackage = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-    const repository = rootPackage.repository;
-    const repositoryUrl = typeof repository === 'string' ? repository : repository?.url;
-    if (typeof repositoryUrl !== 'string') throw new Error('root package.json must declare repository.url');
-    const webRepositoryUrl = repositoryUrl.replace(/^git\+/, '').replace(/\.git$/, '');
     const want = {
         license: hasLocalLicense(dir) && typeof pkg.license === 'string' && pkg.license.trim() ? pkg.license : 'MIT',
         homepage: isRoot ? webRepositoryUrl : `${webRepositoryUrl}/tree/master/${dir}#readme`,
@@ -76,7 +77,7 @@ for (const dir of packageDirs()) {
     }
     if (typeof pkg.description !== 'string' || pkg.description.trim() === '') issues.push('"description" is missing');
     else if (pkg.description.length > MAX_DESCRIPTION) {
-        issues.push(`"description" is ${pkg.description.length} characters; keep it under ${MAX_DESCRIPTION}`);
+        issues.push(`"description" is ${pkg.description.length} characters; keep it to at most ${MAX_DESCRIPTION}`);
     }
     if (issues.length === 0) continue;
 
