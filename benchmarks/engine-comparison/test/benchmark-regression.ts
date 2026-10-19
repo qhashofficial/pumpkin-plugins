@@ -1,4 +1,5 @@
 import type { BenchmarkWorkload } from '../src/benchmark-workloads.ts';
+import { formatInteger } from './benchmark-results.ts';
 import type { EngineResult } from './engine-comparison-report.ts';
 
 export type BenchmarkChangeStatus = 'regression' | 'improvement' | 'within-jitter';
@@ -355,12 +356,12 @@ function renderBenchmarkSvg(comparison: BenchmarkComparison, themeName: SvgTheme
     const regressionCount = comparison.regressions.length;
     const improvementCount = comparison.improvements.length;
     const summaryCards = [
-        { label: 'PAIRS', value: formatCount(comparison.changes.length), color: theme.foreground },
-        { label: 'REGRESSIONS', value: formatCount(regressionCount), color: theme.regression },
-        { label: 'IMPROVEMENTS', value: formatCount(improvementCount), color: theme.improvement },
-        { label: 'WITHIN JITTER', value: formatCount(withinJitterCount), color: theme.jitterEdge },
+        { label: 'PAIRS', value: formatInteger(comparison.changes.length), color: theme.foreground },
+        { label: 'REGRESSIONS', value: formatInteger(regressionCount), color: theme.regression },
+        { label: 'IMPROVEMENTS', value: formatInteger(improvementCount), color: theme.improvement },
+        { label: 'WITHIN JITTER', value: formatInteger(withinJitterCount), color: theme.jitterEdge },
         { label: 'MEDIAN CHANGE', value: medianChange, color: theme.foreground },
-        { label: 'SKIPPED', value: formatCount(skippedCount), color: theme.muted },
+        { label: 'SKIPPED', value: formatInteger(skippedCount), color: theme.muted },
     ];
     const summaryTop = 82;
     const summaryCardWidth = 168;
@@ -431,7 +432,7 @@ function renderBenchmarkSvg(comparison: BenchmarkComparison, themeName: SvgTheme
         const message =
             comparison.changes.length === 0
                 ? 'No comparable workload timings in this run.'
-                : `All ${formatCount(comparison.changes.length)} comparable pairs are within the jitter threshold.`;
+                : `All ${formatInteger(comparison.changes.length)} comparable pairs are within the jitter threshold.`;
         parts.push(svgText(32, plotTop + 34, message, theme.muted, 13));
     } else {
         for (const [index, layout] of rowLayouts.entries()) {
@@ -591,16 +592,12 @@ function wrapWords(value: string, maximumCharacters: number): string[] {
     return lines.length > 0 ? lines : [''];
 }
 
-function formatCount(value: number): string {
-    return value.toLocaleString('en-US');
-}
-
 function formatInputsPerSample(value: number): string {
-    return `${formatCount(value)} ${value === 1 ? 'input' : 'inputs'}/sample`;
+    return `${formatInteger(value)} ${value === 1 ? 'input' : 'inputs'}/sample`;
 }
 
 function countLabel(value: number, singular: string, plural: string): string {
-    return `${formatCount(value)} ${value === 1 ? singular : plural}`;
+    return `${formatInteger(value)} ${value === 1 ? singular : plural}`;
 }
 
 function formatMilliseconds(value: number): string {
@@ -616,7 +613,7 @@ function formatAxisPercent(value: number): string {
 function formatBytes(value: number): string {
     if (value >= 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(2)} MiB`;
     if (value >= 1024) return `${(value / 1024).toFixed(1)} KiB`;
-    return `${formatCount(value)} B`;
+    return `${formatInteger(value)} B`;
 }
 
 function sizeDelta(currentBytes: number, quickjsBytes: number | undefined, isQuickjs: boolean): string {
