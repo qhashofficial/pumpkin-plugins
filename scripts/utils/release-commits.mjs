@@ -350,6 +350,12 @@ export function releaseCommits(commits, inputs, lastReleaseSha, component, catal
     });
 }
 
+function historyThrough(commits, sha) {
+    const index = commits.findIndex((commit) => commit.sha === sha);
+    if (index === -1) throw new Error(`Package introduction commit ${sha} is missing from the fetched history`);
+    return commits.slice(0, index + 1);
+}
+
 function commitShasSinceRelease(commits, lastReleaseSha) {
     const boundary = commits.findIndex((commit) => commit.sha === lastReleaseSha);
     if (boundary === -1) throw new Error(`Release commit ${lastReleaseSha} is missing from the fetched history`);
@@ -470,11 +476,16 @@ export function bundledChangesPlugin(
             if (releasePaths.length === 0) return strategies;
             const commits = [];
             const boundaries = new Set();
+            // A package without a previous release keeps its introduction commit in its first notes.
+            const introductionShas = {};
             for (const path of releasePaths) {
                 const release = releasesByPath[path];
                 if (release?.sha) boundaries.add(release.sha);
                 else if (releasedVersions[path]?.toString() === '0.0.0') {
-                    if (packagePaths.includes(path)) boundaries.add(await firstPackageCommitSha(github, branch, path));
+                    if (packagePaths.includes(path)) {
+                        introductionShas[path] = await firstPackageCommitSha(github, branch, path);
+                        boundaries.add(introductionShas[path]);
+                    }
                 } else {
                     const previousRelease = await previousPublishedRelease(github, release?.tag);
                     if (previousRelease?.sha) {
@@ -483,6 +494,7 @@ export function bundledChangesPlugin(
                     } else if (packagePaths.includes(path)) {
                         const introductionSha = await firstPackageCommitSha(github, branch, path);
                         releasesByPath[path] = { ...release, sha: introductionSha };
+                        introductionShas[path] = introductionSha;
                         boundaries.add(introductionSha);
                     } else {
                         throw new Error(
@@ -509,10 +521,11 @@ export function bundledChangesPlugin(
                 }
             }
             for (const path of packagePaths) {
+                const introductionSha = introductionShas[path];
                 commitsByPath[path] = releaseCommits(
-                    commits,
+                    introductionSha ? historyThrough(commits, introductionSha) : commits,
                     packageReleaseInputs(packages, path, root),
-                    releasesByPath[path]?.sha,
+                    introductionSha ? undefined : releasesByPath[path]?.sha,
                     path.split('/').at(-1),
                     catalogChangesByCommit,
                 );
