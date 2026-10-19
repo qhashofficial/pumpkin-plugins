@@ -198,8 +198,8 @@ function decodeArguments(
         }
 
         if (spec.type === 'item') {
-            // Some Pumpkin hosts expose an item argument through a different Arg variant; callers can recover its raw token.
-            values[spec.name] = argument.tag === 'item' || argument.tag === 'simple' ? argument.val : '';
+            if (argument.tag !== 'item') throw new CommandFailed(`Argument ${spec.name} must be an item.`);
+            values[spec.name] = argument.val;
             continue;
         }
 
