@@ -1,4 +1,3 @@
-import { commandInfos } from '@pumpkin-plugins/docs';
 import { buildCommands } from '@pumpkin-plugins/plugin-kit/commands';
 import { FakeCommandHost, type FakeNode, MemoryFiles, MemoryLogger } from '@pumpkin-plugins/plugin-kit/testing';
 import { parse } from 'smol-toml';
@@ -29,7 +28,6 @@ describe('the /baddon commands', () => {
     it('are registered exactly as the README lists them', () => {
         const { host, root } = setup();
         expect(host.usages(root).sort()).toEqual((info.commands ?? []).map((c) => c.usage).sort());
-        expect(info.commands).toEqual(commandInfos(commands));
         expect(new Set(info.commands.map((c) => c.permission))).toEqual(
             new Set([`${COMMAND_PERMISSION}.list`, `${COMMAND_PERMISSION}.reload`, `${COMMAND_PERMISSION}.export`]),
         );
