@@ -59,14 +59,12 @@ pins.
 | 🚢 Release | `master` pushes after CI result passes, including docs-only pushes | Calls the reusable release workflow. It catches up pending releases and refreshes every open release PR; Actions get GitHub releases, extensions get VSIX assets, public tools publish npm tarballs, and plugins get signed artifacts and Market listings. |
 | 📝 Prepare release PR | Every open release PR on a release run | Refreshes plugin and extension READMEs, action README examples, starter dependency ranges and first-release pins. |
 | 🔏 Sign, 📎 Attach, 🛒 Market | Each released plugin | Confirms the tag points to the commit built in this run, signs and uploads that artifact, publishes it to an existing Market listing, and syncs its description and commands. |
-| 🧹 Cleanup artifacts | After artifact consumers finish, except for config-only changes and Release Please branches | Deletes handoff artifacts after their consumers succeed or are skipped, even if another job failed. It keeps artifacts needed to rerun failed consumers. |
 
 The signed `plugins` build artifact stays available from the run summary for one day; the build job
-summary includes a direct download link. CI deletes integration WASM files and their fixture after
-integration succeeds or is skipped, even if another job fails. If integration fails, CI keeps those
-files so you can rerun the job. The release workflow deletes its handoff artifacts only after a
-successful run, which leaves them available when you need to rerun a failed release. Failure logs
-remain available for diagnosis.
+summary includes a direct download link. The integration WASM files, their fixture and the release
+workflow's handoff artifacts also expire after one day instead of being deleted, so they stay
+available when you need to rerun a failed job or release. Failure logs remain available for
+diagnosis.
 
 The Docs workflow deletes its `docs-site` and `github-pages` artifacts after publishing succeeds or
 is skipped, and keeps them when publishing fails. The benchmark-comment workflow keeps the combined
