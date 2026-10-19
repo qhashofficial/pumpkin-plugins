@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { WASI_VERSION } from '@pumpkin-plugins/wasi-capabilities';
 import { BuildError } from './errors.ts';
 import { withWasiWitFileLock } from './wasi-wit-lock.ts';
 
@@ -68,6 +69,11 @@ function validateWasiWitLock(lock: WasiWitLock): void {
     if (typeof version !== 'string' || !/^\d+\.\d+\.\d+$/.test(version)) {
         throw new BuildError('unsafe WASI WIT lock version; expected a numeric x.y.z release');
     }
+    if (version !== WASI_VERSION) {
+        throw new BuildError(
+            `WASI version ${version} in tools/build/wasi-wit.lock.json does not match WASI_VERSION ${WASI_VERSION} in tools/wasi-capabilities/src/index.ts; plugin WIT imports use WASI_VERSION, so pin the lock to the same release`,
+        );
+    }
 
     const files = lock.files;
     assertWitLockEntries('file', files);
@@ -119,7 +125,9 @@ const defaultFetch: Fetcher = async (url) => {
  * @returns The pinned WASI WIT files.
  */
 export function readLock(): WasiWitLock {
-    return JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '../wasi-wit.lock.json'), 'utf8'));
+    const lock = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '../wasi-wit.lock.json'), 'utf8'));
+    validateWasiWitLock(lock);
+    return lock;
 }
 
 function isCached(file: string, expected: string): boolean {
