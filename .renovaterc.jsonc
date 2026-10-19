@@ -14,6 +14,9 @@
         // The lockfile pins a lot of transitives exactly, so give it a weekly refresh.
         ":maintainLockFilesWeekly"
     ],
+    // A new release has to be three days old before Renovate merges it, so a compromised publish
+    // has time to be pulled before CI runs it.
+    "minimumReleaseAge": "3 days",
     "labels": ["dependencies"],
     "dependencyDashboardLabels": ["dependencies"],
     "packageRules": [
