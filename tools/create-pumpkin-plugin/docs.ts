@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { code, generatedBlocks, table } from '@pumpkin-plugins/docs/markdown';
+import { code, table } from '@pumpkin-plugins/docs/markdown';
 import type { DocumentSpec } from '@pumpkin-plugins/docs/node';
 
 interface PackageManifest {
@@ -77,22 +77,6 @@ function isAtLeast(candidate: string, minimum: string): boolean | undefined {
         }
     }
     return true;
-}
-
-function updatePassage(source: string, current: string, next: string, label: string, recognized = next): string {
-    if (source.split(/\r?\n/).includes(recognized)) return source;
-    const occurrences = source.split(current).length - 1;
-    if (occurrences !== 1) throw new Error(`${label}: expected one source passage, found ${occurrences}`);
-    return source.replace(current, next);
-}
-
-function updateBlock(source: string, name: string, body: string, note: string): string {
-    const matches = generatedBlocks(source).filter((block) => block.name === name && block.markers === 'docs');
-    if (matches.length !== 1) throw new Error(`Expected one generated block named ${name}, found ${matches.length}`);
-    const block = matches[0];
-    const begin = `<!-- docs:begin ${name} -->`;
-    const end = `<!-- docs:end ${name} -->`;
-    return `${source.slice(0, block.start)}${begin}\n${note}\n\n${body}\n${end}${source.slice(block.end)}`;
 }
 
 const rootPackage = readJson<RootPackage>(new URL('../../package.json', import.meta.url));
@@ -181,50 +165,17 @@ const supportNote =
 const templateNote =
     '<!-- Generated from templates/*/package.json and each starter entry point. Run `pnpm --filter create-pumpkin-plugin readme`. -->';
 
+const templateTable = table(['Starter', 'Package version', 'Package dependencies', 'Host WIT imports'], templateRows);
+
+// Each block carries its own source note, so the document-wide note is empty.
 const documents = [
     {
         file: 'README.md',
-        transform(source) {
-            let next = updatePassage(
-                source,
-                'Create a minimal standalone Pumpkin plugin in TypeScript or JavaScript. The CLI requires Node.js `24.21.0` or newer.',
-                'Create a minimal standalone Pumpkin plugin in TypeScript or JavaScript.',
-                'README introduction',
-            );
-            next = updatePassage(
-                next,
-                "These launch forms follow the official [pnpm create](https://pnpm.io/cli/create), [npm init](https://docs.npmjs.com/cli/v11/commands/npm-init/), [Yarn Classic create](https://classic.yarnpkg.com/en/docs/cli/create/), [Yarn Modern CLI migration guide](https://yarnpkg.com/migration/guide#cli-changes), and [Bun create](https://bun.sh/docs/runtime/templating/create) references. The repository's packed-consumer CI contract validates pnpm only; the other rows document invocation syntax.",
-                'These launch forms follow the official [pnpm create](https://pnpm.io/cli/create), [npm init](https://docs.npmjs.com/cli/v11/commands/npm-init/), [Yarn Classic create](https://classic.yarnpkg.com/en/docs/cli/create/), [Yarn Modern CLI migration guide](https://yarnpkg.com/migration/guide#cli-changes), and [Bun create](https://bun.sh/docs/runtime/templating/create) references.',
-                'README package-manager examples',
-            );
-            next = updatePassage(
-                next,
-                "Add `--skip-install` to create the files without installing packages. Existing destinations are rejected and left untouched. Templates depend on `@pumpkin-plugins/pumpkin-api` and `@pumpkin-plugins/build`; they do not include the monorepo's `plugin-kit` scaffold.",
-                "Add `--skip-install` to create the files without installing packages. Existing destinations are rejected and left untouched. When launched by a supported package manager, the creator uses it to install dependencies. If it cannot detect one, it prints pnpm commands. Generated projects do not include the monorepo's `plugin-kit` scaffold.",
-                'README template dependencies',
-            );
-            next = updatePassage(
-                next,
-                '## Node.js and package manager support\n\nThe generator uses Node.js type stripping and requires Node `24.21.0` or newer. It runs the package manager entrypoint that launched it when installing dependencies; otherwise use the commands it prints after creation. The packed-consumer CI matrix targets pnpm `12.11.2` on Linux x64, macOS arm64 and Windows x64.',
-                '## Node.js and CI support\n\n<!-- docs:begin support-contract -->\n<!-- docs:end support-contract -->',
-                'README Node.js and CI support',
-                '## Node.js and CI support',
-            );
-            next = updatePassage(
-                next,
-                '## API and ABI versions\n\nThe templates start with package version `0.1.0` and Pumpkin plugin WIT ABI `0.1.0`. These versions are separate. Keep the API package and Pumpkin server ABI aligned when upgrading.',
-                '## Starter package defaults\n\n<!-- docs:begin template-defaults -->\n<!-- docs:end template-defaults -->\n\nThe npm package dependency range and host WIT interface version identify separate compatibility layers. See the [ABI and runtime guide](../../docs/plugin-api/abi-and-runtime.md) for compatibility with Pumpkin server releases.',
-                'README template defaults',
-                '## Starter package defaults',
-            );
-            next = updateBlock(next, 'support-contract', table(['Contract', 'Value'], supportRows), supportNote);
-            return updateBlock(
-                next,
-                'template-defaults',
-                table(['Starter', 'Package version', 'Package dependencies', 'Host WIT imports'], templateRows),
-                templateNote,
-            );
+        blocks: {
+            'support-contract': `${supportNote}\n\n${table(['Contract', 'Value'], supportRows)}`,
+            'template-defaults': `${templateNote}\n\n${templateTable}`,
         },
+        note: '',
     },
 ] satisfies DocumentSpec[];
 
