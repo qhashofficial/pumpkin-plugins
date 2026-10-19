@@ -334,13 +334,11 @@ jobs:
               id: build-all
               run: node scripts/ci-run.mjs "Build production components" -- pnpm run build
 
+            # A quick check that a Static Hermes build loads on a real server before anything is
+            # signed, even when the change selects no integration suites. The test only reads build/.
             - name: 🔬 Run Static Hermes integration test
               id: run-static-hermes-integration-test
               run: node scripts/ci-run.mjs "Static Hermes smoke test" -- pnpm turbo run test:integration --filter=@pumpkin-plugins/apple-skin-pumpkin
-
-            - name: 📦 Build release artifacts
-              id: build-release-artifacts
-              run: node scripts/ci-run.mjs "Build release components" -- pnpm run build
 
             # The release workflow signs every published asset again with the repository key, so CI
             # signs with a run-only key and never puts the release key in this job's environment.
