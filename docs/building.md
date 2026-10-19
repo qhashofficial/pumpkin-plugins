@@ -200,8 +200,8 @@ operation in an imported WASI interface, including operations your plugin doesn'
 native adapters for operations selected by build analysis. The imported WASI operations cover
 filesystem, HTTP, streams, clocks, TCP, UDP, and sockets. Selecting a feature-gated operation also
 enables its WIT feature. Event converters keep complete payload fields for statically registered
-event types; dynamic or unresolved registrations retain every event case and payload field. Static
-Hermes development builds disable the shared automatic update check. WASI 3 support is deferred.
+event types; dynamic or unresolved registrations retain every event case and payload field. WASI 3
+support is deferred.
 
 Resources and promises behave differently from QuickJS, so keep these rules in mind when you write a
 plugin for Static Hermes:

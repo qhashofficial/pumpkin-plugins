@@ -212,10 +212,7 @@ function updateReadme(source: string): string {
             'Static Hermes development builds bypass the shared automatic Market update check. WASI 3 support is',
             'deferred.',
         ].join('\n'),
-        [
-            'Static Hermes development builds bypass the shared automatic Market update check. See the',
-            '[WASI guide](docs/wasi.md) for supported imports and runtime limits.',
-        ].join('\n'),
+        'See the [WASI guide](docs/wasi.md) for supported imports and runtime limits.',
         'README WASI runtime limits',
     );
     return updateBlock(next, 'external-consumer-toolchain', table(['Tool', 'Version'], toolchainRows), toolchainNote);
