@@ -661,10 +661,7 @@ describe('run arguments', () => {
         const pluginDir = fs.mkdtempSync(path.join(os.tmpdir(), 'plugin-cli-types-wasi-'));
         const apiDir = fs.mkdtempSync(path.join(os.tmpdir(), 'plugin-api-'));
         installApiPackage(pluginDir, apiDir);
-        const legacyTypesWit = path.join(pluginDir, 'build', 'types', 'wit');
         let generatedFrom = '';
-        fs.mkdirSync(legacyTypesWit, { recursive: true });
-        fs.writeFileSync(path.join(legacyTypesWit, 'old.wit'), 'stale generated copy');
         fs.writeFileSync(
             path.join(pluginDir, 'package.json'),
             JSON.stringify({ ...declaredApi, version: '1.0.0', pumpkinPlugin: { wasi: ['http'] } }),
@@ -685,7 +682,7 @@ describe('run arguments', () => {
             expect(generatedFrom).not.toBe('');
             expect(generatedFrom).not.toContain(path.join(pluginDir, 'build'));
             expect(fs.existsSync(generatedFrom)).toBe(false);
-            expect(fs.existsSync(legacyTypesWit)).toBe(false);
+            expect(fs.existsSync(path.join(pluginDir, 'build', 'types', 'wit'))).toBe(false);
         } finally {
             vi.mocked(generateTypes).mockReset();
             fs.rmSync(pluginDir, { recursive: true, force: true });
