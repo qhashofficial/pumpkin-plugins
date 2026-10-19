@@ -44,13 +44,14 @@ const ANSI_COLORS = {
     white: 97,
 } as const satisfies Record<keyof typeof COLORS, number>;
 
+// Terminals have no obfuscated style, and SGR 8 (conceal) would hide text that log files still keep.
 const ANSI_FORMATS = {
-    obfuscated: 8,
+    obfuscated: undefined,
     bold: 1,
     strikethrough: 9,
     underline: 4,
     italic: 3,
-} as const satisfies Record<keyof typeof FORMATS, number>;
+} as const satisfies Record<keyof typeof FORMATS, number | undefined>;
 
 const NAMED_COLORS = {
     error: { color: 'darkRed', format: 'bold' },
@@ -95,8 +96,9 @@ function createFormatter(output: FormatterOutput, state: FormatterState = { form
         let open: string;
         let reset: string;
         if (output === 'ansi') {
-            const codes: number[] = formats.map((format) => ANSI_FORMATS[format]);
+            const codes: number[] = formats.flatMap((format) => ANSI_FORMATS[format] ?? []);
             if (state.ansiColorPrefix !== undefined) codes.push(...state.ansiColorPrefix.split(';').map(Number));
+            if (codes.length === 0) return text;
             open = `\u001b[${codes.join(';')}m`;
             reset = '\u001b[0m';
         } else {
