@@ -8,8 +8,8 @@ server to apply your edits.
 ## Item lights
 
 Each `[sources."<item-id>"]` table sets the light level for a held item and for dropped items the
-plugin observes. Set `light_level` from `0` through `15`. Use the item ID Pumpkin reports, usually
-with its namespace, such as `minecraft:torch`:
+plugin observes. Set `light_level` from `0` through `15`. Use the item ID with its namespace, such
+as `minecraft:torch`; an ID without one, such as `torch`, means `minecraft:torch`:
 
 ```toml
 [sources."minecraft:torch"]
