@@ -18,8 +18,8 @@ how plugins can request additional mappings.
 | API | `@pumpkin-plugins/upnpumpkin-api` (`tools/apis/upnpumpkin-api`) | Provides the IPC message format, client, and watcher for plugins that need a port opened. |
 | Host | `@pumpkin-plugins/plugin-kit` (`tools/plugin-kit`) | Gives plugins the host services UPnPumpkin uses: a data folder, logging, scheduling, commands, and IPC. |
 
-BedrockAddonManager uses the API to open its web port when `web.public_url` is empty and
-`web.bind` is `0.0.0.0`. Set `web.port_forwarding = false` to manage that port yourself.
+BedrockAddonManager uses the API to open its web port when `web.port_forwarding` is true,
+`web.public_url` is empty and `web.bind` is `0.0.0.0`. Forwarding is off by default.
 
 ## How the engine works
 

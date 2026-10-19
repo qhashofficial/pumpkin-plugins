@@ -28,7 +28,7 @@ Put `.mcpack` files, or `.mcaddon` bundles, in `plugins/data/BedrockAddonManager
 
 - Packs are never picked up on their own. They are read on server start and on `/baddon reload`.
 - A `.mcaddon` often holds a behavior pack next to the resource pack. Pumpkin can't use behavior packs, so only the resource pack is taken (written to `packs/.extracted/` and served from there) and the rest is logged as left out. A pack from a bundle is named after the bundle: `Bundle.mcaddon` becomes `Bundle.mcpack`, or `Bundle - <pack>.mcpack` when it holds several. Use that name in `overrides`.
-- Reachable URLs: set `web.public_url` to an address players can reach. If it is empty and `web.bind` is `0.0.0.0`, the plugin asks [UPnPumpkin](../upnpumpkin/README.md) to open `web.port` on your router and uses the public address it returns (for example, `http://203.0.113.7:8123`). Nothing is opened when this machine already has a public address. Without UPnPumpkin, the plugin warns and falls back to `127.0.0.1`, which only works for players on the server machine. Set `web.port_forwarding = false` to opt out.
+- Reachable URLs: set `web.public_url` to an address players can reach. Without it, the plugin falls back to `127.0.0.1`, which only works for players on the server machine. To have [UPnPumpkin](../upnpumpkin/README.md) open `web.port` on your router instead, set `web.port_forwarding = true` and keep `web.bind` at `0.0.0.0`; the plugin then uses the public address it returns (for example, `http://203.0.113.7:8123`). Nothing is opened when this machine already has a public address.
 
 ## Permissions
 
@@ -69,7 +69,7 @@ Settings live in `plugins/data/BedrockAddonManager/config.toml`. The plugin crea
 | `web.bind` | string | `"0.0.0.0"` | IPv4 address to listen on. |
 | `web.port` | integer | `8123` | Port to listen on. |
 | `web.public_url` | string | `""` | Base URL Bedrock clients should use to download packs, without a trailing slash, query or fragment; for example "https://packs.example.com". The plugin serves plain HTTP. Put a reverse proxy in front of it for HTTPS. When empty, the plugin uses the public address reported by UPnPumpkin if forwarding succeeds, or a loopback URL on the configured port otherwise. A loopback URL works only for players on the server machine. |
-| `web.port_forwarding` | boolean | `true` | When `public_url` is empty and `bind` is "0.0.0.0", ask UPnPumpkin to open `port` on your router (UPnP or NAT-PMP) and use the public address it returns. No port is opened when this machine already has a public address or UPnPumpkin is not installed. Set to false to disable forwarding. |
+| `web.port_forwarding` | boolean | `false` | Set to true to have UPnPumpkin open `port` on your router (UPnP or NAT-PMP) and use the public address it returns. It only applies when `public_url` is empty and `bind` is "0.0.0.0". No port is opened when this machine already has a public address or UPnPumpkin is not installed. Off by default because it changes your router. |
 | `packs.directory` | string | `"packs"` | Folder inside this plugin's data folder that is scanned for .mcpack and .mcaddon files. |
 | `packs.force` | boolean | `false` | Require pack downloads before players can join. This setting has no effect because BedrockAddonManager does not send pack offers to players. |
 | `overrides."<file>".enabled` | boolean | none | Set to false to leave the pack out entirely. |
@@ -111,10 +111,11 @@ port = 8123
 # URL works only for players on the server machine.
 public_url = ""
 
-# When `public_url` is empty and `bind` is "0.0.0.0", ask UPnPumpkin to open `port` on your router
-# (UPnP or NAT-PMP) and use the public address it returns. No port is opened when this machine
-# already has a public address or UPnPumpkin is not installed. Set to false to disable forwarding.
-port_forwarding = true
+# Set to true to have UPnPumpkin open `port` on your router (UPnP or NAT-PMP) and use the public
+# address it returns. It only applies when `public_url` is empty and `bind` is "0.0.0.0". No port is
+# opened when this machine already has a public address or UPnPumpkin is not installed. Off by
+# default because it changes your router.
+port_forwarding = false
 
 # Where the packs are and how they are listed.
 [packs]

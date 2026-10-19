@@ -22,9 +22,8 @@ Bedrock clients can reach:
   should use. Don't add a trailing slash. The built-in server uses plain HTTP, so terminate HTTPS at
   the proxy.
 - To use UPnPumpkin port forwarding, leave `web.public_url` empty, keep `web.bind` at `0.0.0.0`,
-  and enable `web.port_forwarding`. This requires a router that allows port mapping; it won't work
-  behind carrier-grade NAT.
-- Set `web.port_forwarding = false` when forwarding is managed manually.
+  and set `web.port_forwarding = true`. It is off by default because it changes your router. It
+  needs a router that allows port mapping and won't work behind carrier-grade NAT.
 - If packs are hosted elsewhere, set `web.enabled = false` and provide a `download_url` override
   for every enabled pack.
 

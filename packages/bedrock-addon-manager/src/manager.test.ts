@@ -34,6 +34,7 @@ function setup(config?: string) {
     return { files, log, server, manager, upnp, clock, wait };
 }
 
+const FORWARDING = '[web]\nport_forwarding = true\n';
 const NO_FORWARDING = '[web]\nport_forwarding = false\n';
 const OPEN = { kind: 'open', via: 'upnp', address: '93.184.216.34', port: 8123 } as const;
 
@@ -52,7 +53,7 @@ describe('PackManager', () => {
     });
 
     it('warns that the default public url only works on this machine', () => {
-        const { files, log, manager } = setup(NO_FORWARDING);
+        const { files, log, manager } = setup();
         files.put('packs/a.mcpack', pack(1));
         manager.start();
         expect(log.of('warn')).toEqual([
@@ -75,7 +76,7 @@ describe('PackManager', () => {
         const urls = (manager: PackManager) => manager.entries.map((e) => e.downloadUrl);
 
         it('asks UPnPumpkin to open the web port when public_url is empty and bind is 0.0.0.0', () => {
-            const { files, upnp, log, manager } = setup();
+            const { files, upnp, log, manager } = setup(FORWARDING);
             files.put('packs/a.mcpack', pack(1));
             manager.start();
             expect(upnp.requests).toEqual([
@@ -96,8 +97,9 @@ describe('PackManager', () => {
             ['public_url is set', '[web]\npublic_url = "https://packs.example.com"\n'],
             ['bind is not 0.0.0.0', '[web]\nbind = "127.0.0.1"\n'],
             ['port_forwarding is false', NO_FORWARDING],
+            ['port_forwarding is left at its default', undefined],
             ['the web server is off', '[web]\nenabled = false\n'],
-        ])('does not ask when %s', (_, config) => {
+        ])('does not ask when %s', (_, config: string | undefined) => {
             const { upnp, manager, wait } = setup(config);
             manager.start();
             wait(60_000);
@@ -106,7 +108,7 @@ describe('PackManager', () => {
         });
 
         it('does not rescan the packs folder when the address arrives', () => {
-            const { files, upnp, manager, wait } = setup();
+            const { files, upnp, manager, wait } = setup(FORWARDING);
             manager.start();
             files.put('packs/late.mcpack', pack(5));
             upnp.status = OPEN;
@@ -115,7 +117,7 @@ describe('PackManager', () => {
         });
 
         it('says when this machine is public already and nothing had to be opened', () => {
-            const { files, upnp, log, manager } = setup();
+            const { files, upnp, log, manager } = setup(FORWARDING);
             files.put('packs/a.mcpack', pack(1));
             upnp.status = { kind: 'open', via: 'public', address: '93.184.216.99', port: 8123 };
             manager.start();
@@ -126,7 +128,7 @@ describe('PackManager', () => {
         });
 
         it('warns with the reason when the port cannot be opened, and keeps the local address', () => {
-            const { files, upnp, log, manager } = setup();
+            const { files, upnp, log, manager } = setup(FORWARDING);
             files.put('packs/a.mcpack', pack(1));
             upnp.status = { kind: 'failed', reason: 'no router answered the search' };
             manager.start();
@@ -137,7 +139,7 @@ describe('PackManager', () => {
         });
 
         it('goes back to the local address when the address is lost', () => {
-            const { files, upnp, manager, wait } = setup();
+            const { files, upnp, manager, wait } = setup(FORWARDING);
             files.put('packs/a.mcpack', pack(1));
             manager.start();
             upnp.status = OPEN;
@@ -148,7 +150,7 @@ describe('PackManager', () => {
         });
 
         it('waits before reporting that UPnPumpkin is missing, since it may load later, and recovers when it does', () => {
-            const { files, upnp, log, manager, wait } = setup();
+            const { files, upnp, log, manager, wait } = setup(FORWARDING);
             files.put('packs/a.mcpack', pack(1));
             upnp.available = false;
             manager.start();
@@ -169,7 +171,7 @@ describe('PackManager', () => {
         });
 
         it('stays quiet when UPnPumpkin turns up within the wait', () => {
-            const { upnp, log, manager, wait } = setup();
+            const { upnp, log, manager, wait } = setup(FORWARDING);
             upnp.available = false;
             manager.start();
             wait(10_000);
@@ -179,12 +181,12 @@ describe('PackManager', () => {
         });
 
         it('keeps the asked port across a reload, and moves it when the port changes', () => {
-            const { files, upnp, manager, wait } = setup();
+            const { files, upnp, manager, wait } = setup(FORWARDING);
             manager.start();
             manager.reload();
             expect(upnp.ops).toEqual(['ensure']);
 
-            files.put(CONFIG_FILE, '[web]\nport = 9000\n');
+            files.put(CONFIG_FILE, '[web]\nport = 9000\nport_forwarding = true\n');
             manager.reload();
             expect(upnp.requests.map((r) => r.op)).toEqual(['ensure', 'release', 'ensure']);
             expect(upnp.requests.at(-1)).toMatchObject({ port: 9000 });
@@ -192,7 +194,7 @@ describe('PackManager', () => {
         });
 
         it('lets go of the port and returns to the local address when turned off', () => {
-            const { files, upnp, log, manager, wait } = setup();
+            const { files, upnp, log, manager, wait } = setup(FORWARDING);
             files.put('packs/a.mcpack', pack(1));
             manager.start();
             upnp.status = OPEN;
@@ -206,19 +208,19 @@ describe('PackManager', () => {
         });
 
         it('releases the port on stop, also when UPnPumpkin is gone', () => {
-            const { upnp, manager } = setup();
+            const { upnp, manager } = setup(FORWARDING);
             manager.start();
             manager.stop();
             expect(upnp.ops).toEqual(['ensure', 'release']);
 
-            const gone = setup();
+            const gone = setup(FORWARDING);
             gone.manager.start();
             gone.upnp.available = false;
             expect(() => gone.manager.stop()).not.toThrow();
         });
 
         it('does not send IPC when stopping during plugin unload', () => {
-            const { upnp, manager } = setup();
+            const { upnp, manager } = setup(FORWARDING);
             manager.start();
             manager.stop({ releasePort: false });
 

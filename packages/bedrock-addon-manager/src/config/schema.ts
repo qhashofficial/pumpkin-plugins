@@ -41,8 +41,8 @@ export const configSchema = defineConfig(PLUGIN_NAME, {
             }),
             port_forwarding: bool({
                 description:
-                    'When `public_url` is empty and `bind` is "0.0.0.0", ask UPnPumpkin to open `port` on your router (UPnP or NAT-PMP) and use the public address it returns. No port is opened when this machine already has a public address or UPnPumpkin is not installed. Set to false to disable forwarding.',
-                default: true,
+                    'Set to true to have UPnPumpkin open `port` on your router (UPnP or NAT-PMP) and use the public address it returns. It only applies when `public_url` is empty and `bind` is "0.0.0.0". No port is opened when this machine already has a public address or UPnPumpkin is not installed. Off by default because it changes your router.',
+                default: false,
             }),
         },
     }),
