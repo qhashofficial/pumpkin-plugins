@@ -84,8 +84,8 @@ diagnostics. Cached suites and Node test results are labeled separately, so they
 fresh Vitest passes.
 
 The Build summary lists component builds, the runtime smoke check, plugin names and versions,
-component sizes and the signed artifact download. Its signing note distinguishes a CI-only key from
-the repository release key. The Build smoke test doesn't create a separate Vitest report. Extension
+component sizes and the signed artifact download. Its signing note says the artifacts carry a CI-only
+key. The Build smoke test doesn't create a separate Vitest report. Extension
 checks link the VSIX download, the Docs workflow links the published site, release orchestration
 lists released components and release PR counts, and upstream-pin jobs link the source diff. Before
 expensive checks start, the selected-checks summary explains why each job is in scope. Expand a
@@ -368,9 +368,10 @@ plugin from a metadata manifest. It then runs the
 [`verify-pumpkin-plugin` action](../actions/verify-pumpkin-plugin/README.md) against that manifest,
 pinning verification to the public key derived from the same run's signing key.
 
-When a repository signing key is available, CI uses it on pushes. Pull requests and pushes without
-that secret use an ephemeral key. The verified signed files go to integration tests; the ephemeral
-key is only for checks and is never available to release jobs. Before signing a release artifact,
+CI signs with an ephemeral key generated for the run, on pull requests and pushes alike, so the
+repository release key never reaches the build job. The verified signed files go to integration
+tests; the ephemeral key is only for checks and is never available to release jobs. The release
+workflow signs each published asset with the repository key. Before signing a release artifact,
 the release job confirms its tag points to the commit that produced the build. It uploads the signed
 `.wasm` and refreshed `.sha256` to the GitHub release. Before uploading to Pumpkin Market, CI
 verifies the artifact's expected plugin name and version and removes the publisher's signing

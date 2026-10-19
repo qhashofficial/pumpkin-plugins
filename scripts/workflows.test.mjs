@@ -333,6 +333,13 @@ describe('CI job selection and release prerequisites', () => {
         );
     });
 
+    it('keeps the release signing key out of every CI job', () => {
+        for (const [name, job] of Object.entries(ci.jobs)) {
+            if (name === 'release') continue;
+            assert.doesNotMatch(JSON.stringify(job), /secrets\.PLUGIN_SIGNING_KEY/, name);
+        }
+    });
+
     it('passes the selected packages to the integration run', () => {
         const integration = ci.jobs.integration;
         const integrationCommand = integration.steps.find((entry) => entry.id === 'integration-tests');
