@@ -329,12 +329,20 @@ function workspaceLayoutChanged(base, head) {
     return before === undefined || after === undefined || workspaceLayout(before) !== workspaceLayout(after);
 }
 
-const COMMON_CONSUMERS = [
-    'publish-to-pumpkin-market',
-    'sign-pumpkin-plugin',
-    'update-pumpkin-market-listing',
-    'verify-pumpkin-plugin',
-];
+/** Finds the actions whose source imports the shared `actions/common/` helpers. */
+function commonConsumers() {
+    const tracked = spawnSync('git', ['ls-files', '-z', 'actions'], { cwd: repositoryRoot, encoding: 'utf8' });
+    if (tracked.status !== 0) {
+        throw new Error(`Could not list action files for common helper consumers: ${tracked.stderr.trim()}`);
+    }
+    const consumers = new Set();
+    for (const file of tracked.stdout.split('\0')) {
+        const [, action] = file.match(/^actions\/([^/]+)\/src\/[^/]+\.m?js$/) ?? [];
+        if (!action || action === 'common') continue;
+        if (readFileSync(path.join(repositoryRoot, file), 'utf8').includes('../../common/')) consumers.add(action);
+    }
+    return consumers;
+}
 
 const args = process.argv.slice(2);
 const configOnlyMode = args[0] === '--config-only';
@@ -403,7 +411,7 @@ const actionPaths = changed.filter((file) => !isDocs(file) && /^actions\/[^/]+\/
 const actions = [...new Set(actionPaths.map((file) => file.split('/')[1]))].filter((name) => name !== 'common').sort();
 const actionCodePaths = actionPaths.filter((file) => !file.endsWith('/version.txt'));
 const tests = new Set(actionCodePaths.map((file) => file.split('/')[1]));
-if (tests.has('common')) for (const consumer of COMMON_CONSUMERS) tests.add(consumer);
+if (tests.has('common')) for (const consumer of commonConsumers()) tests.add(consumer);
 const actionsToTest = [...tests].sort();
 const extensionPaths = changed.filter((file) => !isDocs(file) && /^extensions\/[^/]+\//.test(file));
 const extensions = [...new Set(extensionPaths.map((file) => file.split('/')[1]))].sort();
@@ -467,9 +475,6 @@ let integrationScope = benchmarkOnly
       : integrationRuntimeChanged
         ? 'affected'
         : 'none';
-const integrationExtra = code.some((file) => file.startsWith('packages/upnpumpkin/'))
-    ? '@pumpkin-plugins/bedrock-addon-manager'
-    : '';
 const integrationPackages = new Set();
 if (integrationScope === 'affected') {
     for (const directory of integrationRelevant.directories) {
@@ -501,12 +506,11 @@ console.log(`Generator smoke test: ${generator ? 'selected' : 'skipped'}`);
 console.log(`Integration scope: ${integrationScope}`);
 if (generatedReadmes) console.log('Generated README update commit detected.');
 if (skipExpensiveChecks) console.log('Release merge: the expensive suites are skipped.');
-if (integrationExtra) console.log(`Additional integration package: ${integrationExtra}`);
 if (integrationPackages.size) console.log(`Integration packages: ${[...integrationPackages].sort().join(', ')}`);
 
 if (process.env.GITHUB_OUTPUT) {
     appendFileSync(
         process.env.GITHUB_OUTPUT,
-        `code=${code.length > 0}\nconfig_only=${configOnly}\nactions=${JSON.stringify(actions)}\nactions_to_test=${JSON.stringify(actionsToTest)}\nextensions=${JSON.stringify(extensions)}\nextensions_to_test=${JSON.stringify(extensionsToTest)}\ngenerated_readmes=${generatedReadmes}\ngenerator=${generator}\nintegration_scope=${integrationScope}\nskip_expensive_checks=${skipExpensiveChecks}\nintegration_extra=${integrationExtra}\n${integrationPackages.size ? `integration_packages=${JSON.stringify([...integrationPackages].sort())}\n` : ''}`,
+        `code=${code.length > 0}\nconfig_only=${configOnly}\nactions=${JSON.stringify(actions)}\nactions_to_test=${JSON.stringify(actionsToTest)}\nextensions=${JSON.stringify(extensions)}\nextensions_to_test=${JSON.stringify(extensionsToTest)}\ngenerated_readmes=${generatedReadmes}\ngenerator=${generator}\nintegration_scope=${integrationScope}\nskip_expensive_checks=${skipExpensiveChecks}\n${integrationPackages.size ? `integration_packages=${JSON.stringify([...integrationPackages].sort())}\n` : ''}`,
     );
 }

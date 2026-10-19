@@ -87,7 +87,6 @@ jobs:
             generated_readmes: ${{ steps.classify.outputs.generated_readmes }}
             generator: ${{ steps.classify.outputs.generator }}
             integration_scope: ${{ steps.classify.outputs.integration_scope }}
-            integration_extra: ${{ steps.classify.outputs.integration_extra }}
             integration_packages: ${{ steps.classify.outputs.integration_packages }}
             jobs: ${{ steps.select.outputs.jobs }}
         steps:
@@ -495,7 +494,6 @@ jobs:
               id: integration-tests
               env:
                   INTEGRATION_SCOPE: ${{ needs.changes.outputs.integration_scope }}
-                  INTEGRATION_EXTRA: ${{ needs.changes.outputs.integration_extra }}
                   INTEGRATION_PACKAGES: ${{ needs.changes.outputs.integration_packages || '[]' }}
                   PUMPKIN_TEST_LOG_DIR: ${{ runner.temp }}/pumpkin-logs
               run: |
@@ -509,9 +507,6 @@ jobs:
                       while IFS= read -r package; do
                           filters+=(--filter="...$package")
                       done < <(node -e 'for (const name of JSON.parse(process.env.INTEGRATION_PACKAGES)) console.log(name)')
-                      if [ -n "$INTEGRATION_EXTRA" ]; then
-                          filters+=(--filter="$INTEGRATION_EXTRA")
-                      fi
                       pnpm turbo run test:integration --concurrency=2 --only "${filters[@]}"
                   else
                       pnpm turbo run test:integration --concurrency=2 --only

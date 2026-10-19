@@ -344,11 +344,10 @@ describe('CI job selection and release prerequisites', () => {
         fs.writeFileSync(pnpm, '#!/usr/bin/env bash\nprintf "%s\\n" "$@" > "$CAPTURED_ARGS"\n');
         fs.chmodSync(pnpm, 0o755);
 
-        for (const [scope, extra, packages, expected] of [
+        for (const [scope, packages, expected] of [
             [
                 'affected',
-                '@pumpkin-plugins/bedrock-addon-manager',
-                '["@pumpkin-plugins/upnpumpkin"]',
+                '["@pumpkin-plugins/upnpumpkin","@pumpkin-plugins/waypoints"]',
                 [
                     'turbo',
                     'run',
@@ -356,10 +355,10 @@ describe('CI job selection and release prerequisites', () => {
                     '--concurrency=2',
                     '--only',
                     '--filter=...@pumpkin-plugins/upnpumpkin',
-                    '--filter=@pumpkin-plugins/bedrock-addon-manager',
+                    '--filter=...@pumpkin-plugins/waypoints',
                 ],
             ],
-            ['all', '', '[]', ['turbo', 'run', 'test:integration', '--concurrency=2', '--only']],
+            ['all', '[]', ['turbo', 'run', 'test:integration', '--concurrency=2', '--only']],
         ]) {
             const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', integrationCommand.run], {
                 encoding: 'utf8',
@@ -368,7 +367,6 @@ describe('CI job selection and release prerequisites', () => {
                     PATH: `${directory}:${process.env.PATH}`,
                     CAPTURED_ARGS: argsFile,
                     INTEGRATION_SCOPE: scope,
-                    INTEGRATION_EXTRA: extra,
                     INTEGRATION_PACKAGES: packages,
                 },
             });
