@@ -335,7 +335,7 @@ describe('package-metadata', () => {
         assert.ok(result.ok, result.out);
     });
 
-    it('keeps benchmark workspace packages private and outside Release Please', () => {
+    it('keeps benchmark workspace packages private', () => {
         const privatePackage = repo(
             files({
                 'benchmarks/engine-comparison/package.json': {
@@ -353,22 +353,6 @@ describe('package-metadata', () => {
             run('package-metadata.mjs', publicPackage).out,
             /benchmark workspace packages must set "private": true/,
         );
-
-        const registered = repo({
-            ...files({
-                'benchmarks/engine-comparison/package.json': {
-                    name: '@pumpkin-plugins/engine-comparison',
-                    private: true,
-                },
-            }),
-            'release-please-config.json': {
-                packages: { 'benchmarks/engine-comparison': { component: 'engine-comparison' } },
-            },
-            '.release-please-manifest.json': { 'benchmarks/engine-comparison': '0.0.0' },
-        });
-        const result = run('package-metadata.mjs', registered);
-        assert.match(result.out, /private benchmark packages cannot be in release-please-config\.json/);
-        assert.match(result.out, /private benchmark packages cannot be in \.release-please-manifest\.json/);
     });
 
     it('names the missing or wrong fields', () => {
@@ -618,6 +602,23 @@ describe('check-release-config', () => {
             run('check-release-config.mjs', repo(noReason)).out,
             /packages\/plug in release-please-paused\.json needs a non-empty reason/,
         );
+    });
+
+    it('rejects a private benchmark package in either Release Please file', () => {
+        const registered = files();
+        registered['benchmarks/engine-comparison/package.json'] = {
+            name: '@pumpkin-plugins/engine-comparison',
+            private: true,
+        };
+        registered['release-please-config.json'].packages['benchmarks/engine-comparison'] = {
+            component: 'engine-comparison',
+        };
+        registered['.release-please-manifest.json']['benchmarks/engine-comparison'] = '0.0.0';
+
+        const result = run('check-release-config.mjs', repo(registered));
+        assert.equal(result.ok, false);
+        assert.match(result.out, /release-please-config\.json lists benchmarks\/engine-comparison/);
+        assert.match(result.out, /\.release-please-manifest\.json lists benchmarks\/engine-comparison/);
     });
 
     it('requires release-as 0.0.1 until the first release', () => {
