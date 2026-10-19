@@ -71,7 +71,7 @@ Pumpkin asks you to approve these on the server console when it loads the plugin
 | `/wp access grant player <name> <player>` | Grant access to an online player | `Waypoints:command.admin` | operators (level 3) |
 | `/wp access grant permission <name> <permission>` | Grant access to a permission node | `Waypoints:command.admin` | operators (level 3) |
 | `/wp access grant group <name> <group>` | Grant access to a permission marker group | `Waypoints:command.admin` | operators (level 3) |
-| `/wp access revoke player <name> <player>` | Revoke an online player grant | `Waypoints:command.admin` | operators (level 3) |
+| `/wp access revoke player <name> <player>` | Revoke a player grant by online name or UUID | `Waypoints:command.admin` | operators (level 3) |
 | `/wp access revoke permission <name> <permission>` | Revoke a permission node grant | `Waypoints:command.admin` | operators (level 3) |
 | `/wp access revoke group <name> <group>` | Revoke a permission marker group grant | `Waypoints:command.admin` | operators (level 3) |
 | `/wp set color <name> <hex>` | Set the waypoint color | `Waypoints:command.admin` | operators (level 3) |

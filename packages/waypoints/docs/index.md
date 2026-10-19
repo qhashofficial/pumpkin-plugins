@@ -32,7 +32,8 @@ The server console and RCON hold every permission, so they can run the admin com
 exceptions are `/wp create` and `/wp relocate`, which use the sender's position or world and need a
 player. Over RCON, `/wp set icon` fails because Pumpkin doesn't pass the item to the plugin.
 
-Player grants resolve online names and store UUIDs. A group grant checks the permission
+Player grants resolve online names and store UUIDs. To revoke the grant of an offline player, pass
+the UUID that `/wp access list` shows. A group grant checks the permission
 marker `Waypoints:group.<slug>`; another permission provider must assign that marker to group
 members.
 
