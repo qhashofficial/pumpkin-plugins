@@ -21,6 +21,7 @@ import { ADMIN_PERMISSION, type commands } from './spec.ts';
 const NOT_ADMIN = 'You do not have permission to manage waypoints.';
 const PLAYER_ONLY = 'This command can only be used by a player.';
 const INACCESSIBLE = 'Waypoint not found or you do not have access.';
+const CREATE_INPUT = /^\s*\/?wp\s+create\s/i;
 const REVOKE_PLAYER_INPUT = /^\/?wp\s+access\s+revoke\s+player\s+("(?:[^"\\]|\\.)*"|\S+)\s/i;
 const STORAGE_ERROR =
     'Waypoint storage is unavailable or the change could not be saved; check the server log. No changes were made.';
@@ -251,7 +252,8 @@ export function commandHandlers(runtime: WaypointCommandRuntime): CommandHandler
 /** Suggests waypoint names visible to this sender, using the same access policy as commands. */
 export function waypointNameSuggestions(runtime: WaypointCommandRuntime): CommandSuggestionHandler<CommandSender> {
     return (sender, request) => {
-        if (!runtime.catalog.isAvailable) return [];
+        // Every existing name would conflict with a new waypoint.
+        if (!runtime.catalog.isAvailable || CREATE_INPUT.test(request.input)) return [];
         const prefix = suggestionPrefix(request.remaining);
         const names = (include: (waypoint: Waypoint) => boolean) =>
             runtime.catalog
