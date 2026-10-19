@@ -74,6 +74,14 @@ describe('SSDP search', () => {
         expect(net.closed).toBe(true);
     });
 
+    it('reads answers whose lines end in a bare LF', () => {
+        const data = new TextEncoder().encode('HTTP/1.1 200 OK\nLOCATION: http://192.168.1.1:5000/root.xml\n\n');
+        const net = new FloodNetwork([{ data, from: { address: [192, 168, 1, 1], port: 1900 } }]);
+        expect(runSteps(net, search(net, SSDP_ADDRESS, 3000))).toEqual([
+            { location: 'http://192.168.1.1:5000/root.xml', responder: [192, 168, 1, 1] },
+        ]);
+    });
+
     it('yields after a bounded batch while flood datagrams remain queued', () => {
         const net = new FloodNetwork(searchDatagrams(100));
         const steps = search(net, SSDP_ADDRESS, 3000);
