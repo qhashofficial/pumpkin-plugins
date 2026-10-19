@@ -402,6 +402,25 @@ describe('PortForwarder', () => {
         expect(net.leaks).toBe(0);
     });
 
+    it('blocks on the network between shutdown polls instead of spinning', () => {
+        const { forwarder, settle, keys, net } = setup('[bedrock]\nenabled = false\n', new FakeIgd({ natPmp: false }));
+        forwarder.start();
+        settle(() => keys().length === 1);
+        delayRouterReply(net);
+        net.autoAdvanceMs = 1;
+        let paused = 0;
+        const pause = net.pause.bind(net);
+        net.pause = (ms) => {
+            paused += ms;
+            pause(ms);
+        };
+        const before = net.time;
+        forwarder.stop();
+        expect(net.time - before).toBeLessThanOrEqual(3010);
+        expect(paused).toBeGreaterThan(2000);
+        expect(net.leaks).toBe(0);
+    });
+
     it('stops without a router and without having started', () => {
         const { forwarder, net } = setup(undefined, null);
         net.autoAdvanceMs = 1;

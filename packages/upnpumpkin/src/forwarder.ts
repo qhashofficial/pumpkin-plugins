@@ -27,6 +27,8 @@ const REQUEST_TTL_MS = 5 * 60_000;
 const PRUNE_EVERY_MS = 10_000;
 /** How long stopping may wait for the router to confirm that ports were closed. */
 const SHUTDOWN_BUDGET_MS = 3000;
+/** How long stopping blocks between checks on the router's answers. */
+const SHUTDOWN_POLL_MS = 10;
 
 interface PluginRequest {
     lastSeen: number;
@@ -224,8 +226,10 @@ export class PortForwarder {
         if (!closing) return;
         const deadline = this.net.now() + SHUTDOWN_BUDGET_MS;
         try {
-            while (closing.poll().state === 'running' && this.net.now() < deadline) {
-                // Only unload drains synchronously; live reload advances retirement on ticks.
+            // Only unload drains synchronously; live reload advances retirement on ticks.
+            for (let now = this.net.now(); closing.poll().state === 'running' && now < deadline; ) {
+                this.net.pause?.(Math.min(SHUTDOWN_POLL_MS, deadline - now));
+                now = this.net.now();
             }
         } finally {
             closing.cancel();
