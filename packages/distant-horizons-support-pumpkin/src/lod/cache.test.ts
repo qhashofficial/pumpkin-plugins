@@ -311,6 +311,34 @@ describe('LOD cache', () => {
         expect(cache.get('a')).toBeUndefined();
         expect(cache.get('b')).toEqual(lod(2));
     });
+    it('evicts the oldest memory entries above the byte budget', () => {
+        const files = new MemoryFiles(),
+            cache = new LodCache(files, -1, 0, 250);
+        cache.put('a', lod(1));
+        cache.put('b', lod(2));
+        cache.get('a');
+        cache.put('c', lod(3));
+
+        expect(cache.stats()).toMatchObject({ memoryEntries: 2, memoryBytes: 200, memoryByteLimit: 250 });
+        expect(cache.get('b')).toBeUndefined();
+        expect(cache.get('a')).toEqual(lod(1));
+        expect(cache.get('c')).toEqual(lod(3));
+
+        cache.remove('a');
+        cache.clearMemory();
+        expect(cache.stats()).toMatchObject({ memoryEntries: 0, memoryBytes: 0 });
+    });
+    it('keeps an entry larger than the byte budget only on disk', () => {
+        const files = new MemoryFiles(),
+            cache = new LodCache(files, -1, 2, 150);
+        cache.put('small', lod(1));
+        const large = { updated: 2, data: new Uint8Array(200).fill(2) };
+        cache.put('large', large);
+
+        expect(cache.stats()).toMatchObject({ memoryEntries: 1, memoryBytes: 100, diskEntries: 2 });
+        expect(cache.get('large')).toEqual(large);
+        expect(cache.stats()).toMatchObject({ memoryEntries: 1, memoryBytes: 100 });
+    });
     it('supports disabled and unlimited tiers', () => {
         const files = new MemoryFiles();
         const disabled = new LodCache(files, 0, 0);
