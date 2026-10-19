@@ -160,8 +160,9 @@ function components(group: ComponentGroup): Component[] {
 const plugins = components('packages');
 const tools = components('tools');
 const actions = components('actions');
+const extensions = components('extensions');
 const componentLandingIcons = new Map(
-    [...plugins, ...tools, ...actions].flatMap((item) =>
+    [...plugins, ...tools, ...actions, ...extensions].flatMap((item) =>
         item.icon ? [[`${item.overview.slice(1)}.md`, item.icon] as const] : [],
     ),
 );
@@ -303,13 +304,14 @@ function generateLlmsText(): string {
         llmsSection('Plugins', plugins.flatMap(componentLlmsEntries)),
         llmsSection('Shared tools', tools.flatMap(componentLlmsEntries)),
         llmsSection('GitHub Actions', actions.flatMap(componentLlmsEntries)),
+        llmsSection('VS Code extensions', extensions.flatMap(componentLlmsEntries)),
         llmsSection('API reference', [
             ...apiNav.map(({ text, link }) => ({
                 text: `${text} reference`,
                 url: publishedPageUrl(link),
                 description: 'Generated API and action contract documentation.',
             })),
-            ...[...plugins, ...tools, ...actions]
+            ...[...plugins, ...tools, ...actions, ...extensions]
                 .filter((item) => item.apiReference)
                 .map((item) => ({
                     text: `${item.title} API reference`,
@@ -468,6 +470,7 @@ const apiSidebar = [
     { text: 'Plugins', link: '/api/plugins/', items: referenceItems(plugins) },
     { text: 'Tools', link: '/api/tools/', items: referenceItems(tools) },
     { text: 'Actions', link: '/api/actions/', items: referenceItems(actions) },
+    { text: 'Extensions', link: '/api/extensions/', items: referenceItems(extensions) },
     { text: 'Scripts', link: '/api/scripts/', items: scriptsSidebar },
 ];
 
@@ -476,6 +479,7 @@ const apiNav = [
     { text: 'Plugins', link: '/api/plugins/' },
     { text: 'Tools', link: '/api/tools/' },
     { text: 'Actions', link: '/api/actions/' },
+    { text: 'Extensions', link: '/api/extensions/' },
     { text: 'Scripts', link: '/api/scripts/' },
 ] satisfies DefaultTheme.SidebarItem[];
 
@@ -484,6 +488,7 @@ const apiSidebars: Record<string, SidebarItem[]> = {
     '/api/plugins/': [{ text: 'Plugins', link: '/api/plugins/', items: referenceItems(plugins) }],
     '/api/tools/': [{ text: 'Tools', link: '/api/tools/', items: referenceItems(tools) }],
     '/api/actions/': [{ text: 'Actions', link: '/api/actions/', items: referenceItems(actions) }],
+    '/api/extensions/': [{ text: 'Extensions', link: '/api/extensions/', items: referenceItems(extensions) }],
     '/api/scripts/': scriptsSidebar.length
         ? [
               { text: 'Reference', link: '/api/', items: apiNav },
@@ -492,7 +497,7 @@ const apiSidebars: Record<string, SidebarItem[]> = {
         : [],
 };
 
-for (const item of [...plugins, ...tools]) {
+for (const item of [...plugins, ...tools, ...extensions]) {
     if (!item.apiReference) continue;
     const apiDirectory = path.join(repoRoot, 'docs', item.apiReference.slice(1));
     apiSidebars[item.apiReference] = documentationSidebar(item, typedocSidebar(apiDirectory));
@@ -534,8 +539,11 @@ const megaMenus: MegaMenu[] = [
     },
     {
         text: 'Tools',
-        description: 'Shared packages and utilities for building and maintaining plugins.',
-        sections: groupMenuItems(tools.map(card), 'Tools'),
+        description: 'Shared packages, utilities, and editor extensions for building and maintaining plugins.',
+        sections: groupMenuItems(
+            [...tools.map(card), ...extensions.map((item) => ({ category: 'VS Code extensions', ...card(item) }))],
+            'Tools',
+        ),
     },
     {
         text: 'Actions',
@@ -561,6 +569,7 @@ const megaMenus: MegaMenu[] = [
             { text: 'Plugin APIs', gridArea: 'plugin-apis', items: componentLinks(plugins, true) },
             { text: 'Tool APIs', gridArea: 'tool-apis', items: componentLinks(tools, true) },
             { text: 'Action references', gridArea: 'action-references', items: componentLinks(actions, true) },
+            { text: 'Extension APIs', gridArea: 'extension-apis', items: componentLinks(extensions, true) },
             {
                 text: 'Repository scripts',
                 gridArea: 'repository-scripts',
@@ -582,12 +591,20 @@ const componentSidebars: Record<string, SidebarItem[]> = {};
 for (const item of plugins) componentSidebars[`/packages/${item.slug}/`] = componentSidebar(item, plugins, 'plugins');
 for (const item of tools) componentSidebars[`/tools/${item.slug}/`] = componentSidebar(item, tools, 'tools');
 for (const item of actions) componentSidebars[`/actions/${item.slug}/`] = componentSidebar(item, actions, 'actions');
+for (const item of extensions) {
+    componentSidebars[`/extensions/${item.slug}/`] = componentSidebar(item, extensions, 'extensions');
+}
 
 const guideSidebar: SidebarItem[] = [
     { text: 'Guides', collapsed: false, items: guidePages.map(({ text, link }) => ({ text, link })) },
     { text: 'Plugins', collapsed: true, items: plugins.map((item) => ({ text: item.title, link: item.overview })) },
     { text: 'Tools', collapsed: true, items: tools.map((item) => ({ text: item.title, link: item.overview })) },
     { text: 'Actions', collapsed: true, items: actions.map((item) => ({ text: item.title, link: item.overview })) },
+    {
+        text: 'Extensions',
+        collapsed: true,
+        items: extensions.map((item) => ({ text: item.title, link: item.overview })),
+    },
     { text: 'API reference', link: '/api/' },
 ];
 
@@ -597,6 +614,7 @@ const themeConfig = {
         '/packages/': plugins.map((item) => ({ text: item.title, link: item.overview })),
         '/tools/': tools.map((item) => ({ text: item.title, link: item.overview })),
         '/actions/': actions.map((item) => ({ text: item.title, link: item.overview })),
+        '/extensions/': extensions.map((item) => ({ text: item.title, link: item.overview })),
         '/guides/': guideSidebar,
         '/docs/': docsTree.map((folder) => documentationSidebarItem(folder)),
         ...componentSidebars,
