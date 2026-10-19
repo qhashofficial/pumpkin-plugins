@@ -187,10 +187,11 @@ analysis can't tell which ones it uses. If an operation has a WIT input or resul
 can't convert, the build fails and names that operation, so a component that builds can call every
 operation it includes.
 
-The runtime reads the prepared WIT directory from `@pumpkin-plugins/build`, which owns the WASI
-version and WIT files. It validates every operation in an imported WASI interface, including
-operations your plugin doesn't use, and generates native adapters for operations selected by build
-analysis. The imported WASI 0.2.3 operations cover
+The runtime reads the WIT directory that `@pumpkin-plugins/build` prepares from the WASI files
+pinned in its `wasi-wit.lock.json`. The WASI version itself belongs to
+`@pumpkin-plugins/wasi-capabilities`, and the lock has to match it. The runtime validates every
+operation in an imported WASI interface, including operations your plugin doesn't use, and generates
+native adapters for operations selected by build analysis. The imported WASI operations cover
 filesystem, HTTP, streams, clocks, TCP, UDP, and sockets. Selecting a feature-gated operation also
 enables its WIT feature. Event converters keep complete payload fields for statically registered
 event types; dynamic or unresolved registrations retain every event case and payload field. Static
