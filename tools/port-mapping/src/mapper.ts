@@ -109,6 +109,7 @@ export class PortMapper {
     private removals: { found: Discovered; request: MappingRequest }[] = [];
     private discovered: Discovered | undefined;
     private job: Task<void> | undefined;
+    private jobIsSearch = false;
     private discoveryRetryAt = 0;
     private discoveryFailures = 0;
     private lastDiscoveryFailure: string | undefined;
@@ -195,7 +196,7 @@ export class PortMapper {
         }
         if (this.publicHost(now)) return;
         if (!this.discovered) {
-            if (this.entries.size > 0 && now >= this.discoveryRetryAt) this.start(this.search());
+            if (this.entries.size > 0 && now >= this.discoveryRetryAt) this.start(this.search(), true);
             return;
         }
         const gateway = this.discovered;
@@ -217,6 +218,8 @@ export class PortMapper {
         for (const key of [...this.entries.keys()]) this.release(key);
         let closing = false;
         try {
+            // A search leaves nothing on the router, and applied mappings carry their own router.
+            if (this.jobIsSearch) this.job?.cancel();
             // Account for creation already sent before deleting its resulting physical mapping.
             while (this.job?.poll().state === 'running') yield;
             this.job = undefined;
@@ -277,8 +280,9 @@ export class PortMapper {
         return [...this.entries.values()].some((entry) => entry.mapping === mapping);
     }
 
-    private start(steps: Steps<void>): void {
+    private start(steps: Steps<void>, isSearch = false): void {
         this.job = new Task(steps);
+        this.jobIsSearch = isSearch;
         this.job.poll();
     }
 
