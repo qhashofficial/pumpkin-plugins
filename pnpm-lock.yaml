@@ -402,6 +402,9 @@ importers:
       '@pumpkin-plugins/test-harness':
         specifier: workspace:*
         version: link:../../tools/test-harness
+      '@pumpkin-plugins/upnpumpkin':
+        specifier: workspace:*
+        version: link:../upnpumpkin
       '@types/node':
         specifier: 'catalog:'
         version: 24.19.1

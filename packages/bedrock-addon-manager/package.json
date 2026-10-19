@@ -63,6 +63,7 @@
     "devDependencies": {
         "@pumpkin-plugins/build": "workspace:*",
         "@pumpkin-plugins/test-harness": "workspace:*",
+        "@pumpkin-plugins/upnpumpkin": "workspace:*",
         "@types/node": "catalog:",
         "@vitest/coverage-v8": "catalog:",
         "smol-toml": "1.9.0",
