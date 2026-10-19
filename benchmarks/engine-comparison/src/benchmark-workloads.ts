@@ -33,6 +33,29 @@ const TYPED_ARRAY_STRING_COUNT = 4_000;
 const FROM_CHAR_CODE_COUNT = 8_000;
 const STRING_REPLACE_COUNT = 8_000;
 const COMMAND_OPERATION_COUNT = 4_000;
+const NUMERIC_ITERATION_COUNT = 1_000_000;
+const OBJECT_COUNT = 50_000;
+const UNICODE_JOIN_PART_COUNT = 7;
+const CONFIG_VALIDATION_COUNT = 1_000;
+const PERMISSION_CHECK_COUNT = 12_000;
+const PLAYER_DIRECTORY_SIZE = 6_000;
+const PLAYER_LOOKUP_COUNT = 12_000;
+const EVENT_CACHE_TICK_COUNT = 20_000;
+const CHAT_MESSAGE_COUNT = 3_000;
+const SCOREBOARD_PLAYER_COUNT = 3_000;
+const SCOREBOARD_LINES = ['&6%player%', '&7World: &f%world%', '&7Balance: &a$%balance%', '&7Online: &f%online%'];
+const REGION_EVENT_COUNT = 20_000;
+const WORLD_EDIT_WIDTH = 48;
+const WORLD_EDIT_HEIGHT = 24;
+const ECONOMY_TRANSACTION_COUNT = 12_000;
+const INVENTORY_GRANT_COUNT = 2_500;
+const COOLDOWN_ATTEMPT_COUNT = 20_000;
+const SCHEDULED_TASK_COUNT = 6_000;
+const AUDIT_EVENT_COUNT = 12_000;
+const AUDIT_QUERY_COUNT = 1_000;
+const STORED_PLAYER_COUNT = 1_200;
+const PAYLOAD_PACKET_COUNT = 256;
+const PAYLOAD_FIELD_COUNT = 64;
 
 const CONFIG_SOURCE = JSON.stringify({
     enabled: true,
@@ -47,9 +70,19 @@ const TYPED_ARRAY_JOIN_VALUES = Uint8Array.from({ length: 32 }, (_, index) => in
 const TYPED_ARRAY_LOCALE_VALUES = Uint8Array.from({ length: 16 }, (_, index) => index + 1);
 
 const WORKLOADS: readonly WorkloadScenario[] = [
-    { name: 'numeric', area: 'Numeric arithmetic baseline', operationsPerSample: 1_000_000, run: runNumeric },
-    { name: 'objects', area: 'Object allocation and traversal', operationsPerSample: 50_000, run: runObjects },
-    { name: 'strings', area: 'String construction and joining', operationsPerSample: 25_000, run: runStrings },
+    {
+        name: 'numeric',
+        area: 'Numeric arithmetic baseline',
+        operationsPerSample: NUMERIC_ITERATION_COUNT,
+        run: runNumeric,
+    },
+    { name: 'objects', area: 'Object allocation and traversal', operationsPerSample: OBJECT_COUNT, run: runObjects },
+    {
+        name: 'strings',
+        area: 'String construction and joining',
+        operationsPerSample: STRING_PART_COUNT,
+        run: runStrings,
+    },
     {
         name: 'string-construction',
         area: 'String part construction',
@@ -71,7 +104,7 @@ const WORKLOADS: readonly WorkloadScenario[] = [
     {
         name: 'string-join-unicode',
         area: 'Unicode join correctness and code-unit behavior',
-        operationsPerSample: 7,
+        operationsPerSample: UNICODE_JOIN_PART_COUNT,
         run: runStringJoinUnicode,
     },
     {
@@ -125,7 +158,7 @@ const WORKLOADS: readonly WorkloadScenario[] = [
     {
         name: 'config-validation',
         area: 'Configuration parsing and validation',
-        operationsPerSample: 1_000,
+        operationsPerSample: CONFIG_VALIDATION_COUNT,
         run: runConfigValidation,
     },
     {
@@ -149,67 +182,87 @@ const WORKLOADS: readonly WorkloadScenario[] = [
     {
         name: 'permission-resolution',
         area: 'Permission inheritance and context lookup',
-        operationsPerSample: 12_000,
+        operationsPerSample: PERMISSION_CHECK_COUNT,
         run: runPermissionResolution,
     },
-    { name: 'player-directory', area: 'Player and home lookups', operationsPerSample: 18_000, run: runPlayerDirectory },
-    { name: 'event-cache', area: 'Lifecycle cache updates', operationsPerSample: 20_000, run: runEventCache },
+    {
+        name: 'player-directory',
+        area: 'Player and home lookups',
+        operationsPerSample: PLAYER_DIRECTORY_SIZE + PLAYER_LOOKUP_COUNT,
+        run: runPlayerDirectory,
+    },
+    {
+        name: 'event-cache',
+        area: 'Lifecycle cache updates',
+        operationsPerSample: EVENT_CACHE_TICK_COUNT,
+        run: runEventCache,
+    },
     {
         name: 'chat-formatting',
         area: 'Chat template formatting and filtering',
-        operationsPerSample: 3_000,
+        operationsPerSample: CHAT_MESSAGE_COUNT,
         run: runChatFormatting,
     },
     {
         name: 'scoreboard-rendering',
         area: 'Scoreboard text rendering',
-        operationsPerSample: 12_000,
+        operationsPerSample: SCOREBOARD_PLAYER_COUNT * SCOREBOARD_LINES.length,
         run: runScoreboardRendering,
     },
     {
         name: 'region-protection',
         area: 'Region containment and access checks',
-        operationsPerSample: 20_000,
+        operationsPerSample: REGION_EVENT_COUNT,
         run: runRegionProtection,
     },
     {
         name: 'world-edit-plan',
         area: 'Block-edit plan generation',
-        operationsPerSample: 55_296,
+        operationsPerSample: WORLD_EDIT_WIDTH * WORLD_EDIT_HEIGHT * WORLD_EDIT_WIDTH,
         run: runWorldEditPlan,
     },
     {
         name: 'economy-transfers',
         area: 'Balance transfer processing',
-        operationsPerSample: 12_000,
+        operationsPerSample: ECONOMY_TRANSACTION_COUNT,
         run: runEconomyTransfers,
     },
     {
         name: 'inventory-stacking',
         area: 'Inventory stack allocation',
-        operationsPerSample: 2_500,
+        operationsPerSample: INVENTORY_GRANT_COUNT,
         run: runInventoryStacking,
     },
     {
         name: 'cooldown-rate-limit',
         area: 'Cooldown and rate-limit checks',
-        operationsPerSample: 20_000,
+        operationsPerSample: COOLDOWN_ATTEMPT_COUNT,
         run: runCooldownRateLimit,
     },
-    { name: 'tick-scheduler', area: 'Scheduled task processing', operationsPerSample: 6_000, run: runTickScheduler },
+    {
+        name: 'tick-scheduler',
+        area: 'Scheduled task processing',
+        operationsPerSample: SCHEDULED_TASK_COUNT,
+        run: runTickScheduler,
+    },
     {
         name: 'audit-history',
         area: 'Audit history filtering',
-        operationsPerSample: 13_000,
+        operationsPerSample: AUDIT_EVENT_COUNT + AUDIT_QUERY_COUNT,
         run: runAuditHistory,
     },
     {
         name: 'player-state-json',
         area: 'Player-state JSON round trip',
-        operationsPerSample: 1_200,
+        operationsPerSample: STORED_PLAYER_COUNT,
         run: runPlayerStatePersistence,
     },
-    { name: 'custom-payload', area: 'Custom payload encoding', operationsPerSample: 16_384, run: runPacketEncoding },
+    {
+        name: 'custom-payload',
+        area: 'Custom payload encoding',
+        operationsPerSample: PAYLOAD_PACKET_COUNT * PAYLOAD_FIELD_COUNT,
+        run: runPacketEncoding,
+    },
 ];
 
 /** Runs and measures every deterministic plugin-style workload. */
@@ -248,7 +301,7 @@ export function measureWorkload(
 
 function runNumeric(): number {
     let value = 1;
-    for (let index = 0; index < 1_000_000; index++) {
+    for (let index = 0; index < NUMERIC_ITERATION_COUNT; index++) {
         value = (value * 48_271 + index + 1) % 2_147_483_647;
     }
     return value + (Math.imul(0x811c9dc5, 16_777_619) >>> 0);
@@ -256,7 +309,7 @@ function runNumeric(): number {
 
 function runObjects(): number {
     const records: { id: number; value: number }[] = [];
-    for (let id = 0; id < 50_000; id++) {
+    for (let id = 0; id < OBJECT_COUNT; id++) {
         records.push({ id, value: (id * 17) % 97 });
     }
 
@@ -312,6 +365,7 @@ function runStringJoinUnicode(): number {
         },
     };
 
+    if (parts.length !== UNICODE_JOIN_PART_COUNT) return -1;
     const joined = parts.join('·');
     if (joined !== 'before·é·𐐷····later') return -1;
     return joined.length + joined.charCodeAt(joined.length - 1);
@@ -452,7 +506,7 @@ function buildStringParts(): string[] {
 
 function runConfigValidation(): number {
     let checksum = 0;
-    for (let index = 0; index < 1_000; index++) {
+    for (let index = 0; index < CONFIG_VALIDATION_COUNT; index++) {
         const parsed: unknown = JSON.parse(CONFIG_SOURCE);
         if (
             !isRecord(parsed) ||
@@ -676,7 +730,7 @@ const PERMISSION_WORLDS = ['survival', 'spawn', 'creative'];
 
 function runPermissionResolution(): number {
     let checksum = 0;
-    for (let index = 0; index < 12_000; index++) {
+    for (let index = 0; index < PERMISSION_CHECK_COUNT; index++) {
         const group = PERMISSION_GROUP_NAMES[index % PERMISSION_GROUP_NAMES.length];
         const permission = PERMISSION_NODES[index % PERMISSION_NODES.length];
         const world = PERMISSION_WORLDS[index % PERMISSION_WORLDS.length];
@@ -721,7 +775,7 @@ interface PlayerProfile {
 function runPlayerDirectory(): number {
     const byUuid = new Map<string, PlayerProfile>();
     const byName = new Map<string, PlayerProfile>();
-    for (let id = 0; id < 6_000; id++) {
+    for (let id = 0; id < PLAYER_DIRECTORY_SIZE; id++) {
         const hexadecimalId = id.toString(16);
         const profile: PlayerProfile = {
             uuid: `00000000-0000-4000-8000-${'000000000000'.slice(hexadecimalId.length)}${hexadecimalId}`,
@@ -735,8 +789,8 @@ function runPlayerDirectory(): number {
     }
 
     let checksum = 0;
-    for (let lookup = 0; lookup < 12_000; lookup++) {
-        const id = lookup % 6_000;
+    for (let lookup = 0; lookup < PLAYER_LOOKUP_COUNT; lookup++) {
+        const id = lookup % PLAYER_DIRECTORY_SIZE;
         const profile =
             lookup % 2 === 0
                 ? byName.get(`player${id}`)
@@ -750,7 +804,7 @@ function runPlayerDirectory(): number {
 
 function runEventCache(): number {
     const cache = new Map<string, { food: number; lastTick: number }>();
-    for (let tick = 0; tick < 20_000; tick++) {
+    for (let tick = 0; tick < EVENT_CACHE_TICK_COUNT; tick++) {
         const playerId = `player-${tick % 2_000}`;
         const current = cache.get(playerId);
         cache.set(playerId, { food: current ? (current.food + 1) % 21 : tick % 21, lastTick: tick });
@@ -774,7 +828,7 @@ const CHAT_FILTERS = ['badword', 'scamlink', 'discord.gg/fake'];
 
 function runChatFormatting(): number {
     let checksum = 0;
-    for (let index = 0; index < 3_000; index++) {
+    for (let index = 0; index < CHAT_MESSAGE_COUNT; index++) {
         const player = `Player${index % 1_500}`;
         const world = PERMISSION_WORLDS[index % PERMISSION_WORLDS.length];
         const balance = (index * 83) % 100_000;
@@ -791,13 +845,12 @@ function runChatFormatting(): number {
 }
 
 function runScoreboardRendering(): number {
-    const lines = ['&6%player%', '&7World: &f%world%', '&7Balance: &a$%balance%', '&7Online: &f%online%'];
     let checksum = 0;
-    for (let playerId = 0; playerId < 3_000; playerId++) {
+    for (let playerId = 0; playerId < SCOREBOARD_PLAYER_COUNT; playerId++) {
         const playerName = `Player${playerId}`;
         const world = PERMISSION_WORLDS[playerId % PERMISSION_WORLDS.length];
         const balance = ((playerId * 97) % 100_000).toString();
-        for (const line of lines) {
+        for (const line of SCOREBOARD_LINES) {
             const rendered = line
                 .replace(/%player%/g, playerName)
                 .replace(/%world%/g, world)
@@ -843,7 +896,7 @@ function runRegionProtection(): number {
     }
 
     let checksum = 0;
-    for (let event = 0; event < 20_000; event++) {
+    for (let event = 0; event < REGION_EVENT_COUNT; event++) {
         const world = PERMISSION_WORLDS[event % PERMISSION_WORLDS.length];
         const x = ((event * 73) % 1_024) - 512;
         const z = ((event * 43) % 1_024) - 512;
@@ -887,9 +940,9 @@ interface BlockChange {
 function runWorldEditPlan(): number {
     const changes: BlockChange[] = [];
     const palette = [1, 2, 3, 4, 5, 6, 7, 8];
-    for (let x = 0; x < 48; x++) {
-        for (let y = 0; y < 24; y++) {
-            for (let z = 0; z < 48; z++) {
+    for (let x = 0; x < WORLD_EDIT_WIDTH; x++) {
+        for (let y = 0; y < WORLD_EDIT_HEIGHT; y++) {
+            for (let z = 0; z < WORLD_EDIT_WIDTH; z++) {
                 const offsetX = x - 24;
                 const offsetY = y - 12;
                 const offsetZ = z - 24;
@@ -915,7 +968,7 @@ function runEconomyTransfers(): number {
     for (let playerId = 0; playerId < 4_000; playerId++) balances.set(playerId, 50_000 + playerId * 5);
 
     const transactions: [number, number, number][] = [];
-    for (let transactionId = 0; transactionId < 12_000; transactionId++) {
+    for (let transactionId = 0; transactionId < ECONOMY_TRANSACTION_COUNT; transactionId++) {
         const senderId = transactionId % 4_000;
         const recipientId = (transactionId * 17 + 29) % 4_000;
         const amount = ((transactionId * 97) % 350) + 1;
@@ -946,7 +999,7 @@ function runInventoryStacking(): number {
         inventory[slot] = { itemId: `minecraft:item${slot % 48}`, count: 32 + (slot % 32) };
 
     let itemsAdded = 0;
-    for (let grant = 0; grant < 2_500; grant++) {
+    for (let grant = 0; grant < INVENTORY_GRANT_COUNT; grant++) {
         const itemId = `minecraft:item${grant % 48}`;
         const count = ((grant * 13) % 96) + 1;
         itemsAdded += addToInventory(inventory, itemId, count);
@@ -986,7 +1039,7 @@ function runCooldownRateLimit(): number {
     let allowed = 0;
     let blocked = 0;
 
-    for (let attempt = 0; attempt < 20_000; attempt++) {
+    for (let attempt = 0; attempt < COOLDOWN_ATTEMPT_COUNT; attempt++) {
         const playerId = attempt % 64;
         const command = commandNames[Math.floor(attempt / 64) % commandNames.length];
         const tick = Math.floor(attempt / 4);
@@ -1009,7 +1062,7 @@ interface ScheduledTask {
 
 function runTickScheduler(): number {
     const tasksByTick: ScheduledTask[][] = Array.from({ length: 1_200 }, () => []);
-    for (let taskId = 0; taskId < 6_000; taskId++) {
+    for (let taskId = 0; taskId < SCHEDULED_TASK_COUNT; taskId++) {
         const dueTick = (taskId * 37) % 600;
         tasksByTick[dueTick].push({ id: taskId, repeatEveryTicks: taskId % 4 === 0 ? 20 + (taskId % 60) : 0 });
     }
@@ -1037,7 +1090,7 @@ interface AuditRecord {
 
 function runAuditHistory(): number {
     const eventsByPlayer = new Map<number, AuditRecord[]>();
-    for (let eventId = 0; eventId < 12_000; eventId++) {
+    for (let eventId = 0; eventId < AUDIT_EVENT_COUNT; eventId++) {
         const playerId = eventId % 2_048;
         const records = eventsByPlayer.get(playerId) ?? [];
         records.push({
@@ -1051,7 +1104,7 @@ function runAuditHistory(): number {
     }
 
     let checksum = 0;
-    for (let query = 0; query < 1_000; query++) {
+    for (let query = 0; query < AUDIT_QUERY_COUNT; query++) {
         const playerId = query % 2_048;
         const minimumTick = query * 8;
         const maximumTick = minimumTick + 4_000;
@@ -1081,7 +1134,7 @@ interface StoredPlayerState {
 
 function runPlayerStatePersistence(): number {
     const players: StoredPlayerState[] = [];
-    for (let playerId = 0; playerId < 1_200; playerId++) {
+    for (let playerId = 0; playerId < STORED_PLAYER_COUNT; playerId++) {
         players.push({
             uuid: `player-${playerId.toString(16)}`,
             name: `Player${playerId}`,
@@ -1116,14 +1169,15 @@ function runPlayerStatePersistence(): number {
 }
 
 function runPacketEncoding(): number {
-    const payload = new Uint8Array(256);
+    const payload = new Uint8Array(PAYLOAD_FIELD_COUNT * 4);
     const view = new DataView(payload.buffer);
     let checksum = 0;
-    for (let packet = 0; packet < 256; packet++) {
-        for (let field = 0; field < 64; field++) {
+    for (let packet = 0; packet < PAYLOAD_PACKET_COUNT; packet++) {
+        for (let field = 0; field < PAYLOAD_FIELD_COUNT; field++) {
             view.setUint32(field * 4, (packet * 0x9e3779b1 + field) >>> 0, false);
         }
-        for (let field = 0; field < 64; field++) checksum = (checksum + view.getUint32(field * 4, false)) >>> 0;
+        for (let field = 0; field < PAYLOAD_FIELD_COUNT; field++)
+            checksum = (checksum + view.getUint32(field * 4, false)) >>> 0;
     }
     return checksum;
 }
