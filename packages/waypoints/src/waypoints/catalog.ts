@@ -18,8 +18,8 @@ export type WaypointMutationStatus =
     | 'conflict'
     | 'invalid';
 
-/** Mutable waypoint fields that can be set or reset by an operator. */
-export type WaypointMetadataPatch = Partial<Pick<Waypoint, WaypointMetadataKey>>;
+/** Waypoint fields an admin can change in place. */
+export type WaypointMetadataPatch = Partial<Pick<Waypoint, WaypointMetadataKey | 'enabled' | 'access'>>;
 
 /** Owns name lookup and persisted mutations while keeping waypoint identity stable. */
 export class WaypointCatalog {

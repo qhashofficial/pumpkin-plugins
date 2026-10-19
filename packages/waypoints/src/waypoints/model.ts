@@ -62,20 +62,19 @@ export interface NewWaypoint {
     readonly visibilityRange?: number;
 }
 
-/** Runtime defaults for waypoint metadata, shared by creation and operator reset commands. */
+/** Defaults for waypoint metadata, shared by creation and `/wp reset`. */
 export const WAYPOINT_METADATA_DEFAULTS = {
     label: undefined,
     description: undefined,
     color: '#FFFFFF',
     icon: undefined,
     visibilityRange: undefined,
-    enabled: true,
-    access: { mode: 'restricted', grants: [] },
-} as const satisfies Partial<
-    Pick<Waypoint, 'label' | 'description' | 'color' | 'icon' | 'visibilityRange' | 'enabled' | 'access'>
->;
+} as const satisfies Partial<Pick<Waypoint, 'label' | 'description' | 'color' | 'icon' | 'visibilityRange'>>;
 
-/** A metadata key with a canonical default value. */
+// Enabled state and access have their own commands, so `/wp reset` leaves them alone.
+const DEFAULT_ACCESS: WaypointAccess = { mode: 'restricted', grants: [] };
+
+/** A metadata key that `/wp reset` can restore to its default. */
 export type WaypointMetadataKey = keyof typeof WAYPOINT_METADATA_DEFAULTS;
 
 /** Normalizes a waypoint key while preserving its display spelling. */
@@ -123,7 +122,7 @@ export function createWaypoint(input: NewWaypoint): Waypoint {
     if (input.enabled !== undefined && typeof input.enabled !== 'boolean') {
         throw new TypeError('Waypoint enabled state must be boolean.');
     }
-    const access = normalizeAccess(input.access ?? WAYPOINT_METADATA_DEFAULTS.access);
+    const access = normalizeAccess(input.access ?? DEFAULT_ACCESS);
     const waypoint: Waypoint = {
         id: input.id.toLowerCase(),
         name,
@@ -134,7 +133,7 @@ export function createWaypoint(input: NewWaypoint): Waypoint {
         color,
         ...(icon === undefined ? {} : { icon }),
         ...(visibilityRange === undefined ? {} : { visibilityRange }),
-        enabled: input.enabled ?? WAYPOINT_METADATA_DEFAULTS.enabled,
+        enabled: input.enabled ?? true,
         access,
     };
     if (!isWaypoint(waypoint)) throw new TypeError('Waypoint data is invalid.');

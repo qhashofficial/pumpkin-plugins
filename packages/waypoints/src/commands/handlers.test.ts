@@ -134,7 +134,7 @@ describe('/wp handlers', () => {
         const { sender } = setup(true);
 
         expect(resetPropertySuggestions(sender, { input: '/wp reset ', cursor: 10, start: 10, remaining: '' })).toEqual(
-            ['access', 'color', 'description', 'enabled', 'icon', 'label', 'visibility-range'],
+            ['color', 'description', 'icon', 'label', 'visibility-range'],
         );
         expect(
             resetPropertySuggestions(sender, { input: '/wp reset v', cursor: 11, start: 10, remaining: 'v' }),
@@ -324,6 +324,24 @@ describe('/wp handlers', () => {
             'Reset color for Bert.',
         ]);
         expect(catalog.getByName('Bert')?.color).toBe('#FFFFFF');
+    });
+
+    it.each(['access', 'enabled'])('refuses to reset %s, which have their own commands', (property) => {
+        const { catalog, handlers, sender } = setup(true);
+        const grants = [{ type: 'player' as const, playerId }];
+        catalog.create({
+            id: waypointId,
+            name: 'Bert',
+            dimension: 'world',
+            position: { x: 0, y: 64, z: 0 },
+            enabled: false,
+            access: { mode: 'public', grants },
+        });
+
+        expect(handlers['wp reset <property> <name>'](sender, { property, name: 'Bert' })).toEqual([
+            { text: 'That property cannot be reset.', tone: 'error' },
+        ]);
+        expect(catalog.getByName('Bert')).toMatchObject({ enabled: false, access: { mode: 'public', grants } });
     });
 
     it('resets visibility-range using its command name for the camel-cased field', () => {

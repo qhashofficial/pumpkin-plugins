@@ -118,7 +118,7 @@ export const commands = defineCommands(PLUGIN_NAME, {
                     ]),
                 },
             },
-            reset: admin('Reset one mutable waypoint property to its default', [
+            reset: admin('Reset a label, description, color, icon, or visibility range', [
                 { name: 'property', type: 'string', mode: 'single-word' },
                 name,
             ]),
