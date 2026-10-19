@@ -83,13 +83,15 @@ inputs, and follow the dependency and cache rules in [Building](docs/building.md
 
 ## Testing policy
 
-- Never write unit tests after you write code.
-- Highly prefer E2E tests as the sole testing mechanism. Use them to verify complex features work.
-  At the end of E2E tests, produce a verifiable and repeatable artifact.
-- If you must test a system in isolation, first write down all the ways it could fail, then write
-  the code.
-- Add tests only for failure scenarios existing coverage misses; assert observable outcomes and
-  retain evidence with the command, inputs and outputs needed to repeat and verify the result.
+- Prefer end-to-end tests against a real Pumpkin server or a CLI process. Use them to show that a
+  feature works, and keep the command, inputs and outputs so someone else can repeat and verify the
+  result.
+- Write unit tests for logic you can run in isolation, such as parsers, ordering and state machines.
+  Write them first: list the ways the logic can fail, write tests for those, then write the code.
+- Add tests only for failure scenarios existing coverage misses, and assert observable outcomes.
+  Every bug fix needs a regression test that fails without the fix.
+- Unit tests (`*.test.ts`) sit beside the code they cover; real-server tests (`*.itest.ts`) go in the
+  package's `test/` directory. Generate fixtures in code.
 - Collect and merge coverage from CLI/process E2E tests where instrumentation supports it. Keep
   tooling coverage gated and plugin guest coverage informational until WASM execution is measurable.
   Keep unexecuted production source in coverage reports; never exclude it to raise the percentage.
@@ -106,8 +108,7 @@ inputs, and follow the dependency and cache rules in [Building](docs/building.md
    behavior is affected. Workspace-only resolution doesn't establish the published contract; see
    [Testing](docs/testing.md#packed-standalone-consumer).
 4. Trace affected callers, workspace dependents and runtime variants. Read your diff and affected
-   docs; check behavior and failure paths. Bug fixes need regression coverage. Unit tests sit beside
-   code; server tests go in `test/`; generate fixtures in code.
+   docs; check behavior and failure paths, with tests that follow the testing policy.
 5. Report what changed, what checks ran, and anything that failed or could not be checked. A
    configured automatic check is not evidence that it passed.
 
