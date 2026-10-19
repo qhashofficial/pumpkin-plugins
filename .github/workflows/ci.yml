@@ -514,6 +514,7 @@ jobs:
               uses: actions/upload-artifact@v7.0.2
               with:
                   retention-days: 1
+                  overwrite: true
                   name: pumpkin-logs
                   path: ${{ runner.temp }}/pumpkin-logs
                   if-no-files-found: ignore
@@ -600,6 +601,7 @@ jobs:
               uses: actions/upload-artifact@v7.0.2
               with:
                   retention-days: 1
+                  overwrite: true
                   name: generator-pumpkin-logs
                   path: ${{ runner.temp }}/pumpkin-logs
                   if-no-files-found: ignore
@@ -666,64 +668,3 @@ jobs:
             release_commit: ${{ inputs.release_commit || '' }}
             tool_only: ${{ github.event_name == 'workflow_dispatch' }}
         secrets: inherit
-
-    cleanup:
-        name: 🧹 Cleanup artifacts
-        needs: [changes, build, engine-comparison, integration, release]
-        if: >-
-            ${{
-              always() &&
-              needs.changes.outputs.config_only != 'true' &&
-              !startsWith(github.head_ref, 'release-please--branches--') &&
-              (
-                github.event_name != 'pull_request' ||
-                (
-                  github.actor != 'dependabot[bot]' &&
-                  github.event.pull_request.head.repo.full_name == github.repository
-                )
-              )
-            }}
-        timeout-minutes: 5
-        runs-on: ubuntu-26.04
-        permissions:
-            actions: write
-        steps:
-            - name: 🧹 Delete artifacts after their last consumer
-              env:
-                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  CLEAN_INTEGRATION_ARTIFACTS: ${{ needs.integration.result == 'success' || needs.integration.result == 'skipped' }}
-                  CLEAN_RELEASE_ARTIFACTS: ${{ needs.release.result == 'success' }}
-              run: |
-                  artifact_records="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
-                      --jq '.artifacts[] | [.id, .name] | @tsv')"
-                  if [ -z "$artifact_records" ]; then
-                      echo "No temporary artifacts to delete"
-                      exit 0
-                  fi
-                  while IFS=$'\t' read -r artifact_id artifact_name; do
-                      [ -z "$artifact_id" ] && continue
-                      case "$artifact_name" in
-                          # The workflow_run commenter reads the report after CI finishes. SVGs live on the chart branch.
-                          plugins|engine-comparison-report)
-                              echo "Keeping $artifact_name for run history or benchmark comments"
-                              continue
-                              ;;
-                          plugin-wasm|update-check-fixture)
-                              if [ "$CLEAN_INTEGRATION_ARTIFACTS" != true ]; then
-                                  echo "Keeping $artifact_name so the failed integration job can be retried"
-                                  continue
-                              fi
-                              ;;
-                          release-*)
-                              if [ "$CLEAN_RELEASE_ARTIFACTS" != true ]; then
-                                  echo "Keeping $artifact_name so the failed release can be retried"
-                                  continue
-                              fi
-                              ;;
-                          *)
-                              continue
-                              ;;
-                      esac
-                      gh api --method DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id"
-                      echo "Deleted $artifact_name artifact $artifact_id"
-                  done <<< "$artifact_records"

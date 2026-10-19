@@ -244,9 +244,7 @@ describe('CI job selection and release prerequisites', () => {
             ...context,
         });
     /** Jobs that run after classification and before the result check. */
-    const checkedJobs = Object.keys(ci.jobs).filter(
-        (job) => !['changes', 'ci-result', 'release', 'cleanup'].includes(job),
-    );
+    const checkedJobs = Object.keys(ci.jobs).filter((job) => !['changes', 'ci-result', 'release'].includes(job));
 
     it('starts Static Hermes preparation as soon as changes are classified', () => {
         assert.deepEqual(ci.jobs.build.needs, ['changes']);
