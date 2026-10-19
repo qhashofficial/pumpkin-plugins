@@ -2,7 +2,6 @@ import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import {
     assertPublicToolPackage,
     assertPublicToolPackageContents,
@@ -605,5 +604,4 @@ export async function main(args = process.argv.slice(2)) {
     }
 }
 
-const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : undefined;
-if (invokedPath === fileURLToPath(import.meta.url)) await main();
+if (import.meta.main) await main();

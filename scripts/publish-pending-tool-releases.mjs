@@ -2,11 +2,10 @@ import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { getNpmRegistryVersions, publishToolPackages } from './publish-tool-packages.mjs';
 import { discoverPublicToolPackages } from './utils/tool-packages.mjs';
 
-const rootDirectory = fileURLToPath(new URL('..', import.meta.url));
+const rootDirectory = path.resolve(import.meta.dirname, '..');
 const VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 
 /**
@@ -146,7 +145,7 @@ function requiredEnvironment(name) {
     return value;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (import.meta.main) {
     main().catch((error) => {
         console.error(error instanceof Error ? error.message : String(error));
         process.exitCode = 1;
