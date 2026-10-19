@@ -1,8 +1,7 @@
-import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ensurePumpkinWit, parsePumpkinWitPin } from '@pumpkin-plugins/pumpkin-api/wit';
+import { digestWitDirectory, ensurePumpkinWit, parsePumpkinWitPin } from '@pumpkin-plugins/pumpkin-api/wit';
 import {
     archiveCompatibilityMatrix,
     diffCompatibilityMatrices,
@@ -272,20 +271,6 @@ function operationsForInterface(apiInterface) {
 function typeDeclaration(declaration, kind) {
     const { name, ...shape } = declaration;
     return { name, kind, signature: JSON.stringify(shape) };
-}
-
-function digestWitDirectory(directory) {
-    const hash = createHash('sha256');
-    for (const filename of fs
-        .readdirSync(directory)
-        .filter((name) => name.endsWith('.wit'))
-        .sort()) {
-        hash.update(filename);
-        hash.update('\0');
-        hash.update(fs.readFileSync(path.join(directory, filename)));
-        hash.update('\0');
-    }
-    return hash.digest('hex');
 }
 
 function writeJson(filename, value) {

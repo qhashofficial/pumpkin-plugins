@@ -202,7 +202,37 @@ function isValidCache(cacheDirectory, witDirectory, lockDigest, commit, subdirec
     }
 }
 
+/**
+ * Digest the WIT files under a package directory, including nested folders.
+ *
+ * Each file contributes its `/`-separated relative path and contents, in path order, so the digest
+ * changes when a WIT file is added, removed, renamed or edited. Files without the `.wit` extension
+ * are ignored. Compatibility matrices record this value as `sourceWitSha256`.
+ *
+ * @param directory - WIT package directory, such as the one returned by `ensurePumpkinWit`.
+ * @returns The lowercase hexadecimal SHA-256 digest.
+ */
+export function digestWitDirectory(directory) {
+    const hash = createHash('sha256');
+    for (const file of listWitFiles(directory)) {
+        hash.update(file);
+        hash.update('\0');
+        hash.update(fs.readFileSync(path.join(directory, file)));
+        hash.update('\0');
+    }
+    return hash.digest('hex');
+}
+
 function getWitFileManifest(directory) {
+    return listWitFiles(directory).map((file) => ({
+        path: file,
+        sha256: createHash('sha256')
+            .update(fs.readFileSync(path.join(directory, file)))
+            .digest('hex'),
+    }));
+}
+
+function listWitFiles(directory) {
     const witFiles = [];
 
     function collect(currentDirectory) {
@@ -211,16 +241,13 @@ function getWitFileManifest(directory) {
             if (entry.isDirectory()) {
                 collect(entryPath);
             } else if (entry.isFile() && entry.name.endsWith('.wit')) {
-                witFiles.push({
-                    path: path.relative(directory, entryPath).split(path.sep).join('/'),
-                    sha256: createHash('sha256').update(fs.readFileSync(entryPath)).digest('hex'),
-                });
+                witFiles.push(path.relative(directory, entryPath).split(path.sep).join('/'));
             }
         }
     }
 
     collect(directory);
-    return witFiles.sort(compareWitFilePaths);
+    return witFiles.sort();
 }
 
 function matchesWitFileManifest(manifest, actualWitFiles) {

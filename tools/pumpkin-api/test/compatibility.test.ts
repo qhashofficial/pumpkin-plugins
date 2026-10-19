@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, it } from 'vitest';
+import type { CompatibilityItem, CompatibilityMatrix } from '../src/compatibility-audit.ts';
 import { validateCompatibilityMatrix } from '../src/compatibility-schema.ts';
 import { parsePumpkinWitPin } from '../src/wit.mjs';
 
@@ -18,49 +19,7 @@ const historyDirectory = path.join(compatibilityDirectory, 'history');
 const historyFiles = fs.existsSync(historyDirectory) ? jsonFilesUnder(historyDirectory) : [];
 const decisions = ['retained', 'improved', 'replaced', 'removed', 'added'];
 
-interface MatrixItem {
-    decision: string;
-    id?: string;
-    kind?: string;
-    migration: string;
-    name?: string;
-    signature?: string;
-}
-
-interface SourceChange {
-    change: 'added' | 'changed' | 'removed';
-    currentSignature: string | null;
-    decision: string;
-    id: string;
-    impact: 'additive' | 'breaking';
-    migration: string;
-    previousSignature: string | null;
-}
-
-interface CompatibilityMatrix {
-    baseline: {
-        package: string;
-        version: string;
-        archive: string;
-        integrity: string;
-        pumpkinRelease: string | string[];
-    };
-    defaultExport: boolean;
-    deviations: unknown[];
-    interfaces: Array<{
-        name: string;
-        decision: string;
-        migration: string;
-        types: Array<MatrixItem & { kind: string; signature: string }>;
-        operations: Array<MatrixItem & { id: string; signature: string }>;
-    }>;
-    inventory: { interfaces: number; types: number; operations: number };
-    publicTypes: MatrixItem[];
-    runtimeExports: MatrixItem[];
-    sourceChanges: SourceChange[];
-    sourceWit: { repository: string; branch: string; commit: string; subdirectory: string };
-    sourceWitSha256: string;
-}
+type MatrixItem = Pick<CompatibilityItem, 'decision' | 'migration'>;
 
 it('discovers at least one compatibility definition', () => {
     expect(matrixFiles.length).toBeGreaterThan(0);
