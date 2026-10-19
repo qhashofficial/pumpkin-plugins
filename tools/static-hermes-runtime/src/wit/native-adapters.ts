@@ -1,12 +1,19 @@
+import {
+    cFieldIdentifier,
+    cIdentifier,
+    enumValue,
+    jsName,
+    jsVariantTag,
+    pascalCase,
+    witOperationCFunctionName,
+} from './names.ts';
 import type {
     ResolvedWitType,
     WitApiAdapterPlan,
     WitApiInterface,
     WitApiPackage,
     WitFunction,
-    WitOwnedType,
     WitParameter,
-    WitResource,
     WitWasiAdapterPlan,
 } from './types.ts';
 
@@ -148,23 +155,6 @@ function annotateWitTypeCleanupAvailability(
     return { ...annotated, hasGeneratedFreeFunction: availableFreeFunctions.has(freeFunction) } as ResolvedWitType;
 }
 
-/** Return the generated C function name for a WASI function or resource operation. */
-function wasiOperationCFunctionName(
-    apiPackage: WitApiPackage,
-    apiInterface: WitApiInterface,
-    operation: WitFunction,
-    resource?: WitResource,
-): string {
-    const namespace = cIdentifier(apiPackage.packageName);
-    const interfaceName = cIdentifier(apiInterface.name);
-    if (!resource) return `${namespace}_${interfaceName}_${cIdentifier(operation.name)}`;
-    if (operation.name === 'constructor') {
-        return `${namespace}_${interfaceName}_constructor_${cIdentifier(resource.name)}`;
-    }
-    const kind = operation.isStatic ? 'static' : 'method';
-    return `${namespace}_${interfaceName}_${kind}_${cIdentifier(resource.name)}_${cIdentifier(operation.name)}`;
-}
-
 /** Emit the host-function branch for one resolved WASI resource method plan. */
 export function generateWitResourceMethodForResolvedPlan(
     apiPackage: WitApiPackage,
@@ -176,7 +166,7 @@ export function generateWitResourceMethodForResolvedPlan(
         throw new Error(`WASI resource method plan is incomplete: ${plan.operationId}`);
     }
     const namespace = cIdentifier(apiPackage.packageName);
-    const functionName = wasiOperationCFunctionName(apiPackage, apiInterface, operation, resource);
+    const functionName = witOperationCFunctionName(apiPackage, apiInterface, operation, resource);
     const borrowType = `${namespace}_${cIdentifier(apiInterface.name)}_borrow_${cIdentifier(resource.name)}_t`;
     const inputs = [];
     const beforeCall = [];
@@ -222,7 +212,7 @@ function generateWitApiFunction(
         propertyName = jsName(operation.name),
     }: WitApiFunctionOptions = {},
 ): string | undefined {
-    const nativeFunctionName = functionName ?? wasiOperationCFunctionName(apiPackage, apiInterface, operation);
+    const nativeFunctionName = functionName ?? witOperationCFunctionName(apiPackage, apiInterface, operation);
     const inputs = [];
     const beforeCall = [];
     const callArguments = [];
@@ -1389,52 +1379,6 @@ function typedArrayConstructor(type: ResolvedWitType): string | undefined {
     }[type.name];
 }
 
-/** Build the generated C enum constant for a WIT enum case. */
-function enumValue(apiPackage: WitApiPackage, type: WitOwnedType, value: string): string {
-    return `${cIdentifier(type.packageName ?? apiPackage.packageName).toUpperCase()}_${cIdentifier(type.interfaceName).toUpperCase()}_${cIdentifier(type.name).toUpperCase()}_${cIdentifier(value).toUpperCase()}`;
-}
-
-/** Convert a WIT field name to a C identifier, avoiding reserved keywords. */
-function cFieldIdentifier(name: string): string {
-    const identifier = cIdentifier(name).replace(/[A-Z]/g, (character) => character.toLowerCase());
-    return C_RESERVED_FIELD_NAMES.has(identifier) ? `${identifier}_` : identifier;
-}
-
-const C_RESERVED_FIELD_NAMES = new Set(
-    'alignas alignof and and_eq asm atomic_cancel atomic_commit atomic_noexcept auto bitand bitor bool break case catch char char8_t char16_t char32_t class compl concept const consteval constexpr constinit const_cast continue co_await co_return co_yield decltype default delete do double dynamic_cast else enum explicit export extern false float for friend goto if inline int long mutable namespace new noexcept not not_eq nullptr operator or or_eq private protected public register reinterpret_cast requires return short signed sizeof static static_assert static_cast struct switch synchronized template this thread_local throw true try typedef typeid typename union unsigned using virtual void volatile wchar_t while xor xor_eq'.split(
-        /\s+/,
-    ),
-);
-
-/** Convert a separator-delimited identifier to PascalCase. */
-function pascalCase(value: string): string {
-    return value
-        .split(/[^a-zA-Z0-9]+/)
-        .filter(Boolean)
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join('');
-}
-
-/** Convert a WIT identifier to a JavaScript camelCase name. */
-function jsName(witName: string): string {
-    return witName.replace(/^%/, '').replace(/-([a-zA-Z0-9])/g, (_match, character) => character.toUpperCase());
-}
-
-/** Preserve WIT case names as JavaScript variant tags; only functions and fields use camelCase. */
-function jsVariantTag(witName: string): string {
-    return witName.replace(/^%/, '');
-}
-
-/** Convert a WIT identifier to a C-compatible identifier. */
-function cIdentifier(witName: string): string {
-    return witName
-        .replace(/^%/, '')
-        .replace(/[^a-zA-Z0-9_]/g, '_')
-        .replace(/_+/g, '_')
-        .toLowerCase();
-}
-
-/** Convert a WIT identifier to a JavaScript class name. */
 function requireResolvedFieldType(field: WitParameter): ResolvedWitType {
     if (!field.resolvedType) throw new Error(`WIT resolver did not resolve field ${field.name}`);
     return field.resolvedType;

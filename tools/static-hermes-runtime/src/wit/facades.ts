@@ -1,4 +1,11 @@
-import type { ResolvedWitType, WitApiInterface, WitResource, WitWasiInterface } from './types.ts';
+import { jsClassName, jsName, jsVariantTag, wasiHostName } from './names.ts';
+import {
+    type ResolvedWitType,
+    resourcesIn,
+    type WitApiInterface,
+    type WitResource,
+    type WitWasiInterface,
+} from './types.ts';
 
 type InterfaceResource = WitResource & { interfaceName: string };
 
@@ -236,9 +243,7 @@ const __wrap = (Type, value) => {
                 const cases = type.cases.flatMap(({ name, resolvedType }) => {
                     const payload = resolvedType && wrap(resolvedType, 'value.val');
                     return payload
-                        ? [
-                              `value.tag === ${JSON.stringify(name.replace(/^%/, ''))} ? { tag: value.tag, val: ${payload} }`,
-                          ]
+                        ? [`value.tag === ${JSON.stringify(jsVariantTag(name))} ? { tag: value.tag, val: ${payload} }`]
                         : [];
                 });
                 return cases.length ? `(value) => (${cases.join(' : ')} : value)` : undefined;
@@ -325,49 +330,4 @@ ${methods}
         .join('\n');
 
     return `${[prelude, functions, resources].filter(Boolean).join('\n')}\n`;
-}
-
-/** List the resources a resolved type holds, at any depth. */
-function resourcesIn(type: ResolvedWitType | undefined): Extract<ResolvedWitType, { kind: 'resource' }>[] {
-    if (!type) return [];
-    switch (type.kind) {
-        case 'resource':
-            return [type];
-        case 'borrow':
-        case 'list':
-        case 'option':
-            return resourcesIn(type.item);
-        case 'tuple':
-            return type.items.flatMap(resourcesIn);
-        case 'record':
-            return type.fields.flatMap(({ resolvedType }) => resourcesIn(resolvedType));
-        case 'variant':
-            return type.cases.flatMap(({ resolvedType }) => resourcesIn(resolvedType));
-        case 'result':
-            return [...resourcesIn(type.ok), ...resourcesIn(type.error)];
-        default:
-            return [];
-    }
-}
-
-function wasiHostName(apiInterface: WitWasiInterface): string {
-    const namespace = apiInterface.packageName.slice(apiInterface.packageName.indexOf(':') + 1);
-    return `__pumpkinWasi${pascalCase(namespace)}${pascalCase(apiInterface.name)}`;
-}
-
-function pascalCase(value: string): string {
-    return value
-        .split(/[^a-zA-Z0-9]+/)
-        .filter(Boolean)
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join('');
-}
-
-function jsName(witName: string): string {
-    return witName.replace(/^%/, '').replace(/-([a-zA-Z0-9])/g, (_match, character: string) => character.toUpperCase());
-}
-
-function jsClassName(witName: string): string {
-    const name = jsName(witName);
-    return name.charAt(0).toUpperCase() + name.slice(1);
 }
