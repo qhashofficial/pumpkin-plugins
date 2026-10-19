@@ -35,12 +35,6 @@ function requiredString(value: unknown, source: string): string {
     return value;
 }
 
-/** Extract a pinned tool version from the shared Static Hermes setup action. */
-function actionVersion(source: string, tool: 'cmake' | 'ninja'): string {
-    const value = source.match(new RegExp(`echo "${tool}-version=([^"\\n]+)"`))?.[1];
-    return requiredString(value, `.github/common/setup-static-hermes/action.yml (${tool} version)`);
-}
-
 /** Replace one maintained passage, and leave it alone when the generated version is already present. */
 function replaceText(source: string, current: string, next: string, label: string, recognized = next): string {
     if (recognized.length > 0 && source.includes(recognized)) return source;
@@ -95,10 +89,6 @@ if (WASI_VERSION !== wasiPin.version) {
 const rootPackage = readJson<RootPackage>(new URL('../../package.json', import.meta.url));
 const nodeVersion = readFileSync(new URL('../../.node-version', import.meta.url), 'utf8').trim();
 const pnpmVersion = rootPackage.devEngines?.packageManager?.version;
-const setupAction = readFileSync(
-    new URL('../../.github/common/setup-static-hermes/action.yml', import.meta.url),
-    'utf8',
-);
 const externalConsumerWorkflow = readFileSync(
     new URL('../../.github/workflows/external-consumer.yml', import.meta.url),
     'utf8',
@@ -107,8 +97,8 @@ const externalConsumerWorkflow = readFileSync(
 const toolchainRows = [
     ['Node.js', nodeVersion],
     ['pnpm', requiredString(pnpmVersion, 'package.json devEngines.packageManager.version')],
-    ['CMake', actionVersion(setupAction, 'cmake')],
-    ['Ninja', actionVersion(setupAction, 'ninja')],
+    ['CMake', toolchain.tools.cmake],
+    ['Ninja', toolchain.tools.ninja],
     ['Rust and Cargo', toolchain.tools.rust],
     ['wit-bindgen', toolchain.tools['wit-bindgen']],
     ['wasm-tools', toolchain.tools['wasm-tools']],
