@@ -6,12 +6,15 @@ import {
     type ComponentGroup,
     componentApiRoute,
     type DocumentationTreeNode,
+    descriptionOf,
     discoverComponents,
     discoverHandwrittenDocs,
+    frontmatterOf,
     githubPagesUrl,
     githubRepositoryUrl,
     readActionMetadata,
     rootPageRewrites,
+    titleOf,
     walkMarkdown,
 } from '@pumpkin-plugins/docs/node';
 import { type DefaultTheme, defineConfig } from 'vitepress';
@@ -24,16 +27,6 @@ const repoUrl = githubRepositoryUrl(repository)?.href;
 if (!repoUrl) throw new Error('Root package.json needs a GitHub repository URL');
 const siteUrl = githubPagesUrl(repository);
 const siteBase = siteUrl?.pathname ?? '/';
-
-function titleOf(file: string, fallback: string): string {
-    const title = frontmatterOf(file).title;
-    if (typeof title === 'string' && title.trim()) return title.trim();
-    const heading = fs
-        .readFileSync(file, 'utf8')
-        .match(/^#\s+(.+)$/m)?.[1]
-        ?.trim();
-    return heading?.replace(/\s+#*$/, '') || fallback;
-}
 
 const handwrittenDocs = discoverHandwrittenDocs(repoRoot);
 const docsTree = buildDocumentationTree(handwrittenDocs);
@@ -62,41 +55,6 @@ interface Component {
     readme?: string;
     slug: string;
     title: string;
-}
-
-function frontmatterOf(file: string): Record<string, unknown> {
-    const source = fs.readFileSync(file, 'utf8');
-    const frontmatter = source.match(/^---\s*\n([\s\S]*?)\n---(?:\s*\n|$)/);
-    if (!frontmatter) return {};
-    const value: unknown = parseYaml(frontmatter[1]);
-    return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
-}
-
-function descriptionOf(file: string): string {
-    const description = frontmatterOf(file).description;
-    if (typeof description === 'string') return description;
-    const source = fs
-        .readFileSync(file, 'utf8')
-        .replace(/^---\s*\n[\s\S]*?\n---\s*\n/, '')
-        .replace(/^[ \t]*```[^\n]*\n[\s\S]*?^[ \t]*```[ \t]*$/gm, '')
-        .replace(/^[ \t]*~~~[^\n]*\n[\s\S]*?^[ \t]*~~~[ \t]*$/gm, '');
-    const prose = source
-        .replace(/^#\s+.+$/m, '')
-        .split(/\n\s*\n/)
-        .map((paragraph) => paragraph.trim())
-        .find((paragraph) => paragraph && !/^(?:#{1,6}\s|[-*+]\s|\d+[.)]\s|>|\|)/.test(paragraph));
-    const text = (prose ?? '')
-        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-        .replace(/[`*_>#]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .replace(/:\s*$/, '.');
-    const sentenceEnd = text.search(/[.!?](?=\s+[A-Z])/);
-    const summary = sentenceEnd === -1 ? text : text.slice(0, sentenceEnd + 1);
-    if (summary.length <= 180) return summary;
-    const truncated = summary.slice(0, 179);
-    const wordEnd = truncated.lastIndexOf(' ');
-    return `${truncated.slice(0, wordEnd > 0 ? wordEnd : truncated.length).trimEnd()}…`;
 }
 
 function navigationMetadata(value: unknown): Record<string, unknown> {
