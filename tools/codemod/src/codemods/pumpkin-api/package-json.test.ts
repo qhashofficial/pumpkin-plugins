@@ -200,6 +200,30 @@ describe('package.json migration', () => {
         expect(manifest.scripts.typecheck).toBe('pumpkin-plugins-build --types-only && tsc --noEmit');
     });
 
+    it('explains the runtime switch only when it adds pumpkinPlugin.engine', async () => {
+        const migrate = (pumpkinPlugin: Record<string, unknown>) =>
+            migratePumpkinApiTs.transform({
+                absolutePath: '/project/package.json',
+                projectRoot: '/project',
+                relativePath: 'package.json',
+                source: JSON.stringify({
+                    scripts: { build: 'pumpkin-plugin-build src/plugin.ts build/plugin.wasm' },
+                    dependencies: { '@pumpkinmc/pumpkin-api-ts': '^0.1.1' },
+                    pumpkinPlugin,
+                }),
+            });
+        const engineNotes = (messages: readonly string[] = []) =>
+            messages.filter((message) => message.includes('pumpkinPlugin.engine'));
+
+        const added = await migrate({});
+        const kept = await migrate({ engine: 'quickjs' });
+
+        expect(JSON.parse(added.source).pumpkinPlugin.engine).toBe('static-hermes');
+        expect(engineNotes(added.messages)).toEqual([expect.stringContaining('quickjs')]);
+        expect(JSON.parse(kept.source).pumpkinPlugin.engine).toBe('quickjs');
+        expect(engineNotes(kept.messages)).toEqual([]);
+    });
+
     it('leaves custom build scripts intact and reports paths that need manual migration', async () => {
         const source = JSON.stringify({
             name: 'example-plugin',

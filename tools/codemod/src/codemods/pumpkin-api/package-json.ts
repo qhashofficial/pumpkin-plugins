@@ -5,6 +5,7 @@ import {
     BUILD_COMMAND,
     BUILD_PACKAGE,
     DEPENDENCY_SECTIONS,
+    ENGINE_NOTE,
     LEGACY_API_PACKAGE,
     LEGACY_BUILD_COMMAND,
     MIGRATION_NOTES,
@@ -84,6 +85,7 @@ export async function migratePackageJson(source: string, projectRoot: string): P
         const config = recordOf(parseJsonObject(migrated).value?.pumpkinPlugin);
         if (config && !Object.hasOwn(config, 'engine')) {
             migrated = setJsonValue(migrated, ['pumpkinPlugin', 'engine'], 'static-hermes', source);
+            messages.push(ENGINE_NOTE);
         }
     }
 

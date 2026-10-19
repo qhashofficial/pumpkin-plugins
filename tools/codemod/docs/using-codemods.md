@@ -100,10 +100,13 @@ The `migrate-pumpkin-api-ts` codemod follows the repository's
 - A recognized `pumpkin-plugin-build <entry> <output>` command to
   `pumpkin-plugins-build`, moving the two paths into `pumpkinPlugin.entry` and
   `pumpkinPlugin.output`.
-- Missing `pumpkinPlugin.engine` and `pumpkinPlugin.wasi` settings to `static-hermes` and the
-  capabilities it can infer from the production entry. This selects the default runtime and keeps
-  capabilities aligned with reachable WASI imports; existing entries are preserved. If entry
-  inference is skipped, the current `wasi` value stays unchanged and the preview explains why.
+- A missing `pumpkinPlugin.engine` to `static-hermes`, the new builder's default runtime. The old
+  builder ran QuickJS, so this changes the runtime and the preview adds a review note. Set `engine`
+  to `quickjs` to keep the old runtime. An existing `engine` is preserved.
+- A missing `pumpkinPlugin.wasi` to the capabilities the codemod can infer from the production
+  entry, which keeps capabilities aligned with reachable WASI imports. Existing entries are
+  preserved. If entry inference is skipped, the current `wasi` value stays unchanged and the preview
+  explains why.
 - `scripts.typecheck` as `pumpkin-plugins-build --types-only && tsc --noEmit` when the codemod has
   both builder paths and the field is missing or exactly `tsc --noEmit`.
 - `build/types/bindings/**/*.d.ts` in an explicit `tsconfig.json` `include` array. If the project
