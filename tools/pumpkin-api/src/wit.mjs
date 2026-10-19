@@ -36,20 +36,34 @@ export function ensurePumpkinWit({ lockFile, cacheRoot }) {
 
     try {
         const checkout = path.join(stagingDirectory, 'checkout');
-        // End option parsing so a validated remote cannot be interpreted as a Git option.
-        runGit(['clone', '--filter=blob:none', '--no-checkout', '--', pin.repository, checkout]);
-        runGit(['-C', checkout, 'fetch', '--depth', '1', 'origin', pin.commit]);
-        runGit(['-C', checkout, 'checkout', '--quiet', '--detach', pin.commit]);
+        // Fetch only the pinned commit and only the blobs under the WIT subdirectory. End option
+        // parsing so a validated remote cannot be interpreted as a Git option.
+        runGit(['init', '--quiet', checkout]);
+        runGit([
+            '-C',
+            checkout,
+            'fetch',
+            '--quiet',
+            '--depth',
+            '1',
+            '--filter=blob:none',
+            '--',
+            pin.repository,
+            pin.commit,
+        ]);
 
-        const checkedOutCommit = runGit(['-C', checkout, 'rev-parse', 'HEAD']).toLowerCase();
-        if (checkedOutCommit !== pin.commit) {
-            throw new Error(`Git checked out ${checkedOutCommit}, expected ${pin.commit}`);
+        const fetchedCommit = runGit(['-C', checkout, 'rev-parse', 'FETCH_HEAD']).toLowerCase();
+        if (fetchedCommit !== pin.commit) {
+            throw new Error(`Git fetched ${fetchedCommit}, expected ${pin.commit}`);
         }
+        const missingWit = new Error(
+            `upstream commit ${pin.commit} does not contain WIT files under ${pin.subdirectory}/`,
+        );
+        if (!runGit(['-C', checkout, 'ls-tree', '--name-only', 'FETCH_HEAD', '--', pin.subdirectory])) throw missingWit;
+        runGit(['-C', checkout, 'checkout', '--quiet', 'FETCH_HEAD', '--', pin.subdirectory]);
 
         const sourceWit = path.join(checkout, pin.subdirectory);
-        if (!hasWitFiles(sourceWit)) {
-            throw new Error(`upstream commit ${pin.commit} does not contain WIT files under ${pin.subdirectory}/`);
-        }
+        if (!hasWitFiles(sourceWit)) throw missingWit;
 
         const stagedWit = path.join(stagingDirectory, pin.subdirectory);
         fs.mkdirSync(path.dirname(stagedWit), { recursive: true });
