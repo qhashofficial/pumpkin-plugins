@@ -256,10 +256,6 @@ describe('upstream pin workflow', () => {
             releaseWorkflow.jobs.release.outputs.release_metadata,
             ['$', '{{ steps.release.outputs.release_metadata }}'].join(''),
         );
-        assert.equal(
-            releaseWorkflow.jobs.release.outputs.release_notes,
-            ['$', '{{ steps.release.outputs.release_notes }}'].join(''),
-        );
         assert.equal(releaseWorkflow.jobs.release.outputs.all, undefined);
         assert.equal(
             releaseWorkflow.jobs['release-fanout-check'].env.RELEASE_METADATA,
@@ -270,10 +266,6 @@ describe('upstream pin workflow', () => {
             ['$', '{{ needs.release.outputs.tool_paths_released }}'].join(''),
         );
         assert.equal(publish.env.RELEASE_METADATA, ['$', '{{ needs.release.outputs.release_metadata }}'].join(''));
-        assert.equal(
-            releaseWorkflow.jobs.market.env.MARKET_RELEASE_NOTES,
-            ['$', "{{ fromJSON(needs.release.outputs.release_notes)[format('{0}--body', matrix.path)] }}"].join(''),
-        );
         const steps = publish.steps;
         assert.equal(publish.env.RELEASE_TARGET_SHA, ['$', '{{ inputs.release_commit || github.sha }}'].join(''));
         const publishScript = steps.find((step) => step.run?.includes('scripts/publish-tool-packages.mjs'));

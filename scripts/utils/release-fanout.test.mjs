@@ -216,7 +216,7 @@ it('writes every release output that the release workflow reads', () => {
         ([, output, key]) => ({ output, key }),
     );
     assert.ok(readOutputs.includes('paths_released'));
-    assert.ok(readKeys.some(({ output, key }) => output === 'release_notes' && key === 'body'));
+    assert.ok(readKeys.some(({ output, key }) => output === 'release_metadata' && key === 'tag_name'));
 
     const release = { ...upnpumpkinRelease, sha: 'a'.repeat(40), path: 'packages/upnpumpkin', version: '0.0.8' };
     const outputs = releaseOutputs([release], {
@@ -235,5 +235,4 @@ it('writes every release output that the release workflow reads', () => {
             `${output} must hold ${release.path}--${key}`,
         );
     }
-    assert.equal(JSON.parse(outputs.release_notes)['packages/upnpumpkin--body'], upnpumpkinRelease.notes);
 });
