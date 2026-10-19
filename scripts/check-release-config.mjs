@@ -50,23 +50,25 @@ for (const dir of extensions) {
         if (!fs.existsSync(path.join(root, dir, file))) problems.push(`${dir}/${file} is missing`);
     }
 }
-const components = new Map([
-    ...plugins.map((dir) => [dir, { type: 'plugin', version: read(`${dir}/package.json`).version }]),
-    ...publicTools.map(({ path: dir, name, packageJson }) => [
-        dir,
-        { type: 'tool', version: packageJson.version, packageName: name },
+const components = new Map(
+    /** @type {Array<[string, { type: string, version: string, packageName?: string }]>} */ ([
+        ...plugins.map((dir) => [dir, { type: 'plugin', version: read(`${dir}/package.json`).version }]),
+        ...publicTools.map(({ path: dir, name, packageJson }) => [
+            dir,
+            { type: 'tool', version: packageJson.version, packageName: name },
+        ]),
+        ...extensions.map((dir) => [dir, { type: 'extension', version: read(`${dir}/package.json`).version }]),
+        ...actions.map((dir) => [
+            dir,
+            {
+                type: 'action',
+                version: fs.existsSync(path.join(root, dir, 'version.txt'))
+                    ? fs.readFileSync(path.join(root, dir, 'version.txt'), 'utf8').trim()
+                    : '',
+            },
+        ]),
     ]),
-    ...extensions.map((dir) => [dir, { type: 'extension', version: read(`${dir}/package.json`).version }]),
-    ...actions.map((dir) => [
-        dir,
-        {
-            type: 'action',
-            version: fs.existsSync(path.join(root, dir, 'version.txt'))
-                ? fs.readFileSync(path.join(root, dir, 'version.txt'), 'utf8').trim()
-                : '',
-        },
-    ]),
-]);
+);
 
 const FIRST_VERSION_BASE = '0.0.0';
 const FIRST_RELEASE = '0.0.1';

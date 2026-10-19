@@ -504,6 +504,7 @@ plugin in `🧬 Generator`, so the generated setup stays compatible with reposit
 | `scripts/check-release-config.mjs` | A plugin, action, extension or public tool is missing from either Release Please file; either file lists a path that isn't a release component, such as a private benchmark; a paused plugin is still tracked; an action uses a strategy other than `simple`; `component` differs from the folder name; the manifest and package or version file disagree; or a component is missing a required first-release pin or still has one after release. |
 | `scripts/package-metadata.mjs` | A `package.json` has the wrong derived license, homepage, repository or bugs field; has no short description; or a library is missing `sideEffects`, `module` or `types`. Public npm tool engines must match `.node-version`. Use `--fix` to write derived fields. |
 | `scripts/check-docs.mjs` | A package has no README; a documentation link, heading or path doesn't exist; a `pnpm` command isn't a script; a doc page is missing from the docs index; a root script isn't documented; or a CI job is missing from the table above. |
+| `pnpm typecheck:scripts` | The JSDoc types of a release or publish script disagree with its code or its callers. It checks the scripts listed in `tsconfig.scripts.json`. |
 
 `pnpm test:scripts` tests those three scripts, `scripts/unpin-release-as.mjs`,
 `scripts/changed-areas.mjs`, the bundled release-commit selector and the agent hooks, using fixtures

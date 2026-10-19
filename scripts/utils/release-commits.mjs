@@ -12,7 +12,7 @@ const DEFAULT_WORKSPACE_ROOT = resolve(import.meta.dirname, '../..');
 /** Reads workspace package manifests for identifying code bundled into each plugin. */
 export function workspacePackages(root) {
     const packages = new Map();
-    for (const group of ['packages', 'tools', 'extensions']) {
+    for (const group of /** @type {const} */ (['packages', 'tools', 'extensions'])) {
         for (const { slug, metadataFile } of discoverComponents(root, group)) {
             const path = `${group}/${slug}`;
             const manifest = JSON.parse(readFileSync(metadataFile, 'utf8'));

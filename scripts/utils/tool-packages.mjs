@@ -139,7 +139,7 @@ export function packAndInspect(packageDirectory, destination, packageManager = {
 /**
  * Checks that packed package metadata still permits public npm publication.
  *
- * @param {Record<string, unknown>} packageJson - The packed package metadata to validate.
+ * @param {Record<string, any>} packageJson - The packed package metadata to validate.
  * @param {string} expectedName - The package name in the source manifest.
  * @param {string} [root] - Workspace root containing `.node-version`.
  * @throws {Error} When the packed package differs from its source identity or publication requirements.
