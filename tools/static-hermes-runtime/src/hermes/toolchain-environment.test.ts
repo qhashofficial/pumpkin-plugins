@@ -410,24 +410,36 @@ it('removes a partial wit-bindgen cache and retries the next setup', async () =>
     }
 });
 
-it('rejects a user-installed wit-bindgen when its version differs from the pin', async () => {
+it('installs the pinned wit-bindgen when ~/.cargo/bin has a different version', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'static-hermes-wit-bindgen-user-'));
-    const bindgen = path.join(root, '.cargo/bin/wit-bindgen');
-    fs.mkdirSync(path.dirname(bindgen), { recursive: true });
-    fs.writeFileSync(bindgen, '');
-    mocks.execFileSync.mockReturnValue('wit-bindgen-cli 0.61.0 (test)');
+    const userBindgen = path.join(root, '.cargo/bin/wit-bindgen');
+    const cachedBindgen = path.join(root, '.cache/hermes/toolchain/wit-bindgen-0.62.0/bin/wit-bindgen');
+    fs.mkdirSync(path.dirname(userBindgen), { recursive: true });
+    fs.writeFileSync(userBindgen, '');
+    mocks.execFileSync.mockImplementation((executable: string) =>
+        executable === userBindgen ? 'wit-bindgen-cli 0.61.0 (test)' : 'wit-bindgen-cli 0.62.0 (test)',
+    );
+    const installWitBindgen = vi.fn<NonNullable<HermesToolchainSetupOptions['installWitBindgen']>>(
+        async ({ destination }) => {
+            fs.mkdirSync(path.dirname(destination), { recursive: true });
+            fs.writeFileSync(destination, '');
+            return destination;
+        },
+    );
 
     try {
-        await expect(
-            setupHermesToolchainEnvironment({
-                workspaceRoot: root,
-                homeDirectory: root,
-                env: {},
-                includeWasiSdk: false,
-                includeWasmTools: false,
-            }),
-        ).rejects.toThrow('user-installed wit-bindgen must be wit-bindgen-cli 0.62.0: wit-bindgen-cli 0.61.0 (test)');
-        expect(mocks.execFileSync).toHaveBeenCalledWith(bindgen, ['--version'], { encoding: 'utf8' });
+        const environment = await setupHermesToolchainEnvironment({
+            workspaceRoot: root,
+            homeDirectory: root,
+            env: {},
+            includeWasiSdk: false,
+            includeWasmTools: false,
+            installWitBindgen,
+        });
+
+        expect(environment.WIT_BINDGEN).toBe(cachedBindgen);
+        expect(installWitBindgen).toHaveBeenCalledOnce();
+        expect(fs.existsSync(userBindgen)).toBe(true);
     } finally {
         fs.rmSync(root, { recursive: true, force: true });
     }

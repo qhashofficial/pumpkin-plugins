@@ -315,7 +315,7 @@ async function resolveCachedWasiSdk({
     });
 }
 
-/** Reuse a cached or user-installed wit-bindgen, otherwise install its pinned version for the selected platform. */
+/** Reuse a cached or matching user-installed wit-bindgen, otherwise install its pinned version for the selected platform. */
 async function resolveWitBindgen({
     toolchainRoot,
     homeDirectory,
@@ -349,8 +349,11 @@ async function resolveWitBindgen({
             }
         }
 
+        // Another wit-bindgen version in ~/.cargo/bin is left alone; the pinned one goes into the cache.
         if (fs.existsSync(userInstall)) {
-            return validateWitBindgen(userInstall, witBindgenVersion, 'user-installed wit-bindgen');
+            try {
+                return validateWitBindgen(userInstall, witBindgenVersion, 'user-installed wit-bindgen');
+            } catch {}
         }
 
         // Remove an interrupted cargo install before starting a fresh installation.

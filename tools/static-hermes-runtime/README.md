@@ -46,10 +46,11 @@ build also resolves the pinned `wit-bindgen` and `wasm-tools` versions from
 `toolchain-versions.json` and sets them up automatically. If `WASM_TOOLS` is unset and no valid
 cached binary is available, setup downloads the platform archive pinned in `wasm-tools.lock.json`,
 checks its SHA-256 digest, and replaces an invalid cache entry. A valid `WIT_BINDGEN` override,
-shared-cache binary, or `~/.cargo/bin/wit-bindgen` is reused. With no `WIT_BINDGEN` override and no
-cached or user-installed executable, setup installs `wit-bindgen` and needs Rust/Cargo (using the
-pinned Rust toolchain through `rustup` when available). An executable that reports the wrong pinned
-version fails setup.
+shared-cache binary, or `~/.cargo/bin/wit-bindgen` is reused. Without a `WIT_BINDGEN` override, setup
+skips a `~/.cargo/bin/wit-bindgen` that reports another version. With no matching cached or
+user-installed executable, it installs the pinned `wit-bindgen` into the shared cache and needs
+Rust/Cargo (using the pinned Rust toolchain through `rustup` when available). A `WIT_BINDGEN` or
+`WASM_TOOLS` override that reports the wrong version fails setup.
 
 The WASI SDK, Hermes source, and toolchain version pins follow the
 [WASI SDK release pin schema](https://raw.githubusercontent.com/filiphsps/pumpkin-plugins/master/schemas/wasi-sdk-release-pin.schema.json),
@@ -156,7 +157,7 @@ compilation, and WASI C/C++ compilation and linking.
 | `STATIC_HERMES_SOURCE_DIR` | Hermes checkout; defaults to `source/` under the cache root. |
 | `STATIC_HERMES_HOST_BUILD_DIR` | Host build directory; defaults to `build-host/` under the cache root. |
 | `STATIC_HERMES_WASI_BUILD_DIR` | Hades WASI build directory; defaults to `build-wasip2/` under the cache root. The malloc build uses a sibling directory with the `-malloc` suffix. |
-| `WIT_BINDGEN` | Optional `wit-bindgen` path override. The override, cached executable, and `~/.cargo/bin/wit-bindgen` must report the pinned `tools.wit-bindgen` version from `toolchain-versions.json`; a mismatch fails setup. If no executable exists, setup installs the pinned version. |
+| `WIT_BINDGEN` | Optional `wit-bindgen` path override. The override must report the pinned `tools.wit-bindgen` version from `toolchain-versions.json`; a mismatch fails setup. Without it, setup reuses a matching cached or `~/.cargo/bin/wit-bindgen` executable, or installs the pinned version into the shared cache. |
 | `WASM_TOOLS` | Optional `wasm-tools` path override for component builds and WIT analysis. It must report the pinned `tools.wasm-tools` version from `toolchain-versions.json`; otherwise setup reuses a valid cache or downloads and replaces an invalid cached executable. |
 
 ### Hermes configuration
