@@ -17,7 +17,8 @@ export interface BenchmarkWorkload {
     samplesMs: number[];
 }
 
-type WorkloadScenario = Pick<BenchmarkWorkload, 'name' | 'area' | 'operationsPerSample'> & {
+/** A workload definition: its metadata and a run that returns a deterministic checksum. */
+export type WorkloadScenario = Pick<BenchmarkWorkload, 'name' | 'area' | 'operationsPerSample'> & {
     run: () => number;
 };
 
@@ -69,7 +70,8 @@ const ARRAY_LOCALE_STRING_VALUES = ['a', 'b', 'c', 'd'].map((value) => value.rep
 const TYPED_ARRAY_JOIN_VALUES = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
 const TYPED_ARRAY_LOCALE_VALUES = Uint8Array.from({ length: 16 }, (_, index) => index + 1);
 
-const WORKLOADS: readonly WorkloadScenario[] = [
+/** Every deterministic guest-side workload, in report order. */
+export const WORKLOADS: readonly WorkloadScenario[] = [
     {
         name: 'numeric',
         area: 'Numeric arithmetic baseline',
