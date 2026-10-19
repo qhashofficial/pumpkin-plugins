@@ -87,8 +87,17 @@ const backoff = (failures: number) => Math.min(RETRY_MS * 2 ** Math.max(0, failu
 const refusedText = ({ identity, reason }: { identity: RouterIdentity; reason: string }) =>
     `${describeIdentity(identity)} cannot be used: ${reason}`;
 const reason = (err: unknown) => (err instanceof Error ? err.message : String(err));
-const nonPublicExternalAddressReason = (address: Ipv4) =>
-    `the router's address on the internet is ${formatIpv4(address)}, which is not public (your provider shares one address between customers)`;
+/** Names the likely cause of a WAN address that is not public, since each needs a different fix. */
+function nonPublicExternalAddressReason(address: Ipv4): string {
+    const [a, b] = address;
+    const prefix = `the router's address on the internet is ${formatIpv4(address)}, which is not public`;
+    if (address.every((octet) => octet === 0)) return `${prefix}: the router has no internet connection right now`;
+    if (a === 100 && b >= 64 && b <= 127) return `${prefix}: your provider shares one address between customers`;
+    if (a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168)) {
+        return `${prefix}: another router sits between it and the internet; forward the ports on that router or put it in bridge mode`;
+    }
+    return prefix;
+}
 
 /**
  * Keeps a set of ports open on the router: finds the router, opens each port, renews it before the

@@ -23,9 +23,17 @@ In `/upnp status`, look at the state and reason shown for the Java and Bedrock p
 router mapping does not change host firewall rules, so allow the same ports and protocols through
 the server's firewall.
 
-The router also needs a public internet-side address to accept inbound connections. If its address
-is private or shared through carrier-grade NAT, a mapping cannot make the server reachable from the
-internet. A server machine that already has a public address does not need a router mapping.
+The router also needs a public internet-side address to accept inbound connections. When it has
+none, the reason in `/upnp status` says why:
+
+- Your provider shares one address between customers (carrier-grade NAT). Ask the provider for a
+  public IPv4 address; no router setting fixes this.
+- Another router sits between yours and the internet (double NAT), for example the provider's modem.
+  Forward the ports on that router, or put it in bridge mode so yours gets the public address.
+- The router has no internet connection right now, for example during a reconnect. UPnPumpkin
+  tries again later.
+
+A server machine that already has a public address does not need a router mapping.
 
 If `/upnp status` reports that the router is unsupported, UPnPumpkin intentionally opens nothing
 for that router. Forward the ports manually in the router settings instead.
