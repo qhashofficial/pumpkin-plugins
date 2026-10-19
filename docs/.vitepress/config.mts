@@ -115,6 +115,8 @@ function components(group: ComponentGroup): Component[] {
         const menuItemType = menuItemTypeOf(docsConfig) ?? menuItemTypeOf(customIndexFrontmatter);
         const category = categoryOf(docsConfig) ?? categoryOf(customIndexFrontmatter);
         const readmeRoute = fs.existsSync(readme) ? `/${group}/${slug}/README` : undefined;
+        // Component READMEs keep their path; listing them lets links from rewritten guides resolve.
+        if (readmeRoute) rewrites[`${readmeRoute.slice(1)}.md`] = `${readmeRoute.slice(1)}.md`;
         const iconCandidates = ['icon.svg', 'icon.png', 'icon.webp', 'logo.svg', 'logo.png', 'logo.webp'];
         const docsNavigation = navigationMetadata(docsConfig);
         const configuredIcon =
@@ -749,7 +751,9 @@ export default defineConfig({
         }
     },
     srcExclude: [
-        '**/README.md',
+        'README.md',
+        'benchmarks/**',
+        'tools/create-pumpkin-plugin/templates/**',
         '**/CHANGELOG.md',
         '**/AGENTS.md',
         'plans/**',
@@ -760,7 +764,6 @@ export default defineConfig({
         'docs/.vitepress/**',
     ],
     rewrites,
-    ignoreDeadLinks: [/README(?:\.md)?$/],
     head: [
         ['meta', { name: 'google-site-verification', content: 'Ac8kmcoez1w3jlR5BxcQ8mBc5f0gcZ4s40xNXad4804' }],
         ['link', { rel: 'describedby', href: `${siteBase}llms.txt` }],

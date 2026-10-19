@@ -28,7 +28,9 @@ separate **README** entry. Otherwise, the README is the overview when one exists
 first docs page is used.
 
 Write links from component docs to repository docs as relative Markdown links. `pnpm check` checks
-relative links, and the site rewrites those links to their site routes during the build.
+relative links, and the site rewrites those links to their site routes during the build. The site
+build fails if a link points to a page the site doesn't publish, such as the root README or a
+benchmark page.
 
 ## Set page titles and navigation
 
