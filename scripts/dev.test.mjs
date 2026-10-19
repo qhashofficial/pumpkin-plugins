@@ -796,24 +796,35 @@ describe('runDev', () => {
             process.env.PUMPKIN_CACHE_DIR = cacheDir;
             delete process.env.PUMPKIN_BIN;
             delete process.env.PUMPKIN_REFRESH_RELEASE;
+            let error;
             try {
                 await runDev({ root, spawnImpl, ...parseDevArgs(['--no-hot-reload', ...args]) });
+            } catch (caught) {
+                error = caught;
             } finally {
                 globalThis.fetch = originalFetch;
                 for (const key of Object.keys(process.env)) if (!(key in originalEnv)) delete process.env[key];
                 Object.assign(process.env, originalEnv);
             }
-            return { serverCommand, cacheDir, requests };
+            return { serverCommand, cacheDir, requests, error };
         };
 
+        // The fake binary can't match the SHA-256 pinned for the real release, so the pinned run stops
+        // after downloading it.
         const pinned = await startServer([]);
-        assert.equal(pinned.serverCommand, path.join(pinned.cacheDir, `${PUMPKIN_RELEASE}-${asset}`));
+        assert.match(String(pinned.error?.message), new RegExp(`Checksum mismatch for ${asset}`));
+        assert.ok(
+            pinned.requests.includes(
+                `https://github.com/Pumpkin-MC/Pumpkin/releases/download/${encodeURIComponent(PUMPKIN_RELEASE)}/${asset}`,
+            ),
+        );
         assert.equal(
             pinned.requests.some((url) => url.startsWith('https://api.github.com/')),
             false,
         );
 
         const latest = await startServer(['--latest']);
+        assert.equal(latest.error, undefined);
         assert.equal(latest.serverCommand, path.join(latest.cacheDir, `9.9.9-${asset}`));
         assert.ok(latest.requests.includes('https://api.github.com/repos/Pumpkin-MC/Pumpkin/releases/latest'));
     });

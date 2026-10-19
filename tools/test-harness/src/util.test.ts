@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { PUMPKIN_RELEASE_SHA256 } from './pumpkin-version.ts';
 import { assetName, deepMerge, parseChecksums } from './util.ts';
 
 describe('deepMerge', () => {
@@ -18,6 +19,20 @@ describe('assetName', () => {
         expect(assetName('linux', 'x64', true)).toBe('pumpkin-X64-Linux-musl');
         expect(assetName('linux', 'arm64', true)).toBe('pumpkin-ARM64-Linux-musl');
         expect(assetName('darwin', 'arm64', true)).toBe('pumpkin-ARM64-macOS');
+    });
+    it('names only assets with a pinned checksum', () => {
+        const hosts = [
+            ['darwin', 'arm64', false],
+            ['linux', 'x64', false],
+            ['linux', 'x64', true],
+            ['linux', 'arm64', false],
+            ['linux', 'arm64', true],
+            ['win32', 'x64', false],
+            ['win32', 'arm64', false],
+        ] as const;
+        for (const [platform, arch, musl] of hosts) {
+            expect(PUMPKIN_RELEASE_SHA256[assetName(platform, arch, musl)]).toMatch(/^[0-9a-f]{64}$/);
+        }
     });
     it('tells the user about PUMPKIN_BIN for unsupported ones', () => {
         expect(() => assetName('darwin', 'x64')).toThrow(/PUMPKIN_BIN/);

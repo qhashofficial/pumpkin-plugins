@@ -110,7 +110,7 @@ consumer.
 Run `pnpm dev` to build every plugin and start the Pumpkin release pinned in
 [`pumpkin-version.ts`](../tools/test-harness/src/pumpkin-version.ts), the same one the integration
 tests use, so the server matches the plugins' WIT ABI. It's downloaded once into `.cache/pumpkin`
-and checked against the release's `checksums.sha256`.
+and checked against the SHA-256 pinned beside the release.
 
 To try a newer server, run `pnpm dev --latest` for the latest stable release, or run
 `pnpm dev --nightly` (or `pnpm dev:nightly`) for the latest nightly build. Plugins may fail to load
