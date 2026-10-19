@@ -9,12 +9,13 @@ import type {
 } from 'pumpkin:plugin/event@0.1.0';
 import type { IpcMessage, PluginId } from 'pumpkin:plugin/ipc@0.1.0';
 import { ItemStack } from 'pumpkin:plugin/item-stack@0.1.0';
-import * as logging from 'pumpkin:plugin/logging@0.1.0';
 import type { Server } from 'pumpkin:plugin/server@0.1.0';
 import * as uuid from 'pumpkin:plugin/uuid@0.1.0';
 import { now as monotonicNow } from 'wasi:clocks/monotonic-clock@0.2.3';
+import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import { WasiDataDir } from '@pumpkin-plugins/plugin-kit/data-dir';
-import { cancelTask, scheduleRepeating } from '@pumpkin-plugins/plugin-kit/host';
+import { cancelTask, hostLogger, scheduleRepeating } from '@pumpkin-plugins/plugin-kit/host';
+import type { Logger } from '@pumpkin-plugins/plugin-kit/logger';
 import { PluginBase, registerPlugin } from '@pumpkin-plugins/plugin-kit/plugin';
 import { registerCommands } from '@pumpkin-plugins/plugin-kit/register-commands';
 import { disposeWasiResource } from '@pumpkin-plugins/plugin-kit/wasi-resource';
@@ -32,6 +33,14 @@ import { WaypointHudService } from './rendering/pumpkin-hud.ts';
 import { WaypointCatalog } from './waypoints/catalog.ts';
 import { normalizeItemIdentifier } from './waypoints/model.ts';
 import { WaypointStore } from './waypoints/store.ts';
+
+const prefix = `${ansi.named.name(info.name)}:`;
+const log: Logger = {
+    debug: (message) => hostLogger.debug(`${prefix} ${message}`),
+    info: (message) => hostLogger.info(`${prefix} ${message}`),
+    warn: (message) => hostLogger.warn(`${prefix} ${message}`),
+    error: (message) => hostLogger.error(`${prefix} ${message}`),
+};
 
 /** The canonical waypoint catalog and its vanilla command surface. */
 class Waypoints extends PluginBase {
@@ -51,28 +60,25 @@ class Waypoints extends PluginBase {
     protected onPluginLoad(ctx: Context): void {
         const files = WasiDataDir.open();
         if (files === undefined) {
-            logging.log('error', `${info.name} needs its data-folder permissions to run`);
+            log.error('needs its data-folder permissions to run');
             return;
         }
 
         const server = ctx.getServer();
         this.server = server;
         this.files = files;
-        const store = new WaypointStore(files, {
-            error: (message) => logging.log('error', `${info.name}: ${message}`),
-            warn: (message) => logging.log('warn', `${info.name}: ${message}`),
-        });
+        const store = new WaypointStore(files, log);
         const catalog = new WaypointCatalog(store);
         const hud = new WaypointHudService(server, catalog, {
             onError: (viewerId, error) =>
-                logging.log('warn', `${info.name}: waypoint HUD update failed for ${viewerId}: ${String(error)}`),
+                log.warn(`waypoint HUD update failed for ${ansi.named.uuid(viewerId)}: ${String(error)}`),
         });
         this.hud = hud;
         this.placeholders = new WaypointPlaceholderService(server, catalog, {
             now: monotonicMilliseconds,
-            onTransition: (state) => logging.log('info', `${info.name}: PumpkinPIE provider is ${state.kind}`),
+            onTransition: (state) => log.info(`PumpkinPIE provider is ${ansi.named.value(state.kind)}`),
             onFailure: (identifier, reason) =>
-                logging.log('warn', `${info.name}: waypoint placeholder ${identifier} declined (${reason})`),
+                log.warn(`waypoint placeholder ${ansi.named.identifier(identifier)} declined (${reason})`),
         });
         // Pumpkin disables scheduled plugin tasks before shutting down the WASM store.
         this.tickTaskId = scheduleRepeating(1, () => this.tick());
@@ -149,7 +155,7 @@ class Waypoints extends PluginBase {
             try {
                 cancelTask(tickTaskId);
             } catch (error) {
-                logging.log('warn', `${info.name}: failed to cancel update task: ${String(error)}`);
+                log.warn(`failed to cancel update task: ${String(error)}`);
             }
         }
 
@@ -158,7 +164,7 @@ class Waypoints extends PluginBase {
         try {
             placeholders?.stop();
         } catch {
-            logging.log('warn', `${info.name}: failed to stop PumpkinPIE session`);
+            log.warn('failed to stop PumpkinPIE session');
         }
 
         const hud = this.hud;
@@ -166,7 +172,7 @@ class Waypoints extends PluginBase {
         try {
             hud?.unload();
         } catch {
-            logging.log('warn', `${info.name}: failed to unload waypoint HUD`);
+            log.warn('failed to unload waypoint HUD');
         }
 
         const resources = [this.server, this.files];
@@ -176,7 +182,7 @@ class Waypoints extends PluginBase {
             try {
                 disposeWasiResource(resource);
             } catch {
-                logging.log('warn', `${info.name}: failed to release a host resource during unload`);
+                log.warn('failed to release a host resource during unload');
             }
         }
     }
@@ -193,12 +199,12 @@ class Waypoints extends PluginBase {
         try {
             this.placeholders?.tick();
         } catch {
-            logging.log('warn', `${info.name}: PumpkinPIE session tick failed`);
+            log.warn('PumpkinPIE session tick failed');
         }
         try {
             this.hud?.tick();
         } catch {
-            logging.log('warn', `${info.name}: waypoint HUD tick failed`);
+            log.warn('waypoint HUD tick failed');
         }
     }
 }
