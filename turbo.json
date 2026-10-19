@@ -80,6 +80,15 @@
         },
         "@pumpkin-plugins/static-hermes-runtime#test": {
             "dependsOn": ["transit", "@pumpkin-plugins/wasi-capabilities#build"],
+            "inputs": [
+                "$TURBO_DEFAULT$",
+                "$TURBO_ROOT$/tools/build/src/errors.ts",
+                "$TURBO_ROOT$/tools/build/src/repo.ts",
+                "$TURBO_ROOT$/tools/build/src/wasi-wit-lock.ts",
+                "$TURBO_ROOT$/tools/build/src/wasi-wit.ts",
+                "$TURBO_ROOT$/tools/build/src/wit.ts",
+                "$TURBO_ROOT$/tools/build/wasi-wit.lock.json"
+            ],
             "outputs": ["dist/**"]
         },
         "@pumpkin-plugins/static-hermes-runtime#readme": {
