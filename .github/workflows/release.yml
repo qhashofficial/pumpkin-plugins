@@ -82,7 +82,9 @@ jobs:
 
             - name: 💾 Save Release Please commit file cache
               id: save-release-please-commit-file-cache
-              if: steps.release.outcome == 'success'
+              if: >-
+                  steps.release.outcome == 'success' &&
+                  github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
               continue-on-error: true
               uses: actions/cache/save@v6.1.0
               with:

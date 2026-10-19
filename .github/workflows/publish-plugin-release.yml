@@ -133,8 +133,12 @@ jobs:
               working-directory: release-source
               run: pnpm --filter @pumpkin-plugins/static-hermes-runtime prepare-hermes
 
+            # Only default-branch caches are shared with other branches, and an exact hit has nothing new.
             - name: 💾 Save Static Hermes build cache
-              if: steps.prepare-hermes.outcome == 'success'
+              if: >-
+                  steps.prepare-hermes.outcome == 'success' &&
+                  steps.setup-hermes.outputs.hermes-cache-hit != 'true' &&
+                  github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
               uses: actions/cache/save@v6.1.0
               with:
                   path: ${{ github.workspace }}/.cache/hermes
