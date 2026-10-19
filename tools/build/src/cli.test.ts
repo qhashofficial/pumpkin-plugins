@@ -30,7 +30,11 @@ afterAll(() => {
     if (sharedWitRepository) fs.rmSync(sharedWitRepository.directory, { recursive: true, force: true });
 });
 
+/** Declares the canonical API package, as a plugin must before the build tool resolves it. */
+const declaredApi = { dependencies: { '@pumpkin-plugins/pumpkin-api': '0.1.0' } };
+
 function installApiPackage(pluginDir: string, apiDir: string): void {
+    fs.writeFileSync(path.join(pluginDir, 'package.json'), JSON.stringify(declaredApi));
     writeApiPackageManifest(apiDir);
     writeWitLock(apiDir, sharedWitRepository.directory, sharedWitRepository.branch, sharedWitRepository.commit);
     const scopeDir = path.join(pluginDir, 'node_modules', '@pumpkin-plugins');
@@ -217,7 +221,7 @@ describe('run arguments', () => {
         fs.symlinkSync(apiDir, path.join(scopeDir, 'pumpkin-api'), 'dir');
         fs.writeFileSync(
             path.join(pluginDir, 'package.json'),
-            JSON.stringify({ version: '1.0.0', pumpkinPlugin: { wasi: [] } }),
+            JSON.stringify({ ...declaredApi, version: '1.0.0', pumpkinPlugin: { wasi: [] } }),
         );
         vi.mocked(generateTypes).mockClear();
 
@@ -248,7 +252,7 @@ describe('run arguments', () => {
         fs.symlinkSync(apiDir, path.join(scopeDir, 'pumpkin-api'), 'dir');
         fs.writeFileSync(
             path.join(pluginDir, 'package.json'),
-            JSON.stringify({ version: '1.0.0', pumpkinPlugin: { wasi: [] } }),
+            JSON.stringify({ ...declaredApi, version: '1.0.0', pumpkinPlugin: { wasi: [] } }),
         );
         vi.mocked(generateTypes).mockClear();
 
@@ -444,7 +448,7 @@ describe('run arguments', () => {
         fs.symlinkSync(apiDir, path.join(scopeDir, 'pumpkin-api'), 'dir');
         fs.writeFileSync(
             path.join(pluginDir, 'package.json'),
-            JSON.stringify({ version: '1.0.0', pumpkinPlugin: { wasi: [] } }),
+            JSON.stringify({ ...declaredApi, version: '1.0.0', pumpkinPlugin: { wasi: [] } }),
         );
         vi.mocked(generateTypes).mockClear();
 
@@ -533,6 +537,23 @@ describe('run arguments', () => {
         }
     });
 
+    it('rejects an installed API package that the plugin does not declare', () => {
+        const pluginDir = fs.mkdtempSync(path.join(os.tmpdir(), 'plugin-cli-undeclared-api-'));
+        const apiDir = fs.mkdtempSync(path.join(os.tmpdir(), 'plugin-api-'));
+        installApiPackage(pluginDir, apiDir);
+        fs.writeFileSync(
+            path.join(pluginDir, 'package.json'),
+            JSON.stringify({ version: '1.0.0', pumpkinPlugin: { wasi: [] } }),
+        );
+
+        try {
+            expect(() => resolveApiWit(pluginDir)).toThrow(/add it to the plugin dependencies/);
+        } finally {
+            fs.rmSync(pluginDir, { recursive: true, force: true });
+            fs.rmSync(apiDir, { recursive: true, force: true });
+        }
+    });
+
     it('reports a malformed Pumpkin API package without WIT inputs', async () => {
         const pluginDir = fs.mkdtempSync(path.join(os.tmpdir(), 'plugin-cli-malformed-api-'));
         const apiDir = fs.mkdtempSync(path.join(os.tmpdir(), 'plugin-api-'));
@@ -542,7 +563,7 @@ describe('run arguments', () => {
         fs.symlinkSync(apiDir, path.join(scopeDir, 'pumpkin-api'), 'dir');
         fs.writeFileSync(
             path.join(pluginDir, 'package.json'),
-            JSON.stringify({ version: '1.0.0', pumpkinPlugin: { wasi: [] } }),
+            JSON.stringify({ ...declaredApi, version: '1.0.0', pumpkinPlugin: { wasi: [] } }),
         );
 
         try {
@@ -561,6 +582,7 @@ describe('run arguments', () => {
         const scopeDir = path.join(pluginDir, 'node_modules', '@pumpkin-plugins');
         fs.mkdirSync(scopeDir, { recursive: true });
         fs.symlinkSync(apiDir, path.join(scopeDir, 'pumpkin-api'), 'dir');
+        fs.writeFileSync(path.join(pluginDir, 'package.json'), JSON.stringify(declaredApi));
 
         try {
             expect(() => resolveApiWit(pluginDir)).toThrow(/WIT lockfile is invalid JSON.*wit\.lock\.json/);
@@ -578,6 +600,7 @@ describe('run arguments', () => {
         const scopeDir = path.join(pluginDir, 'node_modules', '@pumpkin-plugins');
         fs.mkdirSync(scopeDir, { recursive: true });
         fs.symlinkSync(apiDir, path.join(scopeDir, 'pumpkin-api'), 'dir');
+        fs.writeFileSync(path.join(pluginDir, 'package.json'), JSON.stringify(declaredApi));
 
         try {
             expect(() => resolveApiWit(pluginDir)).toThrow(
@@ -617,7 +640,7 @@ describe('run arguments', () => {
         installApiPackage(pluginDir, apiDir);
         fs.writeFileSync(
             path.join(pluginDir, 'package.json'),
-            JSON.stringify({ version: '1.0.0', pumpkinPlugin: { wasi: [] } }),
+            JSON.stringify({ ...declaredApi, version: '1.0.0', pumpkinPlugin: { wasi: [] } }),
         );
         vi.mocked(generateTypes).mockClear();
 
@@ -644,7 +667,7 @@ describe('run arguments', () => {
         fs.writeFileSync(path.join(legacyTypesWit, 'old.wit'), 'stale generated copy');
         fs.writeFileSync(
             path.join(pluginDir, 'package.json'),
-            JSON.stringify({ version: '1.0.0', pumpkinPlugin: { wasi: ['http'] } }),
+            JSON.stringify({ ...declaredApi, version: '1.0.0', pumpkinPlugin: { wasi: ['http'] } }),
         );
         vi.mocked(generateTypes)
             .mockReset()
@@ -677,6 +700,7 @@ describe('run arguments', () => {
         fs.writeFileSync(
             path.join(pluginDir, 'package.json'),
             JSON.stringify({
+                ...declaredApi,
                 version: '1.2.3',
                 pumpkinPlugin: {
                     entry: 'src/plugin.ts',
@@ -737,6 +761,7 @@ describe('run arguments', () => {
         fs.writeFileSync(
             path.join(pluginDir, 'package.json'),
             JSON.stringify({
+                ...declaredApi,
                 version: '1.2.3',
                 pumpkinPlugin: {
                     entry: 'src/plugin.ts',
@@ -774,6 +799,7 @@ describe('run arguments', () => {
         const apiDir = fs.mkdtempSync(path.join(os.tmpdir(), 'plugin-api-'));
         installApiPackage(pluginDir, apiDir);
         const manifest = {
+            ...declaredApi,
             version: '1.2.3',
             pumpkinPlugin: {
                 entry: 'src/plugin.ts',
@@ -850,6 +876,7 @@ describe('run arguments', () => {
         fs.writeFileSync(
             path.join(pluginDir, 'package.json'),
             JSON.stringify({
+                ...declaredApi,
                 version: '1.2.3',
                 pumpkinPlugin: {
                     entry: 'src/plugin.ts',
@@ -922,6 +949,7 @@ describe('run arguments', () => {
         fs.writeFileSync(
             path.join(pluginDir, 'package.json'),
             JSON.stringify({
+                ...declaredApi,
                 version: '1.2.3',
                 pumpkinPlugin: {
                     entry: 'src/plugin.ts',
@@ -960,6 +988,7 @@ describe('run arguments', () => {
         fs.writeFileSync(
             path.join(pluginDir, 'package.json'),
             JSON.stringify({
+                ...declaredApi,
                 version: '1.2.3',
                 pumpkinPlugin: {
                     entry: 'src/plugin.ts',
@@ -999,6 +1028,7 @@ describe('run arguments', () => {
         fs.writeFileSync(
             path.join(pluginDir, 'package.json'),
             JSON.stringify({
+                ...declaredApi,
                 version: '1.2.3',
                 pumpkinPlugin: {
                     entry: 'src/plugin.ts',
@@ -1090,6 +1120,7 @@ describe('main error handling', () => {
         fs.writeFileSync(
             path.join(pluginDir, 'package.json'),
             JSON.stringify({
+                ...declaredApi,
                 version: '1.2.3',
                 pumpkinPlugin: { entry: 'src/plugin.ts', output: 'build/plugin.wasm', wasi: [] },
             }),
