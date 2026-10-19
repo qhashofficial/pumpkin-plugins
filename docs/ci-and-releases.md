@@ -51,7 +51,7 @@ pins.
 | 🧪 Extension tests | Extension changes that need checks | The reusable workflow lints, typechecks, tests and packages each changed extension. |
 | 📝 Docs and config | Code, action, extension, generated README, or docs-only `master` pushes | Checks that generated READMEs are current and runs `pnpm check` for release configuration, package metadata and docs-to-code links. |
 | 🔨 Build | Code changes, after change classification | Prepares Static Hermes while lint and typecheck run, then builds each production plugin with its configured engine (Static Hermes by default). It runs integration checks and rebuilds release artifacts with the same runtime before signing and verification. |
-| 📊 Engine comparison | Code changes, after build | Calls `.github/workflows/engine-comparison.yml` through `workflow_call`. Nine engine configurations run in parallel; a report job validates and combines their results from real Pumpkin servers. |
+| 📊 Engine comparison | Changes to the benchmarks or the packages and workflow they build and run, and every code push to `master`; after build | Calls `.github/workflows/engine-comparison.yml` through `workflow_call`. Nine engine configurations run in parallel; a report job validates and combines their results from real Pumpkin servers. |
 | 📈 Engine comparison comment | Successful PR CI runs with a benchmark report | Compares the report with the latest matching default-branch run, updates one PR comment, and embeds an SVG chart of timing changes. |
 | 🎃 Integration | Plugin or suite-dependency changes, workspace-wide build configuration, or shared integration setup changes; after build | Runs affected packages and their dependents against the pinned Pumpkin release. Workspace-wide or shared integration changes run the full suite. The job reuses WASM files from Build. |
 | 🧬 Generator | Scaffold, generator setup, or generated-plugin dependency changes; after lint and build | Reuses Build's Static Hermes cache, generates a throwaway plugin, action and extension, checks release registration and READMEs, tests the action and extension, and typechecks, builds and integration-tests the plugin. |
@@ -135,8 +135,10 @@ changes select the importer packages and their dependents; catalog-only workspac
 same importer scope. Other workspace-wide
 changes, lockfile changes without importer-level changes, and changes to the integration workflow or
 its local actions run the full suite. Unrelated scripts and workflow files skip integration.
-Benchmark-only changes use Engine comparison. Biome, the type checker and unit tests don't read docs,
-so documentation-only changes cannot fail those checks.
+Benchmark-only changes use Engine comparison instead. On pull requests, Engine comparison runs only
+when the benchmark packages, their workspace dependencies or the comparison workflow change; every
+code push to `master` runs it so pull requests have a baseline. Biome, the type checker and unit
+tests don't read docs, so documentation-only changes cannot fail those checks.
 
 The main CI `📝 Docs and config` job runs for code, action and extension changes, the automatic
 `docs: update generated READMEs` commit, docs-only `master` pushes, and included README changes. A

@@ -255,6 +255,46 @@ describe('changed-areas', () => {
         assert.match(result.log, /Code: benchmarks\/engine-comparison\/src\/workload.ts/);
     });
 
+    /** A repo with a benchmark package that builds with the build tool, plus one unrelated plugin. */
+    function benchmarkRepo(files = {}) {
+        return repo({
+            'benchmarks/engine-comparison/package.json': JSON.stringify({
+                name: '@test/engine-comparison',
+                devDependencies: { '@test/build': 'workspace:*' },
+            }),
+            'benchmarks/engine-comparison/src/workload.ts': 'export {};\n',
+            'packages/plug/src/plugin.ts': 'export {};\n',
+            'tools/build/src/cli.ts': 'export {};\n',
+            '.github/workflows/engine-comparison.yml': 'name: Engine comparison\n',
+            '.github/workflows/ci.yml': [
+                'name: CI',
+                'jobs:',
+                '    engine-comparison:',
+                '        uses: ./.github/workflows/engine-comparison.yml',
+                '    generator:',
+                '        steps:',
+                '            - uses: ./.github/common/setup-static-hermes',
+                '',
+            ].join('\n'),
+            ...files,
+        });
+    }
+
+    for (const [file, expected] of [
+        ['benchmarks/engine-comparison/src/workload.ts', true],
+        ['tools/build/src/cli.ts', true],
+        ['tools/static-hermes-runtime/src/index.ts', true],
+        ['.github/workflows/engine-comparison.yml', true],
+        ['packages/plug/src/plugin.ts', false],
+    ]) {
+        it(`${expected ? 'runs' : 'skips'} the engine comparison for a change to ${file}`, () => {
+            const dir = benchmarkRepo();
+            const result = run(dir, change(dir, { [file]: '// changed\n' }), 'HEAD');
+            assert.ok(result.ok, result.log);
+            assertOutputs(result.outputs, `code=true\nbenchmark=${expected}\n`);
+        });
+    }
+
     it('skips integration suites for unrelated repository script changes', () => {
         const dir = repo({ 'scripts/check.mjs': 'export {};\n' });
         const base = change(dir, { 'scripts/check.mjs': 'export const changed = true;\n' });

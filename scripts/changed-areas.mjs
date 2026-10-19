@@ -237,7 +237,8 @@ function integrationInputs() {
     }
 
     const allDirectories = new Set();
-    for (const file of files.filter((entry) => entry.startsWith('.github/workflows/') && /\.ya?ml$/.test(entry))) {
+    const workflowFiles = files.filter((entry) => entry.startsWith('.github/workflows/') && /\.ya?ml$/.test(entry));
+    for (const file of workflowFiles) {
         const lines = readFileSync(path.join(repositoryRoot, file), 'utf8').split('\n');
         const start = lines.findIndex((line) => /^ {4}integration:\s*$/.test(line));
         if (start === -1) continue;
@@ -255,7 +256,44 @@ function integrationInputs() {
             { name, ...workspacePackage },
         ]),
     );
-    return { directories, globalFiles, allDirectories, packageByDirectory };
+    return { directories, globalFiles, allDirectories, packageByDirectory, workflowFiles };
+}
+
+/**
+ * Finds the directories and files that the engine comparison builds or runs: the benchmark packages
+ * with their workspace dependencies, and the workflow CI calls for the comparison.
+ */
+function benchmarkInputs(packageByDirectory, workflowFiles) {
+    const packageByName = new Map([...packageByDirectory.values()].map((entry) => [entry.name, entry]));
+    const directories = new Set();
+    const visit = (name) => {
+        const workspacePackage = packageByName.get(name);
+        if (!workspacePackage || directories.has(workspacePackage.directory)) return;
+        directories.add(workspacePackage.directory);
+        const { manifest } = workspacePackage;
+        for (const dependencies of [manifest.dependencies, manifest.devDependencies, manifest.optionalDependencies]) {
+            for (const dependency of Object.keys(dependencies ?? {})) visit(dependency);
+        }
+    };
+    for (const { name, directory } of packageByDirectory.values()) if (directory.startsWith('benchmarks/')) visit(name);
+
+    const files = new Set();
+    for (const file of workflowFiles) {
+        const lines = readFileSync(path.join(repositoryRoot, file), 'utf8').split('\n');
+        const start = lines.findIndex((line) => /^ {4}engine-comparison:\s*$/.test(line));
+        if (start === -1) continue;
+        const nextJob = lines.findIndex((line, index) => index > start && /^ {4}[\w-]+:\s*$/.test(line));
+        const job = lines.slice(start, nextJob === -1 ? undefined : nextJob).join('\n');
+        for (const [, workflow] of job.matchAll(/^\s*uses:\s+\.\/(\.github\/workflows\/[^#\s@]+)/gm)) {
+            files.add(workflow);
+            const source = readFileSync(path.join(repositoryRoot, workflow), 'utf8');
+            for (const [, localPath] of source.matchAll(/^\s*(?:-\s*)?uses:\s+\.\/([^#\s@]+)/gm)) {
+                directories.add(path.posix.normalize(localPath));
+            }
+        }
+        break;
+    }
+    return { directories, files };
 }
 
 /** Reads a tracked file at a revision, returning undefined when that revision has no such file. */
@@ -475,6 +513,21 @@ let integrationScope = benchmarkOnly
       : integrationRuntimeChanged
         ? 'affected'
         : 'none';
+const benchmarkRelevant = integrationRelevant
+    ? benchmarkInputs(integrationRelevant.packageByDirectory, integrationRelevant.workflowFiles)
+    : undefined;
+const benchmark = Boolean(
+    benchmarkRelevant &&
+        (workspaceLayoutChangedForIntegration ||
+            lockfileWideChanged ||
+            lockfileImporterDirectories?.some((directory) => benchmarkRelevant.directories.has(directory)) ||
+            code.some(
+                (file) =>
+                    benchmarkRelevant.files.has(file) ||
+                    (integrationRelevant.globalFiles.has(file) && !file.startsWith('.github/')) ||
+                    [...benchmarkRelevant.directories].some((directory) => file.startsWith(`${directory}/`)),
+            )),
+);
 const integrationPackages = new Set();
 if (integrationScope === 'affected') {
     for (const directory of integrationRelevant.directories) {
@@ -504,6 +557,7 @@ if (extensions.length) console.log(`Changed extensions: ${extensions.join(', ')}
 if (extensionsToTest.length) console.log(`Extensions to test: ${extensionsToTest.join(', ')}`);
 console.log(`Generator smoke test: ${generator ? 'selected' : 'skipped'}`);
 console.log(`Integration scope: ${integrationScope}`);
+console.log(`Engine comparison inputs changed: ${benchmark}`);
 if (generatedReadmes) console.log('Generated README update commit detected.');
 if (skipExpensiveChecks) console.log('Release merge: the expensive suites are skipped.');
 if (integrationPackages.size) console.log(`Integration packages: ${[...integrationPackages].sort().join(', ')}`);
@@ -511,6 +565,6 @@ if (integrationPackages.size) console.log(`Integration packages: ${[...integrati
 if (process.env.GITHUB_OUTPUT) {
     appendFileSync(
         process.env.GITHUB_OUTPUT,
-        `code=${code.length > 0}\nconfig_only=${configOnly}\nactions=${JSON.stringify(actions)}\nactions_to_test=${JSON.stringify(actionsToTest)}\nextensions=${JSON.stringify(extensions)}\nextensions_to_test=${JSON.stringify(extensionsToTest)}\ngenerated_readmes=${generatedReadmes}\ngenerator=${generator}\nintegration_scope=${integrationScope}\nskip_expensive_checks=${skipExpensiveChecks}\n${integrationPackages.size ? `integration_packages=${JSON.stringify([...integrationPackages].sort())}\n` : ''}`,
+        `code=${code.length > 0}\nconfig_only=${configOnly}\nactions=${JSON.stringify(actions)}\nactions_to_test=${JSON.stringify(actionsToTest)}\nextensions=${JSON.stringify(extensions)}\nextensions_to_test=${JSON.stringify(extensionsToTest)}\ngenerated_readmes=${generatedReadmes}\ngenerator=${generator}\nintegration_scope=${integrationScope}\nskip_expensive_checks=${skipExpensiveChecks}\nbenchmark=${benchmark}\n${integrationPackages.size ? `integration_packages=${JSON.stringify([...integrationPackages].sort())}\n` : ''}`,
     );
 }

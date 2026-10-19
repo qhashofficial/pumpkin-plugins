@@ -95,6 +95,13 @@ describe('selectJobs', () => {
         }
     });
 
+    it('compares engines for benchmark changes and for every code push to the default branch', () => {
+        const code = { ...nothing, code: 'true' };
+        assert.equal(selectJobs(code, 'pull_request')['engine-comparison'], false);
+        assert.equal(selectJobs({ ...code, benchmark: 'true' }, 'pull_request')['engine-comparison'], true);
+        assert.equal(selectJobs(code, 'push')['engine-comparison'], true);
+    });
+
     it('checks commits only on pull requests', () => {
         assert.equal(selectJobs({ ...nothing, code: 'true' }, 'push').commits, false);
         assert.equal(selectJobs({ ...nothing, generated_readmes: 'true' }, 'pull_request').commits, true);

@@ -30,7 +30,8 @@ export function selectJobs(outputs, event) {
         docs: touched || (event === 'push' && outputs.config_only !== 'true'),
         build: code,
         'external-consumer': code && full,
-        'engine-comparison': code && full,
+        // Default-branch pushes keep a baseline that pull request comparisons are measured against.
+        'engine-comparison': full && (outputs.benchmark === 'true' || (event === 'push' && code)),
         integration: full && (outputs.integration_scope === 'affected' || outputs.integration_scope === 'all'),
         generator: full && outputs.generator === 'true',
     };
