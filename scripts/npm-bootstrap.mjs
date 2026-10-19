@@ -112,7 +112,7 @@ export async function bootstrapPublicTool(options, injected = {}) {
     const temporaryDirectory = createTempDirectory();
     try {
         const archiveFile = path.join(temporaryDirectory, 'source.tar.gz');
-        const sourceUrl = `https://codeload.github.com/filiphsps/pumpkin-plugins/tar.gz/refs/tags/${encodeURIComponent(tag)}`;
+        const sourceUrl = `https://codeload.github.com/${githubRepository(root)}/tar.gz/refs/tags/${encodeURIComponent(tag)}`;
         await downloadSourceArchive(fetchArchive, sourceUrl, archiveFile, tag);
 
         const archiveEntries = await archive.listEntries(archiveFile);
@@ -312,6 +312,14 @@ function assertPathWithin(target, parent, description) {
     if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
         throw new Error(`${description} escaped its allowed root`);
     }
+}
+
+function githubRepository(root) {
+    const { repository } = readJson(path.join(root, 'package.json'), 'package.json');
+    const url = typeof repository === 'string' ? repository : repository?.url;
+    const slug = typeof url === 'string' ? url.match(/github\.com[/:]([^/]+\/[^/]+?)(?:\.git)?$/)?.[1] : undefined;
+    if (!slug) throw new Error('package.json repository.url must name a GitHub repository');
+    return slug;
 }
 
 function readJson(file, description) {
