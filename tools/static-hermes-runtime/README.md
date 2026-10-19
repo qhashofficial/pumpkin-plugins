@@ -92,9 +92,10 @@ Package consumers can import `buildStaticHermesComponent`, `prepareHermes`, and 
 runtime functions directly from `@pumpkin-plugins/static-hermes-runtime`. The `codegen analyze` and
 `codegen generate` commands take prepared WIT inputs and do not read a JavaScript bundle. Use
 `--api-methods` and `--wasi-methods` to select operation identifiers; when omitted, codegen includes
-all operations in the selected interfaces. `component build` accepts a JavaScript bundle by default;
-pass `--parse-ts` with a TypeScript bundle, or set `parseTypeScript: true` in
-`buildStaticHermesComponent`. Hermes marks TypeScript parser support partial and unstable. Set
+all operations in the selected interfaces. `--event-types` selects event variants the same way it
+does for `component build`, so codegen output matches a build's event selection. `component build`
+accepts a JavaScript bundle by default; pass `--parse-ts` with a TypeScript bundle, or set
+`parseTypeScript: true` in `buildStaticHermesComponent`. Hermes marks TypeScript parser support partial and unstable. Set
 `quietOutput: true` on `buildStaticHermesComponent` when a caller owns the console format; runtime
 stdout is suppressed, while command failures retain stderr diagnostics.
 

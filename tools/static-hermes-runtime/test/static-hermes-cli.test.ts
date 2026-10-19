@@ -112,7 +112,7 @@ it.each([
     { args: ['hermes', 'source', '--help'], requiredOptions: ['STATIC_HERMES_SOURCE_DIR'] },
     {
         args: ['codegen', 'analyze', '--help'],
-        requiredOptions: ['--wit <dir>', '--wasi-imports <json-array>'],
+        requiredOptions: ['--wit <dir>', '--wasi-imports <json-array>', '--event-types <json-array>'],
     },
     {
         args: ['codegen', 'generate', '--help'],
@@ -163,14 +163,25 @@ it('forwards parsed options to the selected Commander action', async () => {
             calls.push(options);
         },
     });
-    await program.parseAsync(['codegen', 'analyze', '--wit', 'wit', '--wasi-imports', '["wasi:io/poll@0.2.3"]'], {
-        from: 'user',
-    });
+    await program.parseAsync(
+        [
+            'codegen',
+            'analyze',
+            '--wit',
+            'wit',
+            '--wasi-imports',
+            '["wasi:io/poll@0.2.3"]',
+            '--event-types',
+            '["server-tick-end-event"]',
+        ],
+        { from: 'user' },
+    );
 
     expect(calls).toEqual([
         {
             wit: path.resolve('wit'),
             wasiImports: ['wasi:io/poll@0.2.3'],
+            eventTypes: ['server-tick-end-event'],
         },
     ]);
 });
