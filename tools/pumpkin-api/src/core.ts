@@ -17,6 +17,10 @@ import { clearTaskHandlers, dispatchTask, getNextHandlerId } from './task-regist
 /**
  * Handles one Pumpkin event and may return a replacement event payload.
  *
+ * Pumpkin applies the returned payload only for handlers registered as blocking. It ignores what a non-blocking
+ * handler returns, so such a handler cannot modify or cancel the event. Return `undefined` to leave the payload as it
+ * is.
+ *
  * @template T - Payload type accepted and optionally returned by the callback.
  */
 export type EventHandler<T = Event['val']> = (server: Server, event: T) => T | undefined;
@@ -99,8 +103,12 @@ export abstract class Plugin {
      * @param context - Plugin context used to register the handler.
      * @param eventType - Event to receive.
      * @param handler - Callback for the event payload.
-     * @param priority - Dispatch priority; defaults to `normal`.
-     * @param blocking - Whether this handler may block event processing; defaults to `true`.
+     * @param priority - Dispatch priority; defaults to `normal`. It can only order handlers within the blocking or
+     * non-blocking group. Pumpkin `0.2.0+26.3-26.51` stores it but does not sort by it, so handlers in a group run in
+     * registration order.
+     * @param blocking - Whether Pumpkin applies the payload the handler returns; defaults to `true`. Pumpkin runs every
+     * blocking handler before any non-blocking one and ignores what non-blocking handlers return, so only blocking
+     * handlers can modify or cancel the event.
      * @remarks The event type determines the payload type accepted by the callback.
      */
     registerEvent<T extends EventType>(
@@ -200,7 +208,8 @@ export function onUnload(context: Context): void {
 /**
  * Dispatch an event to the registered callback.
  *
- * If the callback returns a value, it replaces `event.val` before the event is returned to Pumpkin.
+ * If the callback returns a value, it replaces `event.val` before the event is returned to Pumpkin. Pumpkin applies the
+ * returned event only when the handler was registered as blocking.
  */
 export function handleEvent(eventId: number, server: Server, event: Event): Event {
     const handler = eventHandlers.get(eventId);
