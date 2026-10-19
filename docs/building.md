@@ -31,8 +31,8 @@ list WASI capabilities and choose an engine there:
 The engine defaults to `static-hermes`, which current plugin packages use. Set `"engine": "quickjs"`
 to choose QuickJS. Both engines are supported, but they have different runtime limits; see [Runtime
 caveats](#runtime-caveats) before choosing one. The [Static Hermes Runtime guide](../tools/static-hermes-runtime/README.md)
-covers its toolchain and supported API calls. Development, integration, and release builds all use
-the engine you select.
+covers its toolchain and how it generates API adapters. Development, integration, and release
+builds all use the engine you select.
 
 The build tool resolves the plugin's declared `@pumpkin-plugins/pumpkin-api` dependency (including an
 npm alias) and reads the WIT files from the subdirectory pinned in `wit.lock.json`. That lock must
@@ -177,15 +177,34 @@ QuickJS plugins run inside the server's WebAssembly runtime, which has a few lim
 
 ### Static Hermes
 
-Static Hermes plugins use the WASI 2 C API path in `tools/static-hermes-runtime`. Its native JSI shim
-implements only part of the Pumpkin API. The runtime reads the prepared WIT directory from
-`@pumpkin-plugins/build`, which owns the WASI version and WIT files. It validates every operation in
-an imported WASI interface, including operations your plugin doesn't use, and generates native
-adapters for operations selected by build analysis. The imported WASI 0.2.3 operations cover
+Static Hermes plugins use the WASI 2 C API path in `tools/static-hermes-runtime`. The build generates
+a native adapter for each Pumpkin API operation the plugin uses, or for every operation when build
+analysis can't tell which ones it uses. If an operation has a WIT input or result type the generator
+can't convert, the build fails and names that operation, so a component that builds can call every
+operation it includes.
+
+The runtime reads the prepared WIT directory from `@pumpkin-plugins/build`, which owns the WASI
+version and WIT files. It validates every operation in an imported WASI interface, including
+operations your plugin doesn't use, and generates native adapters for operations selected by build
+analysis. The imported WASI 0.2.3 operations cover
 filesystem, HTTP, streams, clocks, TCP, UDP, and sockets. Selecting a feature-gated operation also
 enables its WIT feature. Event converters keep complete payload fields for statically registered
 event types; dynamic or unresolved registrations retain every event case and payload field. Static
 Hermes development builds disable the shared automatic update check. WASI 3 support is deferred.
+
+Resources and promises behave differently from QuickJS, so keep these rules in mind when you write a
+plugin for Static Hermes:
+
+- Garbage collection doesn't release Pumpkin or WASI resources, such as players, worlds, text
+  components and streams. Call `drop()` on a resource you own once you're done with it, including on
+  error paths.
+- Resources passed into a callback belong to that callback. The load context is dropped when
+  `onLoad` returns, the server, command sender and arguments when their handler returns, and an
+  event's resources go back to Pumpkin with the returned event. Using one later throws `Cannot use a
+  disposed or transferred resource`, so keep the values you need rather than the resource.
+- Promise jobs run only before the callback that queued them returns. There's no event loop between
+  callbacks, so code after an `await` that waits for a later tick, task or event never runs. Use the
+  scheduler for work that has to happen later.
 
 ## Turborepo
 
