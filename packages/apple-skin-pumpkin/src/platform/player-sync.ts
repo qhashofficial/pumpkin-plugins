@@ -1,5 +1,7 @@
+import type { GameRuleValue } from 'pumpkin:plugin/game-rules@0.1.0';
 import type { JavaPlayer, Player } from 'pumpkin:plugin/player@0.1.0';
 import type { Server } from 'pumpkin:plugin/server@0.1.0';
+import type { World } from 'pumpkin:plugin/world@0.1.0';
 import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import type { Logger } from '@pumpkin-plugins/plugin-kit/logger';
 import { bool, float32be } from '@pumpkin-plugins/plugin-kit/payload';
@@ -15,8 +17,9 @@ const tag = ansi.named.name(PLUGIN_NAME);
  * Keeps AppleSkin clients in step with the server's hunger values. Vanilla tells a client about
  * saturation only when it reaches zero and never sends exhaustion at all, which leaves the food
  * tooltips AppleSkin draws with both values behind. So the plugin reads every online player once
- * per tick and sends only what moved since the last packet. Every send is logged at debug level,
- * which Pumpkin hides until its `log.level` is set to `debug`.
+ * per tick, walking the worlds so that each world's game rule is read once rather than per player,
+ * and sends only what moved since the last packet. Every send is logged at debug level, which
+ * Pumpkin hides until its `log.level` is set to `debug`.
  */
 export class PlayerSync {
     private readonly sent = new SyncTracker();
@@ -27,7 +30,7 @@ export class PlayerSync {
 
     /** Sends a joining player's values, and whether their world heals them by food. */
     joined(player: Player): void {
-        this.syncPlayer(player, true);
+        this.syncPlayer(player);
     }
 
     /** Forgets a player who left, so that their next join starts from scratch. */
@@ -44,18 +47,32 @@ export class PlayerSync {
      */
     tick(server: Server): void {
         const online = new Set<string>();
-        for (const player of server.getAllPlayers()) this.syncPlayer(player, false, online);
+        for (const world of server.getAllWorlds()) {
+            try {
+                const rule = new RegenerationRule(world);
+                for (const player of server.getPlayersInWorld(world)) this.syncPlayer(player, { rule, online });
+            } finally {
+                disposeWasiResource(world);
+            }
+        }
         this.sent.retain(online);
         for (const id of this.lastRegeneration.keys()) if (!online.has(id)) this.lastRegeneration.delete(id);
         for (const id of this.failed) if (id !== 'unknown' && !online.has(id)) this.failed.delete(id);
     }
 
-    private syncPlayer(player: Player, joined: boolean, online?: Set<string>): void {
+    /**
+     * Syncs one player and reports a failure once per streak, so that one player cannot stop the rest.
+     * @param player - The player to sync.
+     * @param tick - The rule of the world the tick found the player in and the ids seen so far, or
+     * `undefined` when the player just joined.
+     */
+    private syncPlayer(player: Player, tick?: { rule: RegenerationRule; online: Set<string> }): void {
+        const joined = tick === undefined;
         let id: string | undefined;
         try {
             try {
                 id = playerKey(player);
-                online?.add(id);
+                tick?.online.add(id);
                 const key = id;
                 if (joined) {
                     this.sent.forget(key);
@@ -66,10 +83,10 @@ export class PlayerSync {
                         this.log.debug(
                             `${tag} ${ansi.named.name(player.getName())} joined, sending their current hunger.`,
                         );
-                        this.sendRegeneration(player, key, java);
+                        this.sendJoinRegeneration(player, key, java);
                     }
                     this.send(player, key, java);
-                    if (!joined) this.sendRegeneration(player, key, java);
+                    if (tick) this.sendRegeneration(player, key, java, tick.rule);
                 });
                 if (joined && !sent) {
                     this.log.debug(
@@ -78,7 +95,7 @@ export class PlayerSync {
                 }
             } finally {
                 // List results are owned here; joining event handles belong to the event dispatcher.
-                if (online) disposeWasiResource(player);
+                if (tick) disposeWasiResource(player);
             }
             this.failed.delete(id ?? 'unknown');
         } catch (error) {
@@ -113,19 +130,23 @@ export class PlayerSync {
         }
     }
 
-    private sendRegeneration(player: Player, id: string, java: JavaPlayer): void {
+    private sendJoinRegeneration(player: Player, id: string, java: JavaPlayer): void {
         const world = player.getWorld();
         try {
-            const rule = world.getGameRule('natural-health-regeneration');
-            if (rule.tag !== 'bool' || this.lastRegeneration.get(id) === rule.val) return;
-            java.sendCustomPayload(NATURAL_REGENERATION_CHANNEL, bool(rule.val));
-            this.lastRegeneration.set(id, rule.val);
-            this.log.debug(
-                `${tag} ${ansi.named.name(player.getName())}: natural regeneration is ${rule.val ? 'on' : 'off'} in ${ansi.named.name(world.getName())}.`,
-            );
+            this.sendRegeneration(player, id, java, new RegenerationRule(world));
         } finally {
             disposeWasiResource(world);
         }
+    }
+
+    private sendRegeneration(player: Player, id: string, java: JavaPlayer, rule: RegenerationRule): void {
+        const value = rule.read();
+        if (value.tag !== 'bool' || this.lastRegeneration.get(id) === value.val) return;
+        java.sendCustomPayload(NATURAL_REGENERATION_CHANNEL, bool(value.val));
+        this.lastRegeneration.set(id, value.val);
+        this.log.debug(
+            `${tag} ${ansi.named.name(player.getName())}: natural regeneration is ${value.val ? 'on' : 'off'} in ${ansi.named.name(rule.world.getName())}.`,
+        );
     }
 
     /** Runs `send` against a player's client, for the Java players AppleSkin runs on. */
@@ -141,7 +162,29 @@ export class PlayerSync {
     }
 }
 
-/** A player's id, as the tracker keys them. A UUID is two bigint halves, so this costs no call. */
+/**
+ * A world's `natural-health-regeneration` rule, read from the host on first use and then kept, so
+ * the players of one world share a single read. A failed read is kept too and thrown to each of them.
+ */
+class RegenerationRule {
+    private result?: { value: GameRuleValue } | { error: unknown };
+
+    constructor(readonly world: World) {}
+
+    read(): GameRuleValue {
+        if (!this.result) {
+            try {
+                this.result = { value: this.world.getGameRule('natural-health-regeneration') };
+            } catch (error) {
+                this.result = { error };
+            }
+        }
+        if ('error' in this.result) throw this.result.error;
+        return this.result.value;
+    }
+}
+
+/** A player's id, as the tracker keys them. */
 function playerKey(player: Player): string {
     const { high, low } = player.getId();
     return `${high}:${low}`;
