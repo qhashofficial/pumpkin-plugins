@@ -466,6 +466,23 @@ describe('ensureWasiWit', () => {
         expect(fs.readFileSync(path.join(dir, 'io/poll.wit'), 'utf8')).toBe(FILES['io/poll.wit']);
     });
 
+    it('replaces a damaged cached file without first removing it', async () => {
+        const cache = tmp();
+        const dir = await ensureWasiWit({ cacheDir: cache, lock, fetchFile: server().fetchFile });
+        const damagedFile = path.join(dir, 'io/poll.wit');
+        fs.writeFileSync(damagedFile, 'tampered');
+        const removedCacheEntries: string[] = [];
+        filesystemState.onRemoveLock = (filename) => {
+            if (path.resolve(filename).startsWith(dir)) removedCacheEntries.push(filename);
+        };
+
+        await ensureWasiWit({ cacheDir: cache, lock, fetchFile: server().fetchFile });
+
+        // Concurrent builds copy the cache tree, so a cached path must never be missing.
+        expect(removedCacheEntries).toEqual([]);
+        expect(fs.readFileSync(damagedFile, 'utf8')).toBe(FILES['io/poll.wit']);
+    });
+
     it('replaces an unexpected directory at a cached WIT file path without changing valid siblings', async () => {
         const cache = tmp();
         const dir = path.join(cache, 'wasi-wit', lock.version);

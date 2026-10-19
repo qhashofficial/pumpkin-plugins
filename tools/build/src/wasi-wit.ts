@@ -3,7 +3,6 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { WASI_VERSION } from '@pumpkin-plugins/wasi-capabilities';
 import { BuildError } from './errors.ts';
-import { withWasiWitFileLock } from './wasi-wit-lock.ts';
 
 /** The WASI WIT files a build needs, pinned by content hash. */
 export interface WasiWitLock {
@@ -142,9 +141,8 @@ function isCached(file: string, expected: string): boolean {
 /**
  * Makes the WASI WIT files available locally. Files already cached with the right hash are kept;
  * missing or damaged upstream files are downloaded and generated files are materialized from the
- * lock. Every file is checked against its hash before it is written. Concurrent cache fills serialize
- * publication per file, so a valid cached file is never replaced by another build. Nothing is
- * downloaded when the cache is complete.
+ * lock. Every file is checked against its hash before it is written and published with a rename, so
+ * concurrent builds never see a partial file. Nothing is downloaded when the cache is complete.
  * @param options - Cache location and optional lock contents or downloader.
  * @returns The folder holding `<package>/<interface>.wit`.
  * @throws {BuildError} When the lock is invalid, a file can't be downloaded, or content doesn't match its pinned hash.
@@ -180,20 +178,18 @@ export async function ensureWasiWit(options: WasiWitOptions): Promise<string> {
                 const source = generated === undefined ? (lock.sources?.[rel] ?? `WASI v${lock.version}`) : 'the lock';
                 throw new BuildError(`${rel} from ${source} has hash ${actual}, expected ${hash}`);
             }
-            await writeAtomically(path.join(dir, rel), bytes, hash, options.cacheDir);
+            writeAtomically(path.join(dir, rel), bytes, hash, options.cacheDir);
         }),
     );
     return dir;
 }
 
-async function writeAtomically(
-    file: string,
-    bytes: Uint8Array,
-    expectedHash: string,
-    stagingDirectory: string,
-): Promise<void> {
-    const parent = path.dirname(file);
-    fs.mkdirSync(parent, { recursive: true });
+// A rename onto a path that holds a file is atomic on POSIX. Windows refuses it with EEXIST or EPERM,
+// and no platform renames a file onto a directory.
+const RENAME_REFUSED = new Set(['EEXIST', 'EPERM', 'EISDIR', 'ENOTEMPTY']);
+
+function writeAtomically(file: string, bytes: Uint8Array, expectedHash: string, stagingDirectory: string): void {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
     // Keep staging outside the shared WIT tree: concurrent builds copy that tree into jco's
     // input directory, and must not observe a temporary directory while it is being removed.
     fs.mkdirSync(stagingDirectory, { recursive: true });
@@ -201,12 +197,19 @@ async function writeAtomically(
     const temporary = path.join(temporaryDirectory, path.basename(file));
     try {
         fs.writeFileSync(temporary, bytes);
-        const lockName = createHash('sha256').update(path.resolve(file)).digest('hex');
-        await withWasiWitFileLock(path.join(stagingDirectory, `.wasi-wit-${lockName}.lock`), () => {
-            if (isCached(file, expectedHash)) return;
-            fs.rmSync(file, { recursive: true, force: true });
-            fs.renameSync(temporary, file);
-        });
+        for (let attempt = 0; ; attempt += 1) {
+            try {
+                fs.renameSync(temporary, file);
+                return;
+            } catch (error) {
+                const code = (error as NodeJS.ErrnoException).code;
+                if (code === undefined || !RENAME_REFUSED.has(code)) throw error;
+                // Another build may have published the same pinned bytes first.
+                if (isCached(file, expectedHash)) return;
+                if (attempt === 1) throw error;
+                fs.rmSync(file, { recursive: true, force: true });
+            }
+        }
     } finally {
         fs.rmSync(temporaryDirectory, { recursive: true, force: true });
     }
