@@ -27,10 +27,20 @@ const START_ATTEMPTS = 3;
 const BASELINE_ERRORS = [/Failed to save level\.dat: Info not found!/];
 const children = new Set<ChildProcessWithoutNullStreams>();
 
-// A crashed or interrupted test run must not leave servers holding ports.
-process.once('exit', () => {
+// A crashed or interrupted test run must not leave servers holding ports. Node doesn't emit 'exit'
+// when a signal ends the process, and Pumpkin keeps running when its stdin closes.
+function killChildren(): void {
     for (const child of children) child.kill('SIGKILL');
-});
+}
+process.once('exit', killChildren);
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+    process.once(signal, () => {
+        killChildren();
+        // Listening replaced the default of ending the process, so end it the default way unless
+        // someone else handles the signal.
+        if (process.listenerCount(signal) === 0) process.kill(process.pid, signal);
+    });
+}
 
 /** A running Pumpkin server in a temporary directory. Start one with `startPumpkin`. */
 export class PumpkinInstance {
