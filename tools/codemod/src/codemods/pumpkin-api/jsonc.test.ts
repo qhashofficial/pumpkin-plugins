@@ -1,26 +1,26 @@
-import { parse } from 'jsonc-parser';
 import { describe, expect, it } from 'vitest';
 import { mergeJsonStringArray } from './jsonc.js';
 
 describe('mergeJsonStringArray', () => {
-    it('deduplicates and appends entries without dropping JSONC comments or layout', () => {
+    it('appends only missing values and leaves existing entries in place', () => {
         const source = `{
     "pumpkinPlugin": {
         "wasi": [
-            // Keep the original capability note.
             "http",
-            // Keep this note after deduplicating the grant.
             "http",
-            "sockets",
+            "sockets"
         ]
     }
 }`;
 
-        const updated = mergeJsonStringArray(source, ['pumpkinPlugin', 'wasi'], ['filesystem', 'http'], source);
+        const updated = mergeJsonStringArray(
+            source,
+            ['pumpkinPlugin', 'wasi'],
+            ['filesystem', 'http', 'filesystem'],
+            source,
+        );
 
-        expect(parse(updated).pumpkinPlugin.wasi).toEqual(['http', 'sockets', 'filesystem']);
-        expect(updated).toContain('            // Keep the original capability note.');
-        expect(updated).toContain('            // Keep this note after deduplicating the grant.');
-        expect(updated).toContain('            "sockets",\n            "filesystem",\n');
+        expect(JSON.parse(updated).pumpkinPlugin.wasi).toEqual(['http', 'http', 'sockets', 'filesystem']);
+        expect(updated).toContain('            "sockets",\n            "filesystem"\n');
     });
 });

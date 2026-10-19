@@ -105,9 +105,9 @@ The `migrate-pumpkin-api-ts` codemod follows the repository's
   builder ran QuickJS, so this changes the runtime and the preview adds a review note. Set `engine`
   to `quickjs` to keep the old runtime. An existing `engine` is preserved.
 - A missing `pumpkinPlugin.wasi` to the capabilities the codemod can infer from the production
-  entry, which keeps capabilities aligned with reachable WASI imports. Existing entries are
-  preserved. If entry inference is skipped, the current `wasi` value stays unchanged and the preview
-  explains why.
+  entry, which keeps capabilities aligned with reachable WASI imports. An existing `wasi` array
+  keeps its entries, and the codemod appends inferred capabilities that are missing from it. If
+  entry inference is skipped, the current `wasi` value stays unchanged and the preview explains why.
 - `scripts.typecheck` as `pumpkin-plugins-build --types-only && tsc --noEmit` when the codemod has
   both builder paths and the field is missing or exactly `tsc --noEmit`.
 - `build/types/bindings/**/*.d.ts` in an explicit `tsconfig.json` `include` array. If the project
@@ -117,6 +117,9 @@ The `migrate-pumpkin-api-ts` codemod follows the repository's
   If an effective `exclude` pattern or `compilerOptions.outDir` omits those declarations, it leaves
   the config unchanged and reports a manual review note rather than changing the project's file
   roots. If it cannot resolve the extended config, it also reports a manual review note.
+
+The codemod reads `package.json` as strict JSON, as npm and pnpm do. A manifest with comments or
+trailing commas is left unchanged with a review note.
 
 The source transform changes parsed module specifiers only; it leaves comments, examples and other
 string values alone. Existing custom build and typecheck commands are kept and reported for manual

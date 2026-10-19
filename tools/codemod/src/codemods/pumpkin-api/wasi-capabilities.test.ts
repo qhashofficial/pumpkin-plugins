@@ -8,9 +8,8 @@ import { migratePumpkinApiTs } from '../migrate-pumpkin-api.js';
 import { API_VERSION_RANGE, BUILD_VERSION_RANGE } from './constants.js';
 
 describe('WASI capability inference', () => {
-    it('preserves JSONC comments and infers WASI capabilities from the manifest', async () => {
+    it('infers WASI capabilities through inherited tsconfig path mappings', async () => {
         const source = `{
-    // Keep this project note.
     "name": "example-plugin",
     "scripts": {
         "build": "pnpm exec pumpkin-plugin-build src/plugin.ts build/plugin.wasm"
@@ -54,7 +53,6 @@ describe('WASI capability inference', () => {
                 pumpkinPlugin: Record<string, unknown>;
             };
 
-            expect(result?.after).toContain('// Keep this project note.');
             expect(manifest.dependencies).toEqual({
                 'other-package': '1.2.3',
                 '@pumpkin-plugins/pumpkin-api': API_VERSION_RANGE,
@@ -70,7 +68,6 @@ describe('WASI capability inference', () => {
                 engine: 'static-hermes',
                 wasi: ['http'],
             });
-            expect(report.messages.map(({ text }) => text).join('\n')).not.toContain('JSON does not support comments');
             expect(report.messages.map(({ text }) => text)).toContain(
                 'Review inferred pumpkinPlugin.wasi capabilities and any static-analysis notes before building.',
             );
@@ -154,6 +151,7 @@ describe('WASI capability inference', () => {
             const packageChange = report.changedFiles.find(({ relativePath }) => relativePath === 'package.json');
             expect(packageChange).toBeDefined();
             expect(parse(packageChange?.after ?? '').pumpkinPlugin.wasi).toEqual([
+                'http',
                 'http',
                 'custom',
                 'filesystem',

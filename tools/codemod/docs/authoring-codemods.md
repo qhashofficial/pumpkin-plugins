@@ -54,7 +54,8 @@ there's nothing to change; the runner treats identical output as unchanged.
 For JavaScript and TypeScript, prefer syntax-aware matching. When you need to preserve formatting,
 comments, and unrelated text, use AST source spans to replace only the relevant part. The Pumpkin
 API migration parses module specifiers with the TypeScript parser and edits `package.json` and
-`tsconfig.json` with `jsonc-parser`.
+`tsconfig.json` with `jsonc-parser`. It reads `package.json` with `JSON.parse`, because package
+managers reject comments and trailing commas there.
 
 Preserve formatting, comments, unrelated settings, and custom commands. Only add dependencies or
 configuration fields when the transform has enough information to give them valid values. If it
