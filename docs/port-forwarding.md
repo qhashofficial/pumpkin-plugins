@@ -27,6 +27,9 @@ Plugins run inside game ticks and can't block while waiting for the network. The
 does its work in generators (`Steps<T>`) that yield between network operations; `Task` advances
 them. `PortMapper` manages discovery and each requested mapping:
 
+The engine is IPv4-only: it asks for IPv4 port mappings and opens no IPv6 firewall pinholes
+(`WANIPv6FirewallControl`).
+
 1. If this machine's address toward the internet is public, nothing is opened.
 2. Otherwise, discovery looks for enabled protocols. With UPnP enabled, it completes the SSDP
    search and reads device descriptions before starting NAT-PMP. UPnP SOAP and NAT-PMP requests then
@@ -113,9 +116,11 @@ would prevent your plugin from loading when UPnPumpkin isn't installed.
 
 ## Testing
 
-- Engine and API unit tests use `FakeNetwork` and `FakeIgd` from
-  `@pumpkin-plugins/port-mapping/testing`. They control time directly and simulate UPnP and NAT-PMP
-  routers, including taken ports, permanent-lease-only routers, and CGNAT.
+- Engine unit tests use `FakeNetwork` and `FakeIgd` from `@pumpkin-plugins/port-mapping/testing`.
+  They control time directly and simulate UPnP and NAT-PMP routers, including taken ports,
+  permanent-lease-only routers, and CGNAT.
+- API unit tests give `PortMapClient` a send function that decodes each request and answers with an
+  encoded reply, so no router or network is involved.
 - UPnPumpkin integration tests run a real server with a localhost router from
   `@pumpkin-plugins/port-mapping/testing/router`. The fake IGD uses real UDP and HTTP sockets; set
   `router.upnp_search` and `router.nat_pmp_gateway` to point the plugin at it.
