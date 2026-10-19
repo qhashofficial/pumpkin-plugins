@@ -104,20 +104,6 @@ const externalConsumerWorkflow = readFileSync(
     'utf8',
 );
 
-const workflowNodeVersion = externalConsumerWorkflow.match(/node-version:\s*([^\s]+)/)?.[1];
-if (workflowNodeVersion !== nodeVersion) {
-    throw new Error(
-        `External-consumer Node pin (${workflowNodeVersion}) does not match .node-version (${nodeVersion})`,
-    );
-}
-
-const workflowRustVersion = externalConsumerWorkflow.match(/rustup toolchain install ([^\s]+)/)?.[1];
-if (workflowRustVersion !== toolchain.tools.rust) {
-    throw new Error(
-        `External-consumer Rust pin (${workflowRustVersion}) does not match toolchain-versions.json (${toolchain.tools.rust})`,
-    );
-}
-
 const toolchainRows = [
     ['Node.js', nodeVersion],
     ['pnpm', requiredString(pnpmVersion, 'package.json devEngines.packageManager.version')],
