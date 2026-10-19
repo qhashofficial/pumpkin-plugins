@@ -1147,6 +1147,16 @@ describe('DH sessions', () => {
         expect(f.ids()).toEqual([6]);
         expect(f.sessions.status()).toContain('2 pending');
     });
+    it('reports the actual reason when a queued request stops being valid', () => {
+        const f = fixture();
+        f.sessions.receive(f.peer, f.request());
+        f.peer.insideBorder = () => false;
+
+        f.sessions.tick(f.peers);
+
+        expect(f.ids()).toEqual([6]);
+        expect(f.sessions.status()).toContain('Last rejection: Section outside request range or world border.');
+    });
     it('cancels requests, forgets disconnected clients and refuses unloaded terrain', () => {
         const f = fixture();
         f.sessions.receive(f.peer, f.request());

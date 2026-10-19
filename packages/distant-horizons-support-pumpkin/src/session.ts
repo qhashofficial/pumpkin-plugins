@@ -296,13 +296,15 @@ export class Sessions {
             const found = peers.withPeer(request.name, (peer) => {
                 try {
                     const client = this.clients.get(peer.name);
-                    if (!client || this.validate(peer, client, { ...request, type: 'request' }, false)) {
+                    if (!client) return;
+                    const failure = this.validate(peer, client, { ...request, type: 'request' }, false);
+                    if (failure) {
                         this.rejected++;
-                        this.lastFailure = 'Request no longer in range';
+                        this.lastFailure = failure.reason;
                         this.log.debug(
-                            `${logTag} Rejected DH request ${ansi.named.number(request.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(request.level, request.section.x, request.section.z)}: ${this.lastFailure}.`,
+                            `${logTag} Rejected DH request ${ansi.named.number(request.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(request.level, request.section.x, request.section.z)}: ${failure.reason}.`,
                         );
-                        peer.send(reject(request.tracker, this.lastFailure, 1));
+                        peer.send(reject(request.tracker, failure.reason, failure.kind));
                         this.drop(request);
                         return;
                     }
