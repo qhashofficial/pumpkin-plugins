@@ -1,16 +1,14 @@
-import type { CommandSender, ConsumedArgs } from 'pumpkin:plugin/command@0.1.0';
 import type { Context } from 'pumpkin:plugin/context@0.1.0';
 import * as logging from 'pumpkin:plugin/logging@0.1.0';
 import type { Server } from 'pumpkin:plugin/server@0.1.0';
 import { now as monotonicNow } from 'wasi:clocks/monotonic-clock@0.2.3';
 import { type ConfigStore, defaultValues } from '@pumpkin-plugins/config';
 import { WasiDataDir } from '@pumpkin-plugins/plugin-kit/data-dir';
-import { cancelTask, runCommand as runHostCommand, scheduleRepeating } from '@pumpkin-plugins/plugin-kit/host';
+import { cancelTask, scheduleRepeating } from '@pumpkin-plugins/plugin-kit/host';
 import { ipcSend } from '@pumpkin-plugins/plugin-kit/ipc';
 import { PluginBase, registerPlugin } from '@pumpkin-plugins/plugin-kit/plugin';
 import { registerCommands } from '@pumpkin-plugins/plugin-kit/register-commands';
 import { disposeWasiResource } from '@pumpkin-plugins/plugin-kit/wasi-resource';
-import { handleCommand as apiHandleCommand } from '@pumpkin-plugins/pumpkin-api';
 import { PieSession } from '@pumpkin-plugins/pumpkin-pie-api';
 import { strFromU8, strToU8 } from 'fflate';
 import { commandHandlers } from './commands/handlers.ts';
@@ -184,11 +182,6 @@ function errorMessage(error: unknown): string {
 
 registerPlugin(new TabDisplay());
 
-export { handleTask } from '@pumpkin-plugins/plugin-kit/plugin';
-
-/** Dispatches registered TabDisplay commands before delegating to Pumpkin's API package. */
-export function handleCommand(id: number, sender: CommandSender, server: Server, args: ConsumedArgs): number {
-    return runHostCommand(id, sender, args) ?? apiHandleCommand(id, sender, server, args);
-}
+export { handleCommand, handleTask } from '@pumpkin-plugins/plugin-kit/plugin';
 
 export * from '@pumpkin-plugins/pumpkin-api';
