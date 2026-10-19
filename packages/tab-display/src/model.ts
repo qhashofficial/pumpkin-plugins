@@ -23,7 +23,6 @@ export interface PlayerSnapshot {
     readonly edition: 'java' | 'bedrock' | 'unknown';
     readonly javaVersion?: string;
     readonly name: string;
-    readonly ping?: number;
     readonly uuid: string;
 }
 
@@ -49,6 +48,5 @@ export interface TabDisplayStatus {
     readonly pendingJobs: number;
     readonly players: number;
     readonly provider: SessionState['kind'];
-    readonly sorting: Capability;
     readonly unresolved: readonly string[];
 }

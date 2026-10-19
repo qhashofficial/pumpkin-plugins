@@ -20,18 +20,16 @@ describe('tab display configuration', () => {
         expect(loaded.config.general.version).toBe(1);
         expect(loaded.config.general.refresh_ticks).toBe(20);
         expect(loaded.config.header.lines[0]?.text).toContain('%player_name%');
-        expect(loaded.config.sorting.rules).toEqual([]);
         expect(store.value()).toContain('text =');
     });
 
     it('documents arrays of inline tables with their structured type', () => {
         const structuredOptions = configInfo.options?.filter(({ key }) =>
-            ['header.lines', 'footer.lines', 'sorting.rules'].includes(key),
+            ['header.lines', 'footer.lines'].includes(key),
         );
         expect(structuredOptions?.map(({ key, type }) => [key, type])).toEqual([
             ['header.lines', 'table[]'],
             ['footer.lines', 'table[]'],
-            ['sorting.rules', 'table[]'],
         ]);
     });
 
@@ -52,31 +50,13 @@ describe('tab display configuration', () => {
         expect(store.value()).toBe(initial);
     });
 
-    it('reports unsupported objectives with their config paths', () => {
-        const config = structuredClone(defaultValues(configSchema));
-        config.objective.enabled = true;
-        const result = validateConfig(config);
-        expect(result.kind).toBe('invalid');
-        if (result.kind === 'invalid')
-            expect(result.issues).toContainEqual({
-                path: 'objective.enabled',
-                reason: expect.stringContaining('unsupported'),
-            });
-    });
-
-    it('rejects duplicate sort keys and invalid styles before a config can be applied', () => {
+    it('rejects invalid styles before a config can be applied', () => {
         const config = structuredClone(defaultValues(configSchema));
         config.header.lines = [{ text: 'Hi', color: 'red' }];
-        config.sorting.rules = [
-            { kind: 'name', direction: 'ascending' },
-            { kind: 'name', direction: 'descending' },
-        ];
         const result = validateConfig(config);
         expect(result.kind).toBe('invalid');
         if (result.kind === 'invalid') {
-            expect(result.issues.map(({ path }) => path)).toEqual(
-                expect.arrayContaining(['header.lines[0].color', 'sorting.rules']),
-            );
+            expect(result.issues.map(({ path }) => path)).toContain('header.lines[0].color');
         }
     });
 });

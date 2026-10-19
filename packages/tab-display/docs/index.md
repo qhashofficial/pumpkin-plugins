@@ -20,10 +20,8 @@ capability table below. It leaves other Java versions unchanged and reports them
 `/tabdisplay status`. These adapter calls have not been verified with a live Java client in this
 environment. Status and documentation do not claim that a live client displayed the result.
 
-Native sorting is disabled. Non-empty `sorting.rules` values fail config validation because the
-client's ordering direction has not been verified. Numeric objectives are also rejected until their
-player-list display behavior is verified. The Bedrock adapter does not send Java tab fields or
-modify names, scores, identities, skins or roster membership.
+TabDisplay does not sort the player list or show numeric objectives. It does not send Java tab
+fields to Bedrock players or modify names, scores, identities, skins or roster membership.
 
 <!-- docs:begin capabilities -->
 <!-- Generated from src/model.ts and docs.ts. Run `pnpm readme`. -->
@@ -32,9 +30,7 @@ modify names, scores, identities, skins or roster membership.
 | --- | --- |
 | Java row names | Global subject formatting, gated to `v-26-3`; live client behavior unverified |
 | Java header/footer | Per-viewer formatted lines, gated to `v-26-3`; live client behavior unverified |
-| Java sorting | Disabled; config rejects non-empty rules |
-| Java numeric objective | Disabled; config rejects `objective.enabled = true` |
-| Bedrock roster | Left unchanged; objective and row formatting unsupported |
+| Bedrock roster | Left unchanged |
 | Per-viewer row names, fake rows and fixed slots | Not implemented |
 <!-- docs:end capabilities -->
 
@@ -69,8 +65,7 @@ The commands are operator-only by default. A row name is restored on disable, re
 formatting off, disconnect or unload only while the current value still matches TabDisplay's last
 write. If another plugin changes the name, TabDisplay releases ownership and leaves that value alone.
 Headers and footers have no getter for original state in the pinned API; TabDisplay clears them to
-empty on disable or unload under exclusive ownership. Native order resets to zero if later enabled
-after a verified probe.
+empty on disable or unload under exclusive ownership.
 
 ## Work limits and measurements
 

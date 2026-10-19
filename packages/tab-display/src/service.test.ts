@@ -6,7 +6,6 @@ import { type TabDisplayHost, TabDisplayService, type TabPlaceholderResolver } f
 
 class FakeHost implements TabDisplayHost {
     readonly names = new Map<string, string | undefined>();
-    readonly orders = new Map<string, number>();
     readonly headers = new Map<string, { header: readonly RenderedLine[]; footer: readonly RenderedLine[] }>();
     entryFailuresRemaining = 0;
     resetCount = 0;
@@ -26,10 +25,6 @@ class FakeHost implements TabDisplayHost {
         this.names.set(uuid, value?.text);
         return { kind: 'applied' };
     }
-    setOrder(uuid: string, order: number): ApplyResult {
-        this.orders.set(uuid, order);
-        return { kind: 'applied' };
-    }
     setHeaderFooter(uuid: string, header: readonly RenderedLine[], footer: readonly RenderedLine[]): ApplyResult {
         this.headers.set(uuid, { header, footer });
         return { kind: 'applied' };
@@ -41,7 +36,6 @@ class FakeHost implements TabDisplayHost {
             throw new Error('Reset failed');
         }
         this.names.delete(uuid);
-        this.orders.delete(uuid);
         this.headers.delete(uuid);
     }
 }
@@ -62,8 +56,8 @@ function validConfig(value: unknown) {
 }
 
 const viewers: readonly PlayerSnapshot[] = [
-    { uuid: 'uuid-a', name: 'Alex', edition: 'java', javaVersion: 'v-26-3', ping: 20 },
-    { uuid: 'uuid-b', name: 'Bea', edition: 'java', javaVersion: 'v-26-3', ping: 30 },
+    { uuid: 'uuid-a', name: 'Alex', edition: 'java', javaVersion: 'v-26-3' },
+    { uuid: 'uuid-b', name: 'Bea', edition: 'java', javaVersion: 'v-26-3' },
 ];
 
 describe('TabDisplayService', () => {
@@ -86,14 +80,12 @@ describe('TabDisplayService', () => {
                 ['uuid-b', 'Bea'],
             ]),
         );
-        expect(host.orders).toEqual(new Map());
         expect(service.status().javaVersions).toEqual(['v-26-3']);
         expect(service.inspect('uuid-a')).toEqual({
             uuid: 'uuid-a',
             name: 'Alex',
             edition: 'java',
             javaVersion: 'v-26-3',
-            ping: 20,
             placeholderIds: ['player_name'],
         });
     });
@@ -181,7 +173,6 @@ describe('TabDisplayService', () => {
             uuid: String(index).padStart(3, '0'),
             name: `Player${index}`,
             edition: 'java' as const,
-            ping: index,
         }));
         const host = new FakeHost(many);
         const config = baseConfig();
@@ -212,7 +203,6 @@ describe('TabDisplayService', () => {
 
         expect(host.names.size).toBe(0);
         expect(host.headers.size).toBe(0);
-        expect(host.orders.size).toBe(0);
         expect(service.status().lastFailure).toContain('general.max_players');
     });
 
@@ -377,7 +367,7 @@ describe('TabDisplayService', () => {
     });
 
     it('retries failed resets on later ticks while the display remains disabled', () => {
-        const host = new FakeHost([{ uuid: 'uuid-a', name: 'Alex', edition: 'java', javaVersion: 'v-26-3', ping: 20 }]);
+        const host = new FakeHost([{ uuid: 'uuid-a', name: 'Alex', edition: 'java', javaVersion: 'v-26-3' }]);
         const config = baseConfig();
         const service = new TabDisplayService({
             host,
