@@ -55,10 +55,17 @@ describe('waypoint model', () => {
         expect(() => normalizeWaypointName(name)).toThrow();
     });
 
+    it('accepts the outermost teleportable position', () => {
+        const position = { x: 30_000_000, y: -20_000_000, z: -30_000_000 };
+        expect(createWaypoint({ id, name: 'Edge', dimension: 'world', position }).position).toEqual(position);
+    });
+
     it.each([
         [{ x: Number.NaN, y: 0, z: 0 }],
         [{ x: 30_000_001, y: 0, z: 0 }],
         [{ x: 0, y: Number.POSITIVE_INFINITY, z: 0 }],
+        [{ x: 0, y: 20_000_001, z: 0 }],
+        [{ x: 0, y: -1e300, z: 0 }],
         [{ x: 0, y: 0, z: -30_000_001 }],
     ])('rejects invalid positions %j', (position) => {
         expect(() => createWaypoint({ id, name: 'Home', dimension: 'world', position })).toThrow();

@@ -18,6 +18,7 @@ const item = { name: 'item', type: 'item' } as const;
 const label = { name: 'label', type: 'string', mode: 'greedy' } as const;
 const description = { name: 'description', type: 'string', mode: 'greedy' } as const;
 const coordinate = { min: -30_000_000, max: 30_000_000 } as const;
+const height = { min: -20_000_000, max: 20_000_000 } as const;
 
 function admin<const Arguments extends readonly [CommandArgumentSpec, ...CommandArgumentSpec[]]>(
     description_: string,
@@ -36,7 +37,7 @@ const namedCoordinateVariants = [
     [
         name,
         { name: 'x', type: 'double', ...coordinate },
-        { name: 'y', type: 'double' },
+        { name: 'y', type: 'double', ...height },
         { name: 'z', type: 'double', ...coordinate },
     ],
 ] as const;

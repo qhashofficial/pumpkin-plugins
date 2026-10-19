@@ -6,6 +6,8 @@ const PERMISSION_NODE = /^[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+$/;
 const GROUP_SLUG = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 const CONTROL = /\p{Cc}/u;
 const MAX_HORIZONTAL_COORDINATE = 30_000_000;
+// Vanilla /tp rejects a Y beyond this.
+const MAX_VERTICAL_COORDINATE = 20_000_000;
 const MAX_VISIBILITY_RANGE = 30_000_000;
 
 /** A location in a named Pumpkin world. */
@@ -200,6 +202,9 @@ function normalizePosition(value: WaypointPosition): WaypointPosition {
     }
     if (Math.abs(x as number) > MAX_HORIZONTAL_COORDINATE || Math.abs(z as number) > MAX_HORIZONTAL_COORDINATE) {
         throw new RangeError(`Waypoint x and z must be within ${MAX_HORIZONTAL_COORDINATE} blocks of the origin.`);
+    }
+    if (Math.abs(y as number) > MAX_VERTICAL_COORDINATE) {
+        throw new RangeError(`Waypoint y must be within ${MAX_VERTICAL_COORDINATE} blocks of 0.`);
     }
     return { x: x as number, y: y as number, z: z as number };
 }

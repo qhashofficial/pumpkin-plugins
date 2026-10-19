@@ -19,7 +19,9 @@ settings.
 ## Create and use waypoints
 
 Admins can create a waypoint at their exact position with `/wp create "Home Base"`, or provide
-absolute coordinates with `/wp create "Home Base" 120.5 64 -30`. Names are unique across all dimensions.
+absolute coordinates with `/wp create "Home Base" 120.5 64 -30`. X and Z must be within 30,000,000
+blocks of the origin and Y within 20,000,000, the limits of vanilla `/tp`. Names are unique across
+all dimensions.
 Use `/wp list` to see enabled waypoints you can access, `/wp info <name>` for details, and
 `/wp tp <name>` to teleport yourself. Admins can use `/wp tp <name> @a` to teleport a player selector.
 
