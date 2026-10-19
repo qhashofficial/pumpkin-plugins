@@ -118,15 +118,19 @@ function appendResponse(buffer: Uint8Array, length: number, chunk: Uint8Array, n
     return buffer;
 }
 
-function headEnd(bytes: Uint8Array, length = bytes.length, from = 0): number {
-    for (let i = from; i + 3 < length; i++) {
-        if (bytes[i] === 13 && bytes[i + 1] === 10 && bytes[i + 2] === 13 && bytes[i + 3] === 10) return i;
+/** Where the head ends and the body starts. Lines may end in CRLF or, from sloppy devices, a bare LF. */
+function headEnd(bytes: Uint8Array, length = bytes.length, from = 0): { head: number; body: number } | undefined {
+    for (let i = from; i + 1 < length; i++) {
+        if (bytes[i] !== 10) continue;
+        const head = i > 0 && bytes[i - 1] === 13 ? i - 1 : i;
+        if (bytes[i + 1] === 10) return { head, body: i + 2 };
+        if (i + 2 < length && bytes[i + 1] === 13 && bytes[i + 2] === 10) return { head, body: i + 3 };
     }
-    return -1;
+    return undefined;
 }
 
 function headers(head: string): { status: number; fields: Record<string, string> } {
-    const [statusLine = '', ...lines] = head.split('\r\n');
+    const [statusLine = '', ...lines] = head.split(/\r?\n/);
     const status = Number(/^HTTP\/1\.[01] (\d{3})/.exec(statusLine)?.[1]);
     if (!status) throw new Error('the answer is not HTTP');
     const fields: Record<string, string> = {};
@@ -138,9 +142,9 @@ function headers(head: string): { status: number; fields: Record<string, string>
 }
 
 interface ResponseProgress {
+    bodyStart?: number;
     chunked?: ChunkedProgress;
     expectedBodyLength?: number;
-    headEnd?: number;
     headSearchFrom: number;
 }
 
@@ -154,14 +158,14 @@ interface ChunkedProgress {
 
 /** Whether the received prefix completes the response, advancing only over newly arrived bytes. */
 function isComplete(bytes: Uint8Array, length: number, progress: ResponseProgress): boolean {
-    if (progress.headEnd === undefined) {
+    if (progress.bodyStart === undefined) {
         const end = headEnd(bytes, length, progress.headSearchFrom);
         progress.headSearchFrom = Math.max(0, length - 3);
-        if (end === -1) return false;
-        const { fields } = headers(strFromU8(bytes.subarray(0, end), true));
-        progress.headEnd = end;
+        if (!end) return false;
+        const { fields } = headers(strFromU8(bytes.subarray(0, end.head), true));
+        progress.bodyStart = end.body;
         if (fields['transfer-encoding']?.toLowerCase() === 'chunked') {
-            const cursor = end + 4;
+            const cursor = end.body;
             progress.chunked = {
                 chunkSize: 0,
                 cursor,
@@ -175,7 +179,7 @@ function isComplete(bytes: Uint8Array, length: number, progress: ResponseProgres
     }
 
     if (progress.chunked) return isChunkedComplete(bytes, length, progress.chunked);
-    const bodyLength = length - progress.headEnd - 4;
+    const bodyLength = length - progress.bodyStart;
     return progress.expectedBodyLength !== undefined && bodyLength >= progress.expectedBodyLength;
 }
 
@@ -233,9 +237,9 @@ function findLineEnd(bytes: Uint8Array, length: number, from: number): number {
 
 function parseResponse(bytes: Uint8Array): { status: number; body: string } {
     const end = headEnd(bytes);
-    if (end === -1) throw new Error('the answer is not HTTP');
-    const { status, fields } = headers(strFromU8(bytes.subarray(0, end), true));
-    let body = bytes.subarray(end + 4);
+    if (!end) throw new Error('the answer is not HTTP');
+    const { status, fields } = headers(strFromU8(bytes.subarray(0, end.head), true));
+    let body = bytes.subarray(end.body);
     if (fields['transfer-encoding']?.toLowerCase() === 'chunked') {
         const decoded = decodeChunked(body);
         if (decoded === undefined) throw new Error('truncated chunked body');
