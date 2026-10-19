@@ -26,6 +26,7 @@ vi.mock('./build.ts', () => ({
 vi.mock('./patch.ts', () => ({
     affectedHermesPaths: mocks.affectedPaths,
     applyHermesPatchSeries: mocks.applyPatches,
+    HermesPatchConflictError: class extends Error {},
     readHermesPatchSeries: mocks.readPatches,
 }));
 vi.mock('./source.ts', () => ({

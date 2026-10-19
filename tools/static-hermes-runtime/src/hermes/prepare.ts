@@ -5,7 +5,12 @@ import { resolveConsumerWorkspaceRoot } from '../workspace-root.ts';
 import { buildHermes, buildHermesWithLockHeld, withHermesBuildLock } from './build.ts';
 import type { HermesGcVariant } from './gc.ts';
 import { hermesWasiBuildDirectory } from './gc.ts';
-import { affectedHermesPaths, applyHermesPatchSeries, readHermesPatchSeries } from './patch.ts';
+import {
+    affectedHermesPaths,
+    applyHermesPatchSeries,
+    HermesPatchConflictError,
+    readHermesPatchSeries,
+} from './patch.ts';
 import { ensureHermesSource, readHermesSourcePin, refreshHermesSource } from './source.ts';
 import { setupHermesToolchainEnvironment } from './toolchain-environment.ts';
 
@@ -75,9 +80,7 @@ export async function prepareHermes(options: HermesPreparationOptions = {}): Pro
                     try {
                         applyCurrentPatches(paths.source, pin.commit, patches);
                     } catch (error) {
-                        if (!(error instanceof Error) || !error.message.includes('conflict or partial application')) {
-                            throw error;
-                        }
+                        if (!(error instanceof HermesPatchConflictError)) throw error;
                         refreshHermesSource({
                             pin,
                             source: paths.source,
