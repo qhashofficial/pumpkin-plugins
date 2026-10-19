@@ -846,6 +846,17 @@ describe('DH sessions', () => {
         f.sessions.tick(f.peers);
         expect(f.sessions.status()).toContain('1 served');
     });
+    it('shows capture progress for a later request while an earlier one waits for terrain', () => {
+        const f = fixture();
+        f.settings.blocks_per_tick = 64;
+        f.peer.terrain.prepare = (region) => (region.originX === 0 ? { status: 'pending' } : { status: 'ready' });
+        f.sessions.receive(f.peer, f.request(1, 'world', 0));
+        f.sessions.receive(f.peer, f.request(2, 'world', 1));
+
+        f.sessions.tick(f.peers);
+
+        expect(f.sessions.status()).toContain('Capturing world 1, 0: 1.6%');
+    });
     it('stops pending captures and drops queued transfers when the client disables LOD requests', () => {
         const disabled = packet(4)
             .byte(3)

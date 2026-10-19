@@ -546,7 +546,11 @@ export class Sessions {
     /** Describes current queues for the operator command. */
     status(): string {
         const forced = this.forcedGeneration.status();
-        const request = this.requests[0];
+        // Requests are served in rotating order, so show the capture closest to finishing.
+        let request: Request | undefined;
+        for (const candidate of this.requests) {
+            if ((candidate.builder?.progress() ?? -1) > (request?.builder?.progress() ?? -1)) request = candidate;
+        }
         const progress = request?.builder
             ? forced
                 ? ` Paused DH capture ${request.level} ${request.section.x}, ${request.section.z}: ${(request.builder.progress() * 100).toFixed(1)}%.`
