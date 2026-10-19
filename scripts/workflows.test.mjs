@@ -152,7 +152,9 @@ describe('setup-static-hermes action', () => {
 
 /** The publish-tools step that checks each release tag points at the commit this run built. */
 const tagCheckStep = (releaseWorkflow) =>
-    releaseWorkflow.jobs['publish-tools'].steps.find((step) => step.run?.includes('git/ref/tags/$RELEASE_TAG'));
+    releaseWorkflow.jobs['publish-tools'].steps.find((step) =>
+        step.run?.includes('verify-release-tag.mjs "$RELEASE_TAG"'),
+    );
 
 describe('upstream pin workflow', () => {
     const workflow = parse(
@@ -296,7 +298,7 @@ describe('upstream pin workflow', () => {
         const fasterWorkflowSha = 'a'.repeat(40);
         const runGuard = (releaseTargetSha) =>
             spawnSync('bash', ['-e', '-o', 'pipefail', '-c', tagCheck.run], {
-                cwd: scripts,
+                cwd: path.join(scripts, '..'),
                 env: {
                     ...process.env,
                     PATH: `${path.join(directory, 'bin')}:${process.env.PATH}`,
@@ -316,7 +318,7 @@ describe('upstream pin workflow', () => {
 
         const fasterCommitTarget = runGuard(fasterWorkflowSha);
         assert.equal(fasterCommitTarget.status, 1);
-        assert.match(fasterCommitTarget.stdout, /requested release commit/);
+        assert.match(fasterCommitTarget.stdout, /::error::codemod-v0\.1\.0/);
     });
 
     it('packages released extensions and attaches VSIX files to GitHub releases', () => {
@@ -332,7 +334,7 @@ describe('upstream pin workflow', () => {
         assert.match(steps, /run build/);
         assert.match(steps, /run package/);
         assert.match(steps, /gh release upload/);
-        assert.match(steps, /git\/ref\/tags\/\$TAG/);
+        assert.match(steps, /verify-release-tag\.mjs "\$TAG"/);
         assert.match(releaseWorkflow.jobs['release-fanout-check'].steps[0].run, /extension_count/);
     });
 });

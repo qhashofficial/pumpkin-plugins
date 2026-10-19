@@ -361,15 +361,7 @@ jobs:
                       '$paths[] as $path | $metadata[$path + "--tag_name"]')"
                   while IFS= read -r RELEASE_TAG; do
                       [ -n "$RELEASE_TAG" ] || continue
-                      ref="$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" --jq '.object.type + " " + .object.sha')"
-                      sha="${ref##* }"
-                      if [ "${ref%% *}" = tag ]; then
-                          sha="$(gh api "repos/$GH_REPO/git/tags/$sha" --jq '.object.sha')"
-                      fi
-                      if [ "$sha" != "$RELEASE_TARGET_SHA" ]; then
-                          echo "::error::$RELEASE_TAG releases $sha, but the requested release commit is $RELEASE_TARGET_SHA. Not publishing anything."
-                          exit 1
-                      fi
+                      node scripts/verify-release-tag.mjs "$RELEASE_TAG" "$RELEASE_TARGET_SHA"
                   done <<< "$release_tags"
 
             - name: 📦 Configure npm OIDC publishing
@@ -429,16 +421,7 @@ jobs:
               uses: ./.github/common/bootstrap
 
             - name: 🔒 Check the tag is the commit this run built
-              run: |
-                  ref="$(gh api "repos/$GH_REPO/git/ref/tags/$TAG" --jq '.object.type + " " + .object.sha')"
-                  sha="${ref##* }"
-                  if [ "${ref%% *}" = tag ]; then
-                      sha="$(gh api "repos/$GH_REPO/git/tags/$sha" --jq '.object.sha')"
-                  fi
-                  if [ "$sha" != "$GITHUB_SHA" ]; then
-                      echo "::error::$TAG releases $sha, but this run checked out $GITHUB_SHA. Not packaging anything."
-                      exit 1
-                  fi
+              run: node scripts/verify-release-tag.mjs "$TAG" "$GITHUB_SHA"
 
             - name: 📦 Package VS Code extension
               env:
@@ -509,17 +492,7 @@ jobs:
             - name: 🔒 Verify the tag commit
               run: |
                   set -euo pipefail
-                  ref="$(gh api "repos/$GH_REPO/git/ref/tags/$TAG" --jq '.object.type + " " + .object.sha')"
-                  read -r object_type object_sha <<< "$ref"
-                  for _ in 1 2 3 4 5; do
-                      [[ "$object_type" == tag ]] || break
-                      ref="$(gh api "repos/$GH_REPO/git/tags/$object_sha" --jq '.object.type + " " + .object.sha')"
-                      read -r object_type object_sha <<< "$ref"
-                  done
-                  if [[ "$object_type" != commit || "$object_sha" != "$RELEASE_SHA" ]]; then
-                      echo "::error::$TAG resolves to $object_type $object_sha, but release metadata points to $RELEASE_SHA. Not attaching anything."
-                      exit 1
-                  fi
+                  node scripts/verify-release-tag.mjs "$TAG" "$RELEASE_SHA"
                   if [[ "$RELEASE_SHA" != "$GITHUB_SHA" ]]; then
                       source_sha="$(git -C "$SOURCE_ROOT" rev-parse 'HEAD^{commit}')"
                       if [[ "$source_sha" != "$RELEASE_SHA" ]]; then

@@ -77,18 +77,8 @@ jobs:
                       exit 1
                   fi
 
-                  tag_object="$(gh api "repos/$GH_REPO/git/ref/tags/$TAG" --jq '[.object.type, .object.sha] | join(" ")')"
-                  read -r object_type object_sha <<< "$tag_object"
-                  for _ in 1 2 3 4 5; do
-                      [[ "$object_type" == tag ]] || break
-                      tag_object="$(gh api "repos/$GH_REPO/git/tags/$object_sha" --jq '[.object.type, .object.sha] | join(" ")')"
-                      read -r object_type object_sha <<< "$tag_object"
-                  done
                   tag_commit="$(git -C "$SOURCE_ROOT" rev-parse 'HEAD^{commit}')"
-                  if [[ "$object_type" != commit || "$object_sha" != "$tag_commit" ]]; then
-                      echo "::error::Tag $TAG resolves to $object_type $object_sha, but checkout is $tag_commit."
-                      exit 1
-                  fi
+                  node scripts/verify-release-tag.mjs "$TAG" "$tag_commit"
 
                   wasm_name="$(basename "$WASM_NAME")"
                   checksum_name="$wasm_name.sha256"
