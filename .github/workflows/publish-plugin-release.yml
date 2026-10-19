@@ -55,7 +55,6 @@ jobs:
               with:
                   ref: ${{ inputs.tag }}
                   path: release-source
-                  fetch-depth: 0
                   persist-credentials: false
 
             - name: 🟢 Setup Node for the released source
