@@ -88,7 +88,12 @@ function registerComponent(group: Group, entry: Record<string, unknown> = {}) {
 }
 
 function run(root: string, command: string, args: string[], done: string) {
-    execFileSync(command, args, { cwd: root, stdio: 'inherit' });
+    // On Windows pnpm is usually pnpm.cmd, which only starts through a shell.
+    execFileSync(command, args, {
+        cwd: root,
+        stdio: 'inherit',
+        shell: process.platform === 'win32' && command === 'pnpm',
+    });
     return done;
 }
 
