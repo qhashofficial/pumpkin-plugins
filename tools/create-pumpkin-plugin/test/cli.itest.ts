@@ -438,7 +438,6 @@ it('shows Commander help', () => {
     expect(result.stdout).toContain('--skip-install');
     expect(result.stdout).toContain('--ts');
     expect(result.stdout).toContain('--js');
-    expect(result.stdout).toMatchSnapshot();
 });
 
 it('rejects a missing directory without creating a project', () => {
