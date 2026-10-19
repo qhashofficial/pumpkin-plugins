@@ -174,11 +174,11 @@ export class Sessions {
                     .string(`${PLUGIN_NAME}: ${String(err)}`)
                     .finish(),
             );
-            this.left(peer.name);
+            this.endSession(peer.name);
             return;
         }
         if (message.type === 'close') {
-            this.left(peer.name);
+            this.endSession(peer.name);
             return;
         }
         if (message.type === 'init') {
@@ -276,7 +276,7 @@ export class Sessions {
                     if (peer.level !== client.level || peer.dimension !== client.dimension) this.announce(peer);
                 })
             )
-                this.left(name);
+                this.endSession(name);
         }
         const forcedWork = this.forcedGeneration.tick(peers, serverMspt);
         if (forcedWork) {
@@ -418,7 +418,7 @@ export class Sessions {
                     this.drop(request);
                 }
             });
-            if (!found) this.left(request.name);
+            if (!found) this.endSession(request.name);
         }
         if (!forcedWork && !builderStepped && blocksBudget > 0)
             builderStepped = this.refreshOne(peers, refreshesAtStart, blocksBudget);
@@ -483,7 +483,7 @@ export class Sessions {
                 else remaining--;
                 sent = true;
             });
-            if (!found) this.left(name);
+            if (!found) this.endSession(name);
             if (sent) {
                 idleVisits = 0;
                 this.sendCursor = next;
@@ -491,8 +491,8 @@ export class Sessions {
         }
         this.lastHandlerMs = Math.max(0, this.measureNow() - handlerStarted);
     }
-    /** Removes a disconnected client's work and queued transfers. */
-    left(name: string): void {
+    /** Ends a player's DH protocol session and drops its requests and queued responses; operator captures continue. */
+    endSession(name: string): void {
         const client = this.clients.get(name);
         const pending = this.requests.filter((request) => request.name === name).length;
         const queued = client?.packets.length ?? 0;

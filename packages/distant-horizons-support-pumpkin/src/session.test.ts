@@ -1160,7 +1160,7 @@ describe('DH sessions', () => {
         f.sessions.tick(f.peers);
         expect(f.ids()).toEqual([6]);
         expect(f.files.list('cache')).toHaveLength(0);
-        f.sessions.left('Alice');
+        f.sessions.endSession('Alice');
         expect(f.sessions.status()).toContain('0 Distant Horizons client');
     });
     it('enforces work and transfer budgets and prevents obsolete captures after changes', () => {
