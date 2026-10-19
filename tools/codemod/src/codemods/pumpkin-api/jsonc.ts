@@ -108,7 +108,7 @@ function appendJsonArrayValues(
     );
 }
 
-/** Adds an array separator when needed and applies its append edits in source order. */
+/** Adds an array separator when needed, then inserts the new content. */
 function appendArrayContent(
     source: string,
     lastValueEnd: number | undefined,
@@ -121,15 +121,7 @@ function appendArrayContent(
         edits.push({ offset: lastValueEnd, length: 0, content: ',' });
     }
     edits.push({ offset: insertionOffset, length: 0, content });
-    return applySortedEdits(source, edits);
-}
-
-/** Applies nonoverlapping JSONC edits from the end of the document toward the start. */
-function applySortedEdits(source: string, edits: Edit[]): string {
-    return applyEdits(
-        source,
-        edits.sort((left, right) => left.offset - right.offset),
-    );
+    return applyEdits(source, edits);
 }
 
 /** Derives JSONC indentation and line endings for edits. */

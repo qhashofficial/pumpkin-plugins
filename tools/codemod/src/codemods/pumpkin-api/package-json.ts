@@ -241,7 +241,7 @@ function dependencyObjects(manifest: Record<string, unknown>): Record<string, un
     );
 }
 
-/** Chooses the first valid declared range for a dependency across standard package sections. */
+/** Returns the first string range declared for a dependency, checking sections in `DEPENDENCY_SECTIONS` order. */
 function existingDependencyVersion(
     sections: readonly Record<string, unknown>[],
     packageName: string,
