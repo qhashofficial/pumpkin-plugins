@@ -1,11 +1,6 @@
 import { expect, it } from 'vitest';
 import type { BenchmarkWorkload } from '../src/benchmark-workloads.ts';
-import {
-    compareBenchmarkResults,
-    formatBenchmarkChangeSvg,
-    formatBenchmarkChangeSvgs,
-    formatBenchmarkComment,
-} from './benchmark-regression.ts';
+import { compareBenchmarkResults, formatBenchmarkChangeSvgs, formatBenchmarkComment } from './benchmark-regression.ts';
 import type { EngineResult } from './engine-comparison-report.ts';
 
 it('flags workload changes only when they exceed the jitter threshold', () => {
@@ -78,7 +73,7 @@ it('selects the light and dark SVG variants by GitHub color scheme', () => {
     expect(comment).toContain(`[Download dark SVG](${darkUrl})`);
 });
 
-it('renders a labeled SVG chart for the largest changes', async () => {
+it('renders a labeled SVG chart for the largest changes', () => {
     const comparison = compareBenchmarkResults(
         [
             engine('quickjs', [
@@ -96,7 +91,7 @@ it('renders a labeled SVG chart for the largest changes', async () => {
         ],
     );
 
-    const svg = await formatBenchmarkChangeSvg(comparison);
+    const svg = formatBenchmarkChangeSvgs(comparison).light;
 
     expect(svg).toContain('<svg');
     expect(svg).toContain('Runtime benchmark changes');
@@ -106,7 +101,7 @@ it('renders a labeled SVG chart for the largest changes', async () => {
     expect(svg).not.toContain('<script>');
 });
 
-it('renders light and dark SVGs with full context and caps each timing direction at twelve rows', async () => {
+it('renders light and dark SVGs with full context and caps each timing direction at twelve rows', () => {
     const baselineWorkloads = [
         ...Array.from({ length: 13 }, (_, index) => workload(`slower-${index}`, [100])),
         ...Array.from({ length: 14 }, (_, index) => workload(`faster-${index}`, [100])),
@@ -122,7 +117,7 @@ it('renders light and dark SVGs with full context and caps each timing direction
         [engine('quickjs', baselineWorkloads)],
     );
 
-    const charts = await formatBenchmarkChangeSvgs(comparison);
+    const charts = formatBenchmarkChangeSvgs(comparison);
 
     expect(charts.light).toContain('fill="#FFFFFF"');
     expect(charts.dark).toContain('fill="#0D1117"');
