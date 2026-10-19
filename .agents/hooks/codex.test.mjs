@@ -1,6 +1,24 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { after, describe, it } from 'node:test';
+import { ROOT } from './check.mjs';
 import { handleCodexHook } from './codex.mjs';
+import { HookScope } from './scope.mjs';
+
+const temporaryDirectories = [];
+
+/** A HookScope in its own temp directory, so tests never share a live session's checkpoints. */
+function temporaryScope(snapshot = () => new Map()) {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'pumpkin-codex-hook-test-'));
+    temporaryDirectories.push(directory);
+    return new HookScope({ directory, snapshot });
+}
+
+after(() => {
+    for (const directory of temporaryDirectories) fs.rmSync(directory, { recursive: true, force: true });
+});
 
 describe('Codex hook adapter', () => {
     it('maps a blocked Codex shell call to a Codex deny decision', async () => {
@@ -167,5 +185,42 @@ describe('Codex hook adapter', () => {
 
         assert.equal(result.hookSpecificOutput.permissionDecision, 'deny');
         assert.match(result.hookSpecificOutput.permissionDecisionReason, /runner unavailable/);
+    });
+
+    it('guards and records a Codex apply_patch call end to end', async () => {
+        // Codex sends every file edit as apply_patch, with the patch in tool_input.command.
+        const payload = (file, extra) => ({
+            session_id: 'session-1',
+            turn_id: 'turn-1',
+            transcript_path: null,
+            cwd: path.join(ROOT, 'packages/p'),
+            model: 'gpt-5-codex',
+            permission_mode: 'default',
+            tool_name: 'apply_patch',
+            tool_use_id: `call-${file}`,
+            tool_input: { command: `*** Begin Patch\n*** Update File: ${file}\n@@\n-a\n+b\n*** End Patch\n` },
+            ...extra,
+        });
+        let current = new Map();
+        const scope = temporaryScope(() => new Map(current));
+
+        const refused = await handleCodexHook(
+            payload('../../pnpm-lock.yaml', { hook_event_name: 'PreToolUse' }),
+            undefined,
+            scope,
+        );
+        assert.equal(refused.hookSpecificOutput.permissionDecision, 'deny');
+        assert.match(refused.hookSpecificOutput.permissionDecisionReason, /pnpm-lock\.yaml/);
+
+        assert.equal(
+            await handleCodexHook(payload('src/plugin.ts', { hook_event_name: 'PreToolUse' }), undefined, scope),
+            null,
+        );
+        current = new Map([['packages/p/src/plugin.ts', 'patched']]);
+        assert.equal(
+            await handleCodexHook(payload('src/plugin.ts', { hook_event_name: 'PostToolUse' }), undefined, scope),
+            null,
+        );
+        assert.deepEqual(scope.files('session-1', 'turn-1'), ['packages/p/src/plugin.ts']);
     });
 });

@@ -80,9 +80,6 @@ function toolTargets(root, request) {
     if (request.tool_name === 'apply_patch') {
         const patch = typeof input === 'string' ? input : (input.patchText ?? input.patch ?? input.command);
         if (typeof patch === 'string') files = patchedFiles(patch);
-    } else if (request.tool_name === 'Edit' || request.tool_name === 'Write') {
-        const file = input.path ?? input.filePath ?? input.file_path;
-        if (typeof file === 'string') files = [file];
     } else if (request.tool_name === 'Bash' && typeof input.command === 'string') {
         files = shellOutputTargets(input.command);
     }

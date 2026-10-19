@@ -75,10 +75,10 @@ include it in its built-in runner list.
 
 When you run `check.mjs` without paths, Git status supplies the files to check. Codex's completion
 hooks use a narrower scope: they compare the working tree around each tool call and record only
-changed paths explicitly targeted by `Edit`, `Write`, `apply_patch` or a shell output redirection.
-A shell command that changes files as an implicit side effect has no attributable path. The root
-agent and each subagent also have separate scopes, so one agent's completion report doesn't include
-another agent's work.
+changed paths explicitly targeted by `apply_patch` or a shell output redirection. Codex sends every
+file edit as `apply_patch`; `Edit` and `Write` are only matcher aliases for it. A shell command that
+changes files as an implicit side effect has no attributable path. The root agent and each subagent
+also have separate scopes, so one agent's completion report doesn't include another agent's work.
 
 Completion checks pass explicit paths, which means they skip repository-wide metadata checks. They
 still run `pnpm readme:check` when the scoped changes include non-generated files. Passing these fast
@@ -88,7 +88,7 @@ behavior: project hooks load only for trusted projects, and Codex requires revie
 non-managed hook definition before it runs.
 
 The Codex adapter in `.agents/hooks/codex.mjs`, registered by `.codex/hooks.json`, sends
-`PreToolUse` shell, edit, write and patch calls through the portable guard. `PostToolUse` records
+`PreToolUse` shell and patch calls through the portable guard. `PostToolUse` records
 changed paths. `Stop` and `SubagentStop` check that agent's recorded paths and request one
 continuation when checks fail. The scope uses the Codex session ID and `turn_id`, with a separate
 identity for each subagent.
