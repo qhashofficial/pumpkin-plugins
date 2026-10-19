@@ -10,10 +10,10 @@ import {
     SyntaxKind,
 } from 'jsonc-parser';
 
-/** Parses an object and captures a readable syntax error instead of discarding the file. */
+/** Parses a JSONC object the way TypeScript reads tsconfig.json and reports a readable syntax error. */
 export function parseJsonObject(source: string): { value?: Record<string, unknown>; error?: string } {
     const errors: ParseError[] = [];
-    const value = parse(source, errors);
+    const value = parse(source, errors, { allowTrailingComma: true });
     if (errors.length > 0) return { error: 'Skipped invalid JSONC; fix its syntax and rerun the codemod.' };
     const object = recordOf(value);
     return object ? { value: object } : { error: 'Skipped JSONC whose top level is not an object.' };
