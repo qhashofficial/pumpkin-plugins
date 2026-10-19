@@ -56,6 +56,16 @@ base_url = ""
         expect(renderConfig(demo, again.values)).toBe(out);
     });
 
+    it('escapes DEL so values and table keys containing it read back', () => {
+        const values = readConfig(demo, {
+            web: { token: 'a\u007fb' },
+            overrides: { 'x\u007fy.txt': { order: 1 } },
+        }).values;
+        const again = readConfig(demo, parse(renderConfig(demo, values)));
+        expect(again.issues).toEqual([]);
+        expect(again.values).toEqual(values);
+    });
+
     it('wraps long comments without splitting words', () => {
         const lines = commentLines('one two three four five six', 14);
         expect(lines).toEqual(['# one two', '# three four', '# five six']);
