@@ -9,9 +9,22 @@ without starting a server.
 
 Build your plugin on `PluginBase`, passing its `PluginInfo` and package version to the constructor.
 Implement `onPluginLoad` for setup and, when needed, `onPluginUnload` for cleanup. Register the
-instance with `registerPlugin` to enable the non-blocking Pumpkin Market update check. Export
-`handleTask` from your plugin entry point as well; it dispatches the kit's scheduled work and then
-passes other task IDs to the Pumpkin API handler.
+instance with `registerPlugin` to enable the non-blocking Pumpkin Market update check.
+
+The kit gives scheduled tasks and commands its own handler IDs, which the Pumpkin API package
+doesn't know about. Export the kit's `handleTask` and `handleCommand` from your plugin entry point
+next to the API package's exports:
+
+```ts
+export { handleCommand, handleTask } from '@pumpkin-plugins/plugin-kit/plugin';
+export * from '@pumpkin-plugins/pumpkin-api';
+```
+
+Each one runs the kit's handler for an ID it owns and passes other IDs to the Pumpkin API handler.
+The named exports take the place of the API package's functions with the same names, which
+`export *` would otherwise re-export. Without them, Pumpkin's calls reach the API handlers only:
+commands registered with `registerCommands` fail with `No handler for command ID`, and the kit's
+scheduled tasks, including the update check, never run.
 
 The scheduling helpers accept whole, nonnegative tick counts. A repeating period must be at least
 one tick; a delayed task may use a delay of zero. `cancelTask` stops either kind and releases its

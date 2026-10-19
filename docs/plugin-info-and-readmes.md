@@ -115,6 +115,19 @@ registerCommands(ctx, commands, {
 });
 ```
 
+`registerCommands` gives each handler a plugin-kit handler ID, and only the kit's `handleCommand`
+knows those IDs. Export it from your entry point, together with `handleTask`, so the named exports
+replace the API package's versions that `export *` would otherwise re-export:
+
+```ts
+// src/plugin.ts
+export { handleCommand, handleTask } from '@pumpkin-plugins/plugin-kit/plugin';
+export * from '@pumpkin-plugins/pumpkin-api';
+```
+
+Without the `handleCommand` export, Pumpkin calls the API package's handler, and every registered
+command fails with `No handler for command ID`.
+
 Set `info.commands` to `commandInfos(commands)`. That produces one README row for each runnable
 command, such as `/myplugin reload`, with its description, permission and default access.
 
