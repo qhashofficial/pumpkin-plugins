@@ -299,7 +299,41 @@ describe('check-docs', () => {
         assert.ok(inCode.ok, inCode.out);
     });
 
-    it('accepts links to generated API pages when the ignored API output is absent', () => {
+    it('resolves heading links the way GitHub names them', () => {
+        const headings =
+            '# Guide\n\n## Getting started\n\n## Use foo_bar\n\n## Setup\n\n## Setup\n\n```sh\n# Setup\n```\n';
+        const valid = run(
+            'check-docs.mjs',
+            repoWithCurrentDocsIndex({
+                ...good,
+                'docs/guide.md': `${headings}\n[a](#use-foo_bar) [b](#setup) [c](#setup-1)\n`,
+            }),
+        );
+        assert.ok(valid.ok, valid.out);
+        const broken = run(
+            'check-docs.mjs',
+            repoWithCurrentDocsIndex({
+                ...good,
+                'docs/guide.md': `${headings}\n[a](#use-foobar) [b](#setup-2)\n`,
+            }),
+        );
+        assert.match(broken.out, /links to #use-foobar, but docs\/guide\.md has no such heading/);
+        assert.match(broken.out, /links to #setup-2, but docs\/guide\.md has no such heading/);
+    });
+
+    it('checks links with titles and reference-style links', () => {
+        const result = run(
+            'check-docs.mjs',
+            repoWithCurrentDocsIndex({
+                ...good,
+                'docs/guide.md': '# Guide\n\n[x](titled.md "Title") [y][ref]\n\n[ref]: referenced.md\n',
+            }),
+        );
+        assert.match(result.out, /links to titled\.md, which does not exist/);
+        assert.match(result.out, /links to referenced\.md, which does not exist/);
+    });
+
+    it('accepts links to generated API pages whether or not the ignored API output exists', () => {
         const result = run(
             'check-docs.mjs',
             repoWithCurrentDocsIndex({
@@ -309,6 +343,17 @@ describe('check-docs', () => {
             }),
         );
         assert.ok(result.ok, result.out);
+
+        const built = run(
+            'check-docs.mjs',
+            repoWithCurrentDocsIndex({
+                ...good,
+                'docs/guide.md':
+                    '# Guide\n\n## Getting started\n\nSee `tools/kit/src/a.ts` and [the API](/api/kit/).\n',
+                'docs/api/other/index.md': '# Other\n',
+            }),
+        );
+        assert.ok(built.ok, `a local API build must not change the result:\n${built.out}`);
     });
 
     it('validates agent guidance and skill links and commands too', () => {
@@ -436,6 +481,17 @@ describe('check-docs', () => {
         );
         assert.match(result.out, /does not list the CI job "🚀 Ship"/);
         assert.doesNotMatch(result.out, /Lint/);
+
+        const reformatted = run(
+            'check-docs.mjs',
+            repoWithCurrentDocsIndex({
+                ...good,
+                '.github/workflows/ci.yml': 'jobs:\n  cpp:\n    name: 🛠️ C++ build\n  ship:\n    name: 🚀 Ship\n',
+                'docs/ci-and-releases.md': '# CI\n\n| 🛠️ C++ build | always |\n',
+            }),
+        );
+        assert.match(reformatted.out, /does not list the CI job "🚀 Ship"/);
+        assert.doesNotMatch(reformatted.out, /C\+\+/);
     });
 
     it('ignores scratch folders that start with an underscore', () => {
