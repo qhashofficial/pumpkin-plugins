@@ -10,7 +10,6 @@ const cliScripts = [
     'scripts/collect-plugins.mjs',
     'scripts/dev.mjs',
     'scripts/market-plugin-metadata.mjs',
-    'scripts/market-plugin-name.mjs',
     'scripts/package-metadata.mjs',
     'scripts/prepare-market-plugin.mjs',
     'scripts/release.mjs',
