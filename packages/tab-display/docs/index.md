@@ -46,8 +46,10 @@ clickable commands.
 
 ## Configuration and ownership
 
-Use `/tabdisplay reload` to validate and apply `config.toml`. Invalid TOML or unsupported settings
-leave the running config and file contents untouched. `/tabdisplay status` reports provider state,
+At startup, an invalid value falls back to its default and is logged; invalid TOML makes TabDisplay
+use all defaults. Use `/tabdisplay reload` to apply `config.toml` while the server runs. If the file
+has invalid TOML or values, the reload reports them and keeps the running config. TabDisplay never
+rewrites a file that has invalid values. `/tabdisplay status` reports provider state,
 connected Java versions, unsupported capabilities and unresolved placeholder identifiers.
 `/tabdisplay inspect <player>` reports safe per-player context and placeholder IDs; it never displays
 resolved placeholder values.

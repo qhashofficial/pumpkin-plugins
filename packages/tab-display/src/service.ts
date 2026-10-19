@@ -1,6 +1,6 @@
 import { encodeRequest, LIMITS, type ResolvedLine, type SessionState } from '@pumpkin-plugins/pumpkin-pie-api';
 import { strToU8 } from 'fflate';
-import { type ConfigValidation, type TabDisplayConfig, type TemplateLineConfig, validateConfig } from './config.ts';
+import type { TabDisplayConfig, TemplateLineConfig } from './config.ts';
 import type { ApplyResult, PlayerSnapshot, RenderedLine, TabDisplayStatus } from './model.ts';
 import { type CompiledTemplate, compileTemplate, renderTemplate } from './templates.ts';
 
@@ -88,22 +88,17 @@ export class TabDisplayService {
     private disabled = false;
     private overLimit = false;
 
-    /** Creates the service from a validated config snapshot. */
+    /** Creates the service from a loaded config snapshot. */
     constructor(private readonly options: TabDisplayServiceOptions) {
-        const checked = validateConfig(options.config);
-        if (checked.kind !== 'valid') throw new Error(formatIssues(checked));
-        this.config = checked.config;
+        this.config = options.config;
     }
 
-    /** Validates the whole replacement before atomically swapping configuration. */
-    setConfig(value: unknown): ApplyResult {
-        const checked = validateConfig(value);
-        if (checked.kind === 'invalid') return { kind: 'failed', error: formatIssues(checked) };
-        this.config = checked.config;
+    /** Swaps in a loaded configuration and starts a fresh refresh on the next tick. */
+    setConfig(config: TabDisplayConfig): void {
+        this.config = config;
         this.pending = undefined;
         this.nextRefreshTick = this.tickNumber;
         this.lastFailure = undefined;
-        return { kind: 'applied' };
     }
 
     /** Returns one copied online snapshot and configured placeholder IDs, never resolved values. */
@@ -538,8 +533,4 @@ function copySnapshot(snapshot: PlayerSnapshot): PlayerSnapshot {
         edition: snapshot.edition,
         ...(snapshot.javaVersion === undefined ? {} : { javaVersion: snapshot.javaVersion }),
     };
-}
-
-function formatIssues(result: Extract<ConfigValidation, { kind: 'invalid' }>): string {
-    return result.issues.map(({ path, reason }) => `${path}: ${reason}`).join('; ');
 }

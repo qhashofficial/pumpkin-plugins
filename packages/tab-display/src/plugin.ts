@@ -3,6 +3,7 @@ import type { Context } from 'pumpkin:plugin/context@0.1.0';
 import * as logging from 'pumpkin:plugin/logging@0.1.0';
 import type { Server } from 'pumpkin:plugin/server@0.1.0';
 import { now as monotonicNow } from 'wasi:clocks/monotonic-clock@0.2.3';
+import { type ConfigStore, defaultValues } from '@pumpkin-plugins/config';
 import { WasiDataDir } from '@pumpkin-plugins/plugin-kit/data-dir';
 import { cancelTask, runCommand as runHostCommand, scheduleRepeating } from '@pumpkin-plugins/plugin-kit/host';
 import { ipcSend } from '@pumpkin-plugins/plugin-kit/ipc';
@@ -14,8 +15,7 @@ import { PieSession } from '@pumpkin-plugins/pumpkin-pie-api';
 import { strFromU8, strToU8 } from 'fflate';
 import { commandHandlers } from './commands/handlers.ts';
 import { commands } from './commands/spec.ts';
-import { CONFIG_FILE, loadTabDisplayConfig, type TabDisplayConfig } from './config.ts';
-import { createConfigTransaction } from './config-store.ts';
+import { CONFIG_FILE, configSchema, loadTabDisplayConfig, type TabDisplayConfig } from './config.ts';
 import { info } from './info.ts';
 import { PLUGIN_NAME } from './name.ts';
 import { JavaTabDisplayHost } from './rendering/java.ts';
@@ -133,50 +133,44 @@ class TabDisplay extends PluginBase {
 
     private loadStartupConfig(): TabDisplayConfig {
         try {
-            const transaction = this.configTransaction();
-            const loaded = loadTabDisplayConfig(transaction.store);
-            transaction.commit();
+            const loaded = loadTabDisplayConfig(this.configStore());
+            for (const warning of loaded.warnings) logging.log('warn', `${PLUGIN_NAME}: ${CONFIG_FILE}: ${warning}`);
             return loaded.config;
         } catch (error) {
             logging.log(
                 'error',
                 `${PLUGIN_NAME}: invalid or unavailable config; using defaults: ${errorMessage(error)}`,
             );
-            return loadTabDisplayConfig({ read: () => undefined, write: () => undefined }).config;
+            return defaultValues(configSchema);
         }
     }
 
+    // A reload with invalid values keeps the running config, so the command reports them instead.
     private reloadConfig(): { readonly kind: 'applied' } | { readonly kind: 'failed'; readonly reason: string } {
-        const files = this.files;
         const service = this.service;
-        if (files === undefined || service === undefined) {
-            return { kind: 'failed', reason: 'data folder is unavailable' };
-        }
+        if (service === undefined) return { kind: 'failed', reason: 'data folder is unavailable' };
         try {
-            const transaction = this.configTransaction();
-            const loaded = loadTabDisplayConfig(transaction.store);
-            transaction.commit();
-            const result = service.setConfig(loaded.config);
-            return result.kind === 'applied'
-                ? { kind: 'applied' }
-                : { kind: 'failed', reason: result.kind === 'failed' ? result.error : 'configuration was not applied' };
+            const loaded = loadTabDisplayConfig(this.configStore());
+            if (loaded.warnings.length > 0) return { kind: 'failed', reason: loaded.warnings.join('; ') };
+            service.setConfig(loaded.config);
+            return { kind: 'applied' };
         } catch (error) {
             return { kind: 'failed', reason: errorMessage(error) };
         }
     }
 
-    private configTransaction() {
+    private configStore(): ConfigStore {
         const files = this.files;
         if (files === undefined) throw new Error('data folder is unavailable');
-        return createConfigTransaction(
-            () => {
+        return {
+            read: () => {
                 const file = files.stat(CONFIG_FILE);
                 if (file === undefined) return undefined;
                 if (file.kind !== 'file') throw new Error(`${CONFIG_FILE} is not a file`);
                 return strFromU8(files.readFile(CONFIG_FILE));
             },
-            (text) => files.writeFile(CONFIG_FILE, strToU8(text)),
-        );
+            write: (text) => files.writeFile(CONFIG_FILE, strToU8(text)),
+        };
     }
 }
 
