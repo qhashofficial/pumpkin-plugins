@@ -1,6 +1,6 @@
 import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import type { Logger } from '@pumpkin-plugins/plugin-kit/logger';
-import type { TerrainAccess, TerrainRegion } from '@pumpkin-plugins/terrain';
+import { AdaptiveWorkBudget, type TerrainAccess, type TerrainRegion } from '@pumpkin-plugins/terrain';
 import { PLUGIN_NAME } from '../name.ts';
 import { SECTION_SIZE_BLOCKS } from '../protocol/constants.ts';
 import { encodeSection } from '../protocol/messages.ts';
@@ -19,7 +19,7 @@ import { lodLocation } from './location.ts';
 
 const logTag = ansi.named.name(PLUGIN_NAME);
 
-/** Maximum block samples a forced capture attempts in one server tick. */
+/** Maximum block samples a forced capture attempts in one server tick; MSPT and sample cost lower it. */
 export const FORCE_BLOCK_SAMPLES_PER_TICK = 32_768;
 
 /** Terrain and reporting access valid only for the duration of a peer callback. */
@@ -76,14 +76,16 @@ const MAX_SECTIONS_CHECKED_PER_TICK = 64;
 // Terrain checks call the host synchronously; cap them separately from cache and border scans.
 const MAX_TERRAIN_PREPARATIONS_PER_TICK = 8;
 
-/** Captures operator-requested sections at full work budget without retaining Pumpkin handles. */
+/** Captures operator-requested sections with spare tick time, without retaining Pumpkin handles. */
 export class ForcedLodGeneration {
     private job?: ForcedJob;
+    private readonly workBudget = new AdaptiveWorkBudget({ initialUnits: FORCE_BLOCK_SAMPLES_PER_TICK });
 
     constructor(
         private readonly cache: LodCache,
         private readonly log: Logger,
         private readonly now = Date.now,
+        private readonly measureNow = Date.now,
     ) {}
 
     /** Starts one bounded, cache-refreshing job around the selected block position. */
@@ -159,8 +161,8 @@ export class ForcedLodGeneration {
         return { centerX, centerZ, radius, sections };
     }
 
-    /** Advances the active job, returning true when this tick was reserved for forced work. */
-    tick(peers: ForcedLodPeers): boolean {
+    /** Advances the active job within the server's spare tick time, returning true when this tick was reserved for forced work. */
+    tick(peers: ForcedLodPeers, serverMspt = 0): boolean {
         const job = this.job;
         if (!job) return false;
 
@@ -170,7 +172,7 @@ export class ForcedLodGeneration {
                 this.job = undefined;
                 return;
             }
-            this.advance(job, peer);
+            this.advance(job, peer, serverMspt);
         });
         if (!found && this.job === job) {
             this.log.info(`Cancelled forced LOD capture for ${job.owner}: player is no longer available.`);
@@ -214,8 +216,8 @@ export class ForcedLodGeneration {
         this.log.info(`Cancelled forced LOD capture for ${name}: player disconnected.`);
     }
 
-    private advance(job: ForcedJob, peer: ForcedLodPeer): void {
-        let budget = FORCE_BLOCK_SAMPLES_PER_TICK;
+    private advance(job: ForcedJob, peer: ForcedLodPeer, serverMspt: number): void {
+        let budget = this.workBudget.next(serverMspt, FORCE_BLOCK_SAMPLES_PER_TICK);
         let sectionsChecked = 0;
         let terrainPreparations = 0;
         const prepareTerrain = (region: TerrainRegion) => {
@@ -270,9 +272,12 @@ export class ForcedLodGeneration {
                     region.minY,
                     region.height,
                 );
-                const sampled = target.builder.samples();
+                const sampledBefore = target.builder.samples();
+                const started = this.measureNow();
                 const complete = target.builder.step(peer.terrain, budget);
-                budget -= target.builder.samples() - sampled;
+                const sampled = target.builder.samples() - sampledBefore;
+                this.workBudget.observe(sampled, this.measureNow() - started);
+                budget -= sampled;
                 if (!complete) break;
 
                 const stillPrepared = prepareTerrain(region);

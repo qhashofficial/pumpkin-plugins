@@ -82,7 +82,7 @@ function generateLODs(
         return [
             `Started forced LOD capture at section ${color.named.value(String(started.centerX))}, ${color.named.value(String(started.centerZ))} (radius ${color.named.value(String(radius))}; ${color.named.value(String(started.sections))} sections requested).`,
             'Already-generated LOD sections and sections outside the world border will be skipped.',
-            `Capturing at full speed with up to ${color.named.value(FORCE_BLOCK_SAMPLES_PER_TICK.toLocaleString())} block samples per tick. Progress will be reported in chat.`,
+            `Capturing with up to ${color.named.value(FORCE_BLOCK_SAMPLES_PER_TICK.toLocaleString())} block samples per tick, fewer when the server is busy. Progress will be reported in chat.`,
         ];
     } catch (err) {
         if (err instanceof CommandFailed) throw err;

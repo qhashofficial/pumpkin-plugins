@@ -133,7 +133,7 @@ export class Sessions {
         private readonly now = Date.now,
         private readonly measureNow = Date.now,
     ) {
-        this.forcedGeneration = new ForcedLodGeneration(cache, log, now);
+        this.forcedGeneration = new ForcedLodGeneration(cache, log, now, measureNow);
     }
     /** Starts a cache-refreshing capture that takes priority over ordinary DH work. */
     forceGenerate(peer: Peer, blockX: number, blockZ: number, radius = 0): ForcedLodStart {
@@ -278,7 +278,7 @@ export class Sessions {
             )
                 this.left(name);
         }
-        const forcedWork = this.forcedGeneration.tick(peers);
+        const forcedWork = this.forcedGeneration.tick(peers, serverMspt);
         if (forcedWork) {
             this.lastBlocksBudget = 0;
             this.lastServerMspt = serverMspt;
