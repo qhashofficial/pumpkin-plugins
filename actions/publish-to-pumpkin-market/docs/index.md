@@ -3,8 +3,8 @@
 ## Before you run the action
 
 The action uploads a `.wasm` artifact to a Pumpkin Market listing that already exists. Run it after
-your workflow has built and signed the artifact you want to distribute. The action won't build the
-plugin or create its Market listing.
+your workflow has built the artifact you want to distribute. The action won't build the plugin or
+create its Market listing.
 
 ## Choose the listing and version
 
