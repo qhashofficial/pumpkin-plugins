@@ -268,6 +268,12 @@ describe('upstream pin workflow', () => {
         assert.equal(publish.env.RELEASE_METADATA, ['$', '{{ needs.release.outputs.release_metadata }}'].join(''));
         const steps = publish.steps;
         assert.equal(publish.env.RELEASE_TARGET_SHA, ['$', '{{ inputs.release_commit || github.sha }}'].join(''));
+        const npmSetup = steps.find((step) => step.with?.['registry-url']);
+        assert.equal(
+            npmSetup.with['node-version-file'],
+            '.node-version',
+            'npm publishing must use the repository Node',
+        );
         const publishScript = steps.find((step) => step.run?.includes('scripts/publish-tool-packages.mjs'));
         assert.match(publishScript.run, /npm 11\.5\.1 or newer/);
         const tagCheck = tagCheckStep(releaseWorkflow);
