@@ -20,10 +20,10 @@ function expand(template, context) {
     );
 }
 
-function turboCache(variant, sha, runId, arch = 'X64') {
+function turboCache(variant, sha, runId, arch = 'X64', runAttempt = '1') {
     const context = {
         runner: { os: 'Linux', arch },
-        github: { sha, run_id: runId, run_attempt: '1', job: 'benchmark' },
+        github: { sha, run_id: runId, run_attempt: runAttempt, job: 'benchmark' },
         matrix: { variant },
     };
     const invocation = comparison.jobs.benchmark.steps.find((step) => step.uses === './.github/common/bootstrap');
@@ -83,4 +83,48 @@ it('persists malloc archives independently of the immutable shared Hades snapsho
         cache.with.path.includes('prepared-build-malloc.json'),
         'retain the fingerprint used to skip compilation',
     );
+});
+
+/** Returns the `uses` of the bootstrap cache steps that run for one event, keyed by cached path. */
+function bootstrapCacheSteps(github) {
+    const context = { github, format: (template, ...values) => template.replace(/\{(\d+)\}/g, (_, i) => values[i]) };
+    const outputs = {};
+    for (const step of bootstrap.runs.steps.filter((candidate) => candidate.id)) {
+        outputs[step.id] = {
+            outputs: { save: expand(step.env?.SAVE_CACHES ?? '', context), 'pnpm-store': '/pnpm-store' },
+        };
+    }
+    const used = {};
+    for (const step of bootstrap.runs.steps) {
+        if (!step.uses?.startsWith('actions/cache')) continue;
+        if (step.if !== undefined && expand(`\${{ ${step.if} }}`, { steps: outputs }) !== 'true') continue;
+        const cachedPath = expand(step.with.path, { steps: outputs });
+        used[cachedPath] = [...(used[cachedPath] ?? []), step.uses.replace(/@.*/, '')];
+    }
+    return used;
+}
+
+it('saves bootstrap caches only from default-branch pushes and restores them everywhere', () => {
+    const repository = { default_branch: 'master' };
+    const restoreOnly = { '/pnpm-store': ['actions/cache/restore'], '.turbo': ['actions/cache/restore'] };
+    assert.deepEqual(bootstrapCacheSteps({ event_name: 'push', ref: 'refs/heads/master', event: { repository } }), {
+        '/pnpm-store': ['actions/cache'],
+        '.turbo': ['actions/cache'],
+    });
+    for (const github of [
+        { event_name: 'pull_request', ref: 'refs/pull/7/merge', event: { repository } },
+        { event_name: 'push', ref: 'refs/heads/feature', event: { repository } },
+        { event_name: 'workflow_run', ref: 'refs/heads/master', event: { repository } },
+        { event_name: 'schedule', ref: 'refs/heads/master', event: {} },
+    ]) {
+        assert.deepEqual(bootstrapCacheSteps(github), restoreOnly, `${github.event_name} ${github.ref}`);
+    }
+});
+
+it('reuses the Turborepo cache entry when a run is retried on the same commit', () => {
+    const first = turboCache('quickjs', 'same', '100');
+    const retry = turboCache('quickjs', 'same', '100', 'X64', '2');
+    const rerun = turboCache('quickjs', 'same', '101');
+    assert.equal(retry.key, first.key, 'a retry must hit the saved entry instead of adding another');
+    assert.equal(rerun.key, first.key, 'a new run of the same commit must hit the saved entry');
 });
