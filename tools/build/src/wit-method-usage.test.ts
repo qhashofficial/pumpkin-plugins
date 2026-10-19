@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
+import { BuildError } from './errors.ts';
 import { findUsedPumpkinWitMethods, findUsedWasiWitMethods, findUsedWitMethods } from './wit-method-usage.ts';
 
 const directories: string[] = [];
@@ -389,6 +390,18 @@ class RuntimePlugin extends Plugin {
             'import type { Player } from "./build/types/bindings/interfaces/pumpkin-plugin-player"; declare const player: Player; player.getWorld();',
         );
         expect(findUsedPumpkinWitMethods(excludedEntry)).toContain('player.player.get-world');
+    });
+
+    it.each([
+        ['unparseable JSON', '{ "compilerOptions": '],
+        ['an invalid option', JSON.stringify({ compilerOptions: { target: 'not-a-target' } })],
+    ])('reports a tsconfig with %s as a build error', (_label, config) => {
+        const entry = fixture();
+        const configPath = path.join(path.dirname(entry), 'tsconfig.json');
+        fs.writeFileSync(configPath, config);
+
+        expect(() => findUsedWitMethods(entry)).toThrow(BuildError);
+        expect(() => findUsedWitMethods(entry)).toThrow(configPath);
     });
 
     it('analyzes a plugin entry without tsconfig using generated WIT declarations', () => {

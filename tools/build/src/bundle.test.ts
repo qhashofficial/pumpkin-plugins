@@ -15,6 +15,7 @@ vi.mock('node:fs', async (importOriginal) => {
 import { execFileSync } from 'node:child_process';
 import { build } from 'esbuild';
 import { bundlePlugin } from './bundle.ts';
+import { BuildError } from './errors.ts';
 import { generateTypes } from './types.ts';
 import { findUsedWitMethods } from './wit-method-usage.ts';
 
@@ -30,6 +31,15 @@ const engineProfiles = [
 ] as const;
 const componentize = vi.mocked(execFileSync);
 const esbuild = vi.mocked(build);
+
+async function failure(promise: Promise<unknown>): Promise<Error> {
+    const error: unknown = await promise.then(
+        () => undefined,
+        (rejection: unknown) => rejection,
+    );
+    if (!(error instanceof Error)) throw new Error('expected the build to fail');
+    return error;
+}
 
 beforeEach(() => {
     esbuild.mockResolvedValue({} as never);
@@ -370,7 +380,7 @@ describe('bundlePlugin', () => {
             } as never;
         });
 
-        await expect(
+        const error = await failure(
             bundlePlugin({
                 entry: 'src/plugin.ts',
                 output,
@@ -378,14 +388,89 @@ describe('bundlePlugin', () => {
                 version: '1.0.0',
                 engine: 'static-hermes',
             }),
-        ).rejects.toThrow(
-            'Static Hermes JavaScript bundle imports WASI interface without a JSI adapter: wasi:http/types@0.2.3',
         );
+
+        expect(error).toBeInstanceOf(BuildError);
+        expect(error.message).toContain('wasi:http/types@0.2.3');
+        expect(error.message).toContain('pumpkinPlugin.wasi');
 
         expect(esbuild).toHaveBeenCalledWith(expect.objectContaining({ metafile: true }));
         expect(componentize).not.toHaveBeenCalled();
         expect(fs.existsSync(output)).toBe(false);
     });
+
+    it('reports esbuild failures as build errors', async () => {
+        const { output } = buildAt();
+        esbuild.mockRejectedValueOnce(
+            Object.assign(new Error('Build failed with 1 error'), {
+                errors: [{ text: 'Expected identifier but found "="' }],
+                warnings: [],
+            }),
+        );
+
+        const error = await failure(
+            bundlePlugin({ entry: 'src/plugin.ts', output, witDir: 'wit', version: '1.0.0', engine: 'quickjs' }),
+        );
+
+        expect(error).toBeInstanceOf(BuildError);
+        expect(error.message).toContain('src/plugin.ts');
+        expect(componentize).not.toHaveBeenCalled();
+    });
+
+    it('points at pumpkinPlugin.wasi when esbuild cannot resolve a WASI import', async () => {
+        const { output } = buildAt();
+        esbuild.mockRejectedValueOnce(
+            Object.assign(new Error('Build failed with 1 error'), {
+                errors: [{ text: "wasi:http/types@0.2.3 is not imported or referenced by the plugin's WIT world" }],
+                warnings: [],
+            }),
+        );
+
+        const error = await failure(
+            bundlePlugin({
+                entry: 'src/plugin.ts',
+                output,
+                witDir: apiWitDir,
+                version: '1.0.0',
+                engine: 'static-hermes',
+            }),
+        );
+
+        expect(error).toBeInstanceOf(BuildError);
+        expect(error.message).toContain('pumpkinPlugin.wasi');
+    });
+
+    it.each(['quickjs', 'static-hermes'] as const)(
+        'reports %s componentizer failures as build errors when runtime output is shown',
+        async (engine) => {
+            const { output } = buildAt();
+            esbuild.mockImplementationOnce((buildOptions) => {
+                if (!buildOptions.outfile) throw new Error('missing JavaScript bundle output');
+                fs.writeFileSync(
+                    buildOptions.outfile,
+                    'var __pumpkinPlugin=(()=>{var exports={};return wrap(exports);})();',
+                );
+                return {} as never;
+            });
+            componentize.mockImplementation(() => {
+                throw Object.assign(new Error('Command failed'), { status: 1 });
+            });
+
+            const error = await failure(
+                bundlePlugin({
+                    entry: 'src/plugin.ts',
+                    output,
+                    witDir: apiWitDir,
+                    version: '1.0.0',
+                    engine,
+                    quietRuntimeOutput: false,
+                }),
+            );
+
+            expect(error).toBeInstanceOf(BuildError);
+            expect(error.message).toContain('exit 1');
+        },
+    );
 
     it('publishes a completed component and returns its size', async () => {
         const { output } = buildAt();
@@ -500,11 +585,12 @@ describe('bundlePlugin', () => {
                 return Buffer.alloc(0);
             });
 
-            await expect(
+            const error = await failure(
                 bundlePlugin({ entry: 'src/plugin.ts', output, witDir: apiWitDir, version: '1.0.0', ...options }),
-            ).rejects.toThrow(
-                `Production WebAssembly component is ${MAX_PRODUCTION_COMPONENT_BYTES + 1} bytes; maximum is ${MAX_PRODUCTION_COMPONENT_BYTES} bytes (5 MiB)`,
             );
+
+            expect(error).toBeInstanceOf(BuildError);
+            expect(error.message).toContain(`${MAX_PRODUCTION_COMPONENT_BYTES + 1} bytes`);
 
             expect(fs.readFileSync(output, 'utf8')).toBe('known-good artifact');
             expect(fs.readdirSync(path.dirname(output))).toEqual(['plugin.wasm']);

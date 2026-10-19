@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('node:child_process', () => ({ execFileSync: vi.fn() }));
 
+import { BuildError } from './errors.ts';
 import { generateTypes } from './types.ts';
 
 const jco = vi.mocked(execFileSync);
@@ -72,7 +73,7 @@ describe('generateTypes', () => {
             throw new Error('jco failed');
         });
 
-        expect(() => generateTypes('broken-wit', output)).toThrow('jco failed');
+        expect(() => generateTypes('broken-wit', output)).toThrow(BuildError);
         expect(fs.readdirSync(output).sort()).toEqual(['index.d.ts', 'stale.d.ts']);
         expect(fs.readdirSync(path.dirname(output))).toEqual(['bindings']);
     });

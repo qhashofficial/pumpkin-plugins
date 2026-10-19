@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import { buildStaticHermesComponent, staticHermesImportsPlugin } from '@pumpkin-plugins/static-hermes-runtime';
 import * as esbuild from 'esbuild';
-import { runtimeBuildError } from './errors.ts';
+import { BuildError, runtimeBuildError } from './errors.ts';
 import type { BuildOutputMessage } from './output.ts';
 import type { PluginEngine, StaticHermesGc, StaticHermesRuntime } from './plugin-config.ts';
 import { findRepoRoot } from './repo.ts';
@@ -18,6 +18,7 @@ const MAX_PRODUCTION_COMPONENT_BYTES = 5 * 1024 * 1024;
 const TEMPORARY_DIRECTORY_PREFIX = '.pumpkin-build-';
 const LEGACY_TEMPORARY_DIRECTORY_MAX_AGE_MS = 60 * 60 * 1000;
 const activeTemporaryDirectories = new Set<string>();
+const WASI_CAPABILITY_HINT = 'Declare the WASI capability the plugin needs in "pumpkinPlugin.wasi".';
 
 /** Inputs to `bundlePlugin`. */
 export interface BundleOptions {
@@ -69,44 +70,49 @@ export async function bundlePlugin(options: BundleOptions): Promise<number> {
     const resolvedWasiImports = new Set<string>();
     let preserveTemporaryDir = false;
     try {
-        const buildResult = await esbuild.build({
-            entryPoints: [options.entry],
-            bundle: true,
-            outfile: bundle,
-            metafile: engine === 'static-hermes',
-            format: engine === 'quickjs' ? 'esm' : 'iife',
-            ...(engine === 'static-hermes'
-                ? {
-                      globalName: '__pumpkinPlugin',
-                      plugins: [
-                          staticHermesImportsPlugin({
-                              resolveDir: path.dirname(path.resolve(options.entry)),
-                              workspaceRoot: projectRoot,
-                              witDir: options.witDir,
-                              developmentMode: options.developmentMode ?? false,
-                              onWasiImport: (specifier) => resolvedWasiImports.add(specifier),
-                          }),
-                      ],
-                  }
-                : {}),
-            target: 'es2022',
-            minify: !options.developmentMode,
-            treeShaking: true,
-            external: ['pumpkin:plugin/*', 'wasi:*'],
-            define: {
-                __PLUGIN_VERSION__: JSON.stringify(options.version),
-                __PUMPKIN_DEV_MODE__: JSON.stringify(options.developmentMode ?? false),
-                'process.env.NODE_ENV': JSON.stringify(options.developmentMode ? 'development' : 'production'),
-            },
-        });
+        let buildResult: esbuild.BuildResult;
+        try {
+            buildResult = await esbuild.build({
+                entryPoints: [options.entry],
+                bundle: true,
+                outfile: bundle,
+                metafile: engine === 'static-hermes',
+                format: engine === 'quickjs' ? 'esm' : 'iife',
+                ...(engine === 'static-hermes'
+                    ? {
+                          globalName: '__pumpkinPlugin',
+                          plugins: [
+                              staticHermesImportsPlugin({
+                                  resolveDir: path.dirname(path.resolve(options.entry)),
+                                  workspaceRoot: projectRoot,
+                                  witDir: options.witDir,
+                                  developmentMode: options.developmentMode ?? false,
+                                  onWasiImport: (specifier) => resolvedWasiImports.add(specifier),
+                              }),
+                          ],
+                      }
+                    : {}),
+                target: 'es2022',
+                minify: !options.developmentMode,
+                treeShaking: true,
+                external: ['pumpkin:plugin/*', 'wasi:*'],
+                define: {
+                    __PLUGIN_VERSION__: JSON.stringify(options.version),
+                    __PUMPKIN_DEV_MODE__: JSON.stringify(options.developmentMode ?? false),
+                    'process.env.NODE_ENV': JSON.stringify(options.developmentMode ? 'development' : 'production'),
+                },
+            });
+        } catch (error) {
+            throw bundleError(error, options.entry);
+        }
         if (engine === 'static-hermes') {
             const source = fs.readFileSync(bundle, 'utf8');
             const unsupportedWasiImports = staticHermesWasiImports(buildResult.metafile).filter(
                 (specifier) => !resolvedWasiImports.has(specifier),
             );
             if (unsupportedWasiImports.length > 0) {
-                throw new Error(
-                    `Static Hermes JavaScript bundle imports WASI interface${unsupportedWasiImports.length === 1 ? '' : 's'} without a JSI adapter: ${unsupportedWasiImports.join(', ')}`,
+                throw new BuildError(
+                    `Static Hermes JavaScript bundle imports WASI interface${unsupportedWasiImports.length === 1 ? '' : 's'} without a JSI adapter: ${unsupportedWasiImports.join(', ')}. ${WASI_CAPABILITY_HINT}`,
                 );
             }
             fs.writeFileSync(bundle, unwrapStaticHermesExports(source));
@@ -161,7 +167,6 @@ export async function bundlePlugin(options: BundleOptions): Promise<number> {
                           }),
                 });
             } catch (error) {
-                if (!quietRuntimeOutput) throw error;
                 throw runtimeBuildError('Static Hermes', error);
             }
         } else {
@@ -189,14 +194,13 @@ export async function bundlePlugin(options: BundleOptions): Promise<number> {
                     },
                 );
             } catch (error) {
-                if (!quietRuntimeOutput) throw error;
                 throw runtimeBuildError('QuickJS', error);
             }
         }
         const size = fs.statSync(component).size;
         if (!options.developmentMode && size > MAX_PRODUCTION_COMPONENT_BYTES) {
             const message = `Production WebAssembly component is ${size} bytes; maximum is ${MAX_PRODUCTION_COMPONENT_BYTES} bytes (5 MiB)`;
-            if (isRepositoryProject(projectRoot)) throw new Error(message);
+            if (isRepositoryProject(projectRoot)) throw new BuildError(message);
             options.onOutput?.({ type: 'warning', message });
         }
         publishComponent(component, output, temporaryDir, () => {
@@ -207,6 +211,21 @@ export async function bundlePlugin(options: BundleOptions): Promise<number> {
         activeTemporaryDirectories.delete(temporaryDir);
         if (!preserveTemporaryDir) fs.rmSync(temporaryDir, { recursive: true, force: true });
     }
+}
+
+function bundleError(error: unknown, entry: string): BuildError {
+    // esbuild prints a build failure's errors with source locations before rejecting.
+    if (!isBuildFailure(error)) {
+        return new BuildError(
+            `esbuild could not bundle ${entry}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+    }
+    const wasiHint = error.errors.some((message) => message.text.startsWith('wasi:')) ? ` ${WASI_CAPABILITY_HINT}` : '';
+    return new BuildError(`esbuild could not bundle ${entry}.${wasiHint}`);
+}
+
+function isBuildFailure(error: unknown): error is esbuild.BuildFailure {
+    return error instanceof Error && 'errors' in error && Array.isArray(error.errors);
 }
 
 function isRepositoryProject(projectRoot: string): boolean {
