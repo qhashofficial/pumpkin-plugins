@@ -43,9 +43,11 @@ describe('the /upnp commands', () => {
         expect(lines.some((l) => l.startsWith('bedrock-tcp (TCP 19132)'))).toBe(true);
     });
 
-    it('reload says how many ports are kept open', () => {
+    it('reload says how many ports were requested without claiming they are open', () => {
         const { host, root } = setup();
-        expect(host.run(root, ['upnp', 'reload'])).toEqual(['Reloaded the config. 3 ports are being kept open.']);
+        expect(host.run(root, ['upnp', 'reload'])).toEqual([
+            'Reloaded the config. 3 ports requested; /upnp status shows which are open.',
+        ]);
     });
 
     it('reload fails and keeps the current settings when the file is not valid TOML', () => {

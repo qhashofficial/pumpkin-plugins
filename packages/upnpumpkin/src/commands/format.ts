@@ -53,7 +53,12 @@ export function statusLines(info: MapperInfo, mappings: readonly MappingLine[]):
     return lines;
 }
 
-/** The line `/upnp reload` prints. */
+/**
+ * The line `/upnp reload` prints.
+ * @param count - How many ports are requested, whatever their state.
+ */
 export function reloadLines(count: number): CommandLine[] {
-    return [`Reloaded the config. ${count} port${count === 1 ? ' is' : 's are'} being kept open.`];
+    return [
+        `Reloaded the config. ${count} port${count === 1 ? '' : 's'} requested; /upnp status shows which are open.`,
+    ];
 }
