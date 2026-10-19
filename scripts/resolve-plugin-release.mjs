@@ -1,6 +1,5 @@
 import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { Command } from 'commander';
 import { isInside, loadPluginInfo } from './utils/plugin-info.mjs';
 
@@ -64,7 +63,7 @@ function readJson(file) {
     return JSON.parse(readFileSync(file, 'utf8'));
 }
 
-if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
+if (import.meta.main) {
     const program = new Command()
         .name('resolve-plugin-release')
         .description('Resolve a plugin release tag using the source tree at that tag.')
