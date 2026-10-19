@@ -12,8 +12,8 @@
         "build:parse-ts": "pumpkin-plugins-build --parse-ts",
         "readme": "pumpkin-plugins-docs",
         "readme:check": "pumpkin-plugins-docs --check",
-        "test": "vitest run --project unit",
-        "test:coverage": "vitest run --project unit --coverage",
+        "test": "vitest run --project unit --passWithNoTests",
+        "test:coverage": "vitest run --project unit --coverage --passWithNoTests",
         "test:integration": "vitest run --project integration",
         "typecheck": "pnpm types && tsc --noEmit",
         "types": "pumpkin-plugins-build --types-only"
