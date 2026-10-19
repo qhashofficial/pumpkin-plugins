@@ -239,7 +239,7 @@ need to add new tools to a central list as long as a plugin declares them in its
 
 Use `globalDependencies` only for inputs outside packages: `.node-version` (the Node version CI
 selects; Turborepo doesn't hash `process.version`), `tsconfig.base.json`, and `pnpm-workspace.yaml`
-(which pins the API package and ABI). The lockfile and root `package.json` invalidate everything.
+(the shared dependency catalog). The lockfile and root `package.json` invalidate everything.
 The packages that the root `package.json` depends on (`tools/docs` and `tools/signing`) also
 invalidate everything because Turborepo treats them as global.
 

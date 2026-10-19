@@ -54,8 +54,9 @@ inputs, and follow the dependency and cache rules in [Building](docs/building.md
 
 ## Repository rules
 
-- For runtime changes, use the pinned API WIT and generated guest types. Keep the API version in
-  `pnpm-workspace.yaml` aligned with `tools/test-harness/src/pumpkin-version.ts`. Make compatibility
+- For runtime changes, use the pinned API WIT and generated guest types. Keep the WIT pin in
+  `tools/pumpkin-api/wit.lock.json` and the API version in `tools/pumpkin-api/package.json` aligned
+  with the server release in `tools/test-harness/src/pumpkin-version.ts`. Make compatibility
   claims only for pinned WIT and Pumpkin version pairs verified together; treat nightly compatibility
   as exploratory until verified. Static Hermes is primary; QuickJS is supported with engine-specific
   caveats and no parity promise. See [runtime caveats](docs/building.md#runtime-caveats) and

@@ -133,8 +133,8 @@ boundary without compiling the starter projects, run
 ## The server binary
 
 The release is pinned in [`pumpkin-version.ts`](../tools/test-harness/src/pumpkin-version.ts). Its
-plugin ABI should match the WIT ABI carried by `@pumpkin-plugins/pumpkin-api` in
-`pnpm-workspace.yaml`. The harness chooses the server binary in this order:
+plugin ABI should match the WIT pinned in the API package's
+[`wit.lock.json`](../tools/pumpkin-api/wit.lock.json). The harness chooses the server binary in this order:
 
 1. `PUMPKIN_BIN`, if set.
 2. If `PUMPKIN_BIN` isn't set, the pinned release, downloaded once into `.cache/pumpkin` and checked
