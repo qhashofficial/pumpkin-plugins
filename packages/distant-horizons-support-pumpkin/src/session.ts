@@ -287,15 +287,23 @@ export class Sessions {
         this.pruneTerrainRetries();
         const refreshesAtStart = [...this.refreshes.values()];
         for (const [name, client] of this.clients) {
-            if (
-                !peers.withPeer(name, (peer) => {
-                    if (peer.level !== client.level || peer.dimension !== client.dimension) this.announce(peer);
-                })
-            )
-                this.endSession(name);
+            this.withSessionPeer(peers, name, (peer) => {
+                if (peer.level !== client.level || peer.dimension !== client.dimension) this.announce(peer);
+            });
         }
         const forcedWork = this.forcedGeneration.tick(
-            { withPeer: (name, use) => peers.withTerrain(name, use) },
+            {
+                withPeer: (name, use) => {
+                    try {
+                        return peers.withTerrain(name, use);
+                    } catch (err) {
+                        this.log.warn(
+                            `${logTag} Forced LOD capture for ${ansi.named.name(name)} failed: ${String(err)}.`,
+                        );
+                        return false;
+                    }
+                },
+            },
             serverMspt,
         );
         if (forcedWork) {
@@ -312,7 +320,7 @@ export class Sessions {
             if (!this.requests.includes(request)) continue;
             const queuedClient = this.clients.get(request.name);
             if (!queuedClient) continue;
-            const found = peers.withPeer(request.name, (peer) => {
+            this.withSessionPeer(peers, request.name, (peer) => {
                 try {
                     const client = this.clients.get(peer.name);
                     if (!client) return;
@@ -444,7 +452,6 @@ export class Sessions {
                     this.drop(request);
                 }
             });
-            if (!found) this.endSession(request.name);
         }
         if (!forcedWork && !builderStepped && blocksBudget > 0)
             builderStepped = this.refreshOne(peers, refreshesAtStart, blocksBudget);
@@ -462,7 +469,7 @@ export class Sessions {
                 continue;
             }
             let sent = false;
-            const found = peers.withPeer(name, (peer) => {
+            this.withSessionPeer(peers, name, (peer) => {
                 let responseIndex = -1;
                 let response: QueuedPacket | undefined;
                 let bytes: Uint8Array | undefined;
@@ -509,7 +516,6 @@ export class Sessions {
                 else remaining--;
                 sent = true;
             });
-            if (!found) this.endSession(name);
             if (sent) {
                 idleVisits = 0;
                 this.sendCursor = next;
@@ -557,6 +563,16 @@ export class Sessions {
             changedSections.add(key);
             this.changed(level, position.x, position.z);
         }
+    }
+    /** Runs work for one session player, ending only that session when the player is gone or the work fails. */
+    private withSessionPeer(peers: Peers, name: string, use: (peer: Peer) => void): void {
+        let found = false;
+        try {
+            found = peers.withPeer(name, use);
+        } catch (err) {
+            this.log.warn(`${logTag} Ended DH session for ${ansi.named.name(name)} after an error: ${String(err)}.`);
+        }
+        if (!found) this.endSession(name);
     }
     private removeClient(name: string): void {
         this.clients.delete(name);
@@ -616,50 +632,57 @@ export class Sessions {
         const refresh = candidates.find((candidate) => this.refreshes.get(candidate.key) === candidate);
         if (!refresh) return false;
         let stepped = false;
-        const found = peers.withPeer(refresh.name, (peer) => {
-            if (peer.level !== refresh.level || (this.revisions.get(refresh.key) ?? 0) !== refresh.revision) {
-                this.finishRefresh(refresh);
-                return;
-            }
-            try {
-                const region = {
-                    originX: refresh.section.x * SECTION_SIZE_BLOCKS,
-                    originZ: refresh.section.z * SECTION_SIZE_BLOCKS,
-                    width: SECTION_SIZE_BLOCKS,
-                    depth: SECTION_SIZE_BLOCKS,
-                    minY: peer.terrain.minY,
-                    height: peer.terrain.height,
-                };
-                const prepared = peer.terrain.prepare?.(region);
-                if (prepared?.status === 'pending') {
-                    this.refreshes.delete(refresh.key);
-                    this.refreshes.set(refresh.key, refresh);
+        let found = false;
+        try {
+            found = peers.withPeer(refresh.name, (peer) => {
+                if (peer.level !== refresh.level || (this.revisions.get(refresh.key) ?? 0) !== refresh.revision) {
+                    this.finishRefresh(refresh);
                     return;
                 }
-                if (prepared && prepared.status !== 'ready') throw new Error(prepared.reason);
-                refresh.builder ??= new LodBuilder(refresh.section, peer.terrain.minY, peer.terrain.height);
-                const measured = measureTerrainSource(peer.terrain);
-                const started = this.measureNow();
-                const complete = refresh.builder.step(measured.source, blocksBudget);
-                stepped = true;
-                this.workBudget.observe(measured.samples(), this.measureNow() - started);
-                if (!complete) return;
-                const stillLoaded = peer.terrain.prepare?.(region);
-                if (stillLoaded?.status === 'pending') return;
-                if (stillLoaded && stillLoaded.status !== 'ready') throw new Error(stillLoaded.reason);
-                const captured = { updated: this.now(), data: refresh.builder.finish(this.now()) };
-                this.cache.put(refresh.key, captured);
-                this.log.debug(
-                    `${logTag} Refreshed cached LOD for ${ansi.named.name(refresh.name)} at ${lodLocation(refresh.level, refresh.section.x, refresh.section.z)} (${ansi.named.number(captured.data.length)} bytes).`,
-                );
-                this.finishRefresh(refresh);
-            } catch (err) {
-                this.log.debug(
-                    `${logTag} Background refresh for ${lodLocation(refresh.level, refresh.section.x, refresh.section.z)} failed: ${String(err)}.`,
-                );
-                this.finishRefresh(refresh);
-            }
-        });
+                try {
+                    const region = {
+                        originX: refresh.section.x * SECTION_SIZE_BLOCKS,
+                        originZ: refresh.section.z * SECTION_SIZE_BLOCKS,
+                        width: SECTION_SIZE_BLOCKS,
+                        depth: SECTION_SIZE_BLOCKS,
+                        minY: peer.terrain.minY,
+                        height: peer.terrain.height,
+                    };
+                    const prepared = peer.terrain.prepare?.(region);
+                    if (prepared?.status === 'pending') {
+                        this.refreshes.delete(refresh.key);
+                        this.refreshes.set(refresh.key, refresh);
+                        return;
+                    }
+                    if (prepared && prepared.status !== 'ready') throw new Error(prepared.reason);
+                    refresh.builder ??= new LodBuilder(refresh.section, peer.terrain.minY, peer.terrain.height);
+                    const measured = measureTerrainSource(peer.terrain);
+                    const started = this.measureNow();
+                    const complete = refresh.builder.step(measured.source, blocksBudget);
+                    stepped = true;
+                    this.workBudget.observe(measured.samples(), this.measureNow() - started);
+                    if (!complete) return;
+                    const stillLoaded = peer.terrain.prepare?.(region);
+                    if (stillLoaded?.status === 'pending') return;
+                    if (stillLoaded && stillLoaded.status !== 'ready') throw new Error(stillLoaded.reason);
+                    const captured = { updated: this.now(), data: refresh.builder.finish(this.now()) };
+                    this.cache.put(refresh.key, captured);
+                    this.log.debug(
+                        `${logTag} Refreshed cached LOD for ${ansi.named.name(refresh.name)} at ${lodLocation(refresh.level, refresh.section.x, refresh.section.z)} (${ansi.named.number(captured.data.length)} bytes).`,
+                    );
+                    this.finishRefresh(refresh);
+                } catch (err) {
+                    this.log.debug(
+                        `${logTag} Background refresh for ${lodLocation(refresh.level, refresh.section.x, refresh.section.z)} failed: ${String(err)}.`,
+                    );
+                    this.finishRefresh(refresh);
+                }
+            });
+        } catch (err) {
+            this.log.debug(
+                `${logTag} Background refresh for ${lodLocation(refresh.level, refresh.section.x, refresh.section.z)} failed: ${String(err)}.`,
+            );
+        }
         if (!found) this.finishRefresh(refresh);
         return stepped;
     }

@@ -2,7 +2,6 @@ import type { Player } from 'pumpkin:plugin/player@0.1.0';
 import type { Server } from 'pumpkin:plugin/server@0.1.0';
 import { TextComponent } from 'pumpkin:plugin/text@0.1.0';
 import { blockStateToInfo } from 'pumpkin:plugin/world@0.1.0';
-import type { Logger } from '@pumpkin-plugins/plugin-kit/logger';
 import { disposeWasiResource } from '@pumpkin-plugins/plugin-kit/wasi-resource';
 import {
     acquireChunk,
@@ -12,7 +11,6 @@ import {
     unavailableTerrainGenerator,
 } from '@pumpkin-plugins/terrain';
 import type { Settings } from '../config/schema.ts';
-import { PLUGIN_NAME } from '../name.ts';
 import { CHUNK_SIZE_BLOCKS } from '../protocol/constants.ts';
 import { CHANNEL } from '../protocol/messages.ts';
 import type { Peer, Peers, PlayerTerrain } from '../session.ts';
@@ -191,16 +189,13 @@ export function withPlayerTerrain(player: Player, settings: Settings, use: (peer
     }
 }
 
-/** Resolves connected players afresh for each tick, without retaining host handles. */
-export function serverPeers(server: Server, settings: Settings, log: Logger): Peers {
+/** Resolves connected players afresh for each tick, without retaining host handles; callback errors reach the caller. */
+export function serverPeers(server: Server, settings: Settings): Peers {
     const withNamedPlayer = (name: string, use: (player: Player) => boolean): boolean => {
         const player = server.getPlayerByName(name);
         if (!player) return false;
         try {
             return use(player);
-        } catch (err) {
-            log.warn(`${PLUGIN_NAME}: cannot access player terrain: ${String(err)}`);
-            return false;
         } finally {
             disposeWasiResource(player);
         }
