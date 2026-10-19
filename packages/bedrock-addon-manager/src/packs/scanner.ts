@@ -1,4 +1,4 @@
-import type { DataFiles } from '../platform/files.ts';
+import type { DataFiles } from '@pumpkin-plugins/plugin-kit/files';
 import { readAddon } from './addon.ts';
 import type { ScannedPack } from './entries.ts';
 import { ManifestError, readManifest } from './manifest.ts';

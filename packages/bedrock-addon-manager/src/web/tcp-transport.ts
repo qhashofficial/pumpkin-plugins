@@ -1,7 +1,7 @@
 import type { InputStream, OutputStream } from 'wasi:io/streams@0.2.3';
 import type { TcpSocket } from 'wasi:sockets/tcp@0.2.3';
+import { wasiErrorCode } from '@pumpkin-plugins/plugin-kit/wasi-error';
 import { disposeWasiResource } from '@pumpkin-plugins/plugin-kit/wasi-resource';
-import { wasiErrorCode } from '../platform/wasi-error.ts';
 import type { Transport } from './session.ts';
 
 /** One accepted TCP connection, adapted to the non-blocking `Transport` the HTTP session uses. */

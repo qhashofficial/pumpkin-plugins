@@ -2,7 +2,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { parse } from 'smol-toml';
 import { describe, expect, it } from 'vitest';
-import { PLUGIN_NAME, pluginServers, portConfig } from './running.ts';
+import { PLUGIN_NAME } from '../src/name.ts';
+import { pluginServers, portConfig } from './running.ts';
 
 const start = pluginServers();
 

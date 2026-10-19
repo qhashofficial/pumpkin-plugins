@@ -1,10 +1,9 @@
 import { ansi } from '@pumpkin-plugins/minecraft-colors';
+import { MemoryFiles, MemoryLogger } from '@pumpkin-plugins/plugin-kit/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { FakeServer } from '../test/fake-server.ts';
 import { FakeUpnpumpkin } from '../test/fake-upnpumpkin.ts';
 import { makeMcpack, manifestJson } from '../test/fixtures.ts';
-import { MemoryLogger } from '../test/logger.ts';
-import { MemoryFiles } from '../test/memory-files.ts';
 import { CONFIG_FILE } from './config/schema.ts';
 import { PackManager } from './manager.ts';
 

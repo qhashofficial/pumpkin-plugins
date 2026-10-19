@@ -1,12 +1,10 @@
 import { commandInfos } from '@pumpkin-plugins/docs';
 import { buildCommands } from '@pumpkin-plugins/plugin-kit/commands';
-import { FakeCommandHost, type FakeNode } from '@pumpkin-plugins/plugin-kit/testing';
+import { FakeCommandHost, type FakeNode, MemoryFiles, MemoryLogger } from '@pumpkin-plugins/plugin-kit/testing';
 import { describe, expect, it } from 'vitest';
 import { FakeServer } from '../../test/fake-server.ts';
 import { FakeUpnpumpkin } from '../../test/fake-upnpumpkin.ts';
 import { makeMcpack, manifestJson } from '../../test/fixtures.ts';
-import { MemoryLogger } from '../../test/logger.ts';
-import { MemoryFiles } from '../../test/memory-files.ts';
 import { info } from '../info.ts';
 import { PackManager } from '../manager.ts';
 import { commandHandlers } from './handlers.ts';

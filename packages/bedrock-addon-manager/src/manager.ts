@@ -1,4 +1,6 @@
 import { ansi } from '@pumpkin-plugins/minecraft-colors';
+import type { DataFiles } from '@pumpkin-plugins/plugin-kit/files';
+import type { Logger } from '@pumpkin-plugins/plugin-kit/logger';
 import {
     MappingWatcher,
     openUrl,
@@ -11,8 +13,6 @@ import type { Config } from './config/schema.ts';
 import type { PackEntry } from './packs/entries.ts';
 import { publicBaseUrl } from './packs/entries.ts';
 import { PackIndex } from './packs/pack-index.ts';
-import type { DataFiles } from './platform/files.ts';
-import type { Logger } from './platform/logger.ts';
 import type { WebServer, WebServerSettings } from './web/server.ts';
 
 const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
