@@ -1,11 +1,10 @@
 import { code, generatedBlocks } from '@pumpkin-plugins/docs/markdown';
 import type { DocumentSpec } from '@pumpkin-plugins/docs/node';
 import { SESSION_TIMING } from '../../tools/apis/pumpkin-pie-api/src/session-timing.ts';
-import { info } from './src/info.ts';
+import { formatPlaceholderToken, info, placeholderArgumentExamples } from './src/info.ts';
 import {
     catalogPlaceholders,
     existsPlaceholders,
-    type PlaceholderDefinition,
     waypointFields,
     waypointPlaceholderDefinitions,
 } from './src/placeholders/definitions.ts';
@@ -21,13 +20,6 @@ const placeholderNote = '<!-- Generated from src/info.ts and typed definitions. 
 const placeholderTable = info.blocks?.placeholders;
 const placeholderGuideNote =
     '<!-- Generated from src/placeholders/definitions.ts and the PumpkinPIE session timing constants. Run `pnpm readme`. -->';
-const placeholderArgumentExamples = {
-    rank: '2',
-    radius: '128',
-    uuid: '11111111-1111-4111-8111-111111111111',
-    world: 'world',
-} as const satisfies Record<NonNullable<PlaceholderDefinition['argument']>, string>;
-
 /** Formats a documented retry interval as a short duration. */
 function formatDuration(milliseconds: number): string {
     const minutes = milliseconds / 60_000;
@@ -38,23 +30,16 @@ function formatDuration(milliseconds: number): string {
     return `${milliseconds} ms`;
 }
 
-/** Formats one placeholder definition as its complete PIE token. */
-function formatPlaceholderToken({ name, argument }: PlaceholderDefinition, inline = true): string {
-    const suffix = argument === undefined ? '' : `:${placeholderArgumentExamples[argument]}`;
-    const token = `%waypoints_${name}${suffix}%`;
-    return inline ? `\`${token}\`` : token;
-}
-
 /** Renders the contract tables from the same definitions used by the provider and README. */
 function renderPlaceholderTables(): { catalog: string; exists: string; fields: string } {
     const catalogNames = new Set(Object.keys(catalogPlaceholders));
     const existsNames = new Set(Object.keys(existsPlaceholders));
     const catalogRows = waypointPlaceholderDefinitions
         .filter(({ name }) => catalogNames.has(name))
-        .map((definition) => `| ${formatPlaceholderToken(definition)} | ${definition.description} |`);
+        .map((definition) => `| \`${formatPlaceholderToken(definition)}\` | ${definition.description} |`);
     const existsRows = waypointPlaceholderDefinitions
         .filter(({ name }) => existsNames.has(name))
-        .map((definition) => `| ${formatPlaceholderToken(definition)} | ${definition.description} |`);
+        .map((definition) => `| \`${formatPlaceholderToken(definition)}\` | ${definition.description} |`);
     const fieldRows = Object.entries(waypointFields).map(
         ([name, definition]) => `| \`${name}\` | ${definition.description} | ${definition.output} |`,
     );
@@ -77,10 +62,10 @@ function renderPlaceholderGuide(): string {
         `%waypoints_waypoint_${field}:${placeholderArgumentExamples.uuid}%`,
         ...waypointPlaceholderDefinitions
             .filter(({ name }) => name.endsWith('_exists'))
-            .map((definition) => formatPlaceholderToken(definition, false)),
+            .map((definition) => formatPlaceholderToken(definition)),
         ...waypointPlaceholderDefinitions
             .filter(({ argument }) => argument === 'world' || argument === 'radius')
-            .map((definition) => formatPlaceholderToken(definition, false)),
+            .map((definition) => formatPlaceholderToken(definition)),
     ];
     const retryDelay = formatDuration(SESSION_TIMING.maxRetryMs);
     const heartbeat = formatDuration(SESSION_TIMING.defaultPingMs);
