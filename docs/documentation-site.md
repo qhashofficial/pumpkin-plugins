@@ -131,6 +131,9 @@ tag name, and the workflow fetches tags with the full checkout.
 While editing, run `pnpm run dev:docs` to generate the API pages and start the VitePress development
 server. To preview the last production build instead, run `pnpm run docs:preview`.
 
+The binding step runs the compiled plugin builder, so in a fresh checkout build it first with
+`pnpm turbo run build --filter=@pumpkin-plugins/build`; the docs workflow does the same.
+
 Build the complete site with `pnpm run docs`. It generates bindings, builds the API references, then
 builds the VitePress site. The binding tasks for plugin-kit, update-check, pumpkin-api, and codemod
 run concurrently; plugin guest declarations are generated after them. TypeDoc runs before
