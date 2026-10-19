@@ -14,7 +14,7 @@ import { printBuildOutput } from './output.ts';
 import { readPluginConfig, requireBuildFields } from './plugin-config.ts';
 import { cacheDir } from './repo.ts';
 import { generateTypes } from './types.ts';
-import { isBuildUpdateCheckAllowed, startBuildUpdateCheck } from './update-check.ts';
+import { startBuildUpdateCheck } from './update-check.ts';
 import { ensureWasiWit, readLock } from './wasi-wit.ts';
 import { withWasiWitFileLock } from './wasi-wit-lock.ts';
 import { prepareWit, publishWitSnapshot } from './wit.ts';
@@ -143,13 +143,14 @@ export interface ExecuteCliOptions {
     startUpdateCheck?: typeof startBuildUpdateCheck;
 }
 
-/** Starts an optional background update lookup and runs the build command. */
+/** Starts an optional update lookup, runs the build while it is pending, then waits for the lookup to finish. */
 export async function executeCli(args: string[], pluginDir: string, options: ExecuteCliOptions = {}): Promise<void> {
     const startUpdateCheck = options.startUpdateCheck ?? startBuildUpdateCheck;
     const environment = options.environment ?? process.env;
     const isTTY = options.isTTY ?? process.stdout.isTTY === true;
-    await startUpdateCheck(args, { environment, isTTY }).catch(() => undefined);
+    const update = startUpdateCheck(args, { environment, isTTY }).catch(() => undefined);
     await main(args, pluginDir);
+    await update;
 }
 
 /**
