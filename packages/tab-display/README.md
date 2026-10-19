@@ -41,9 +41,9 @@ Pumpkin asks for these on the server console the first time the plugin loads.
 
 | Command | Description | Permission | Default access |
 | --- | --- | --- | --- |
-| `/tabdisplay status` | Show provider state and display capabilities | `TabDisplay:command.status` | operators (level 3) |
-| `/tabdisplay reload` | Validate and atomically reload config.toml | `TabDisplay:command.reload` | operators (level 3) |
-| `/tabdisplay inspect <player>` | Inspect safe context for one online player | `TabDisplay:command.inspect` | operators (level 3) |
+| `/tabdisplay status` | Show PumpkinPIE state, players and recent problems | `TabDisplay:command.status` | operators (level 3) |
+| `/tabdisplay reload` | Reload config.toml | `TabDisplay:command.reload` | operators (level 3) |
+| `/tabdisplay inspect <player>` | Show a player's placeholder IDs | `TabDisplay:command.inspect` | operators (level 3) |
 <!-- docs:end commands -->
 
 ## Configuration
