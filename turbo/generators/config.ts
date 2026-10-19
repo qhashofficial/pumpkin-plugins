@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { PlopTypes } from '@turbo/gen';
+import { parse } from 'yaml';
 
 const KEBAB_CASE = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 const PASCAL_CASE = /^[A-Z][A-Za-z0-9]*$/;
@@ -50,6 +51,12 @@ function registerRelease(file: string, update: (json: Record<string, unknown>, n
 function run(root: string, command: string, args: string[], done: string) {
     execFileSync(command, args, { cwd: root, stdio: 'inherit' });
     return done;
+}
+
+// vsce refuses to package an extension whose engines.vscode is older than @types/vscode.
+function catalogVersion(root: string, dependency: string): string {
+    const workspace = parse(fs.readFileSync(path.join(root, 'pnpm-workspace.yaml'), 'utf8'));
+    return String(workspace.catalog[dependency]);
 }
 
 function sortReleaseEntries(entries: [string, unknown][]): [string, unknown][] {
@@ -295,11 +302,13 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
             const answers = data as Answers;
             const root = answers.turbo.paths.root;
             const name = answers.name;
+            const vscodeVersion = catalogVersion(root, '@types/vscode');
             return [
                 ...EXTENSION_FILES.map((file) => ({
                     type: 'add',
                     path: `{{ turbo.paths.root }}/extensions/{{ name }}/${file}`,
                     templateFile: `templates/extension/${file}.hbs`,
+                    data: { vscodeVersion },
                 })),
                 registerRelease('release-please-config.json', (json, name) => {
                     const packages = json.packages as Record<string, unknown>;

@@ -18,9 +18,10 @@ after(() => {
 
 /**
  * Runs a generator against a scratch root that holds copies of the root files it reads. pnpm is
- * replaced by a stub that records its arguments, so nothing is installed or formatted.
+ * replaced by a stub that records its arguments, so nothing is installed or formatted. `prepare`
+ * can change the scratch root before the generator runs.
  */
-function generate(generatorName, args) {
+function generate(generatorName, args, prepare) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'generator-'));
     temporaryRoots.push(root);
     for (const file of [
@@ -36,6 +37,7 @@ function generate(generatorName, args) {
     const bin = path.join(root, '.stub-bin');
     fs.mkdirSync(bin);
     fs.writeFileSync(path.join(bin, 'pnpm'), '#!/bin/sh\necho "$*" >> "$(dirname "$0")/calls"\n', { mode: 0o755 });
+    prepare?.(root);
 
     execFileSync(
         process.execPath,
@@ -97,4 +99,16 @@ test('the starter command is named after the plugin, not the built-in /plugin', 
     assert.match(spec, /:command\.my-plugin`/);
     assert.doesNotMatch(spec, /\bplugin\s*:\s*\{/);
     assert.match(itest, /server\.command\(["']my-plugin["']\)/);
+});
+
+test('a generated extension supports the @types/vscode version in the catalog', { skip: skipOnWindows }, () => {
+    const root = generate('extension', ['my-extension', 'My Extension', 'Does a thing'], (scratch) => {
+        const workspaceFile = path.join(scratch, 'pnpm-workspace.yaml');
+        const workspace = fs.readFileSync(workspaceFile, 'utf8');
+        fs.writeFileSync(workspaceFile, workspace.replace(/("@types\/vscode":) .*/, '$1 1.999.0'));
+    });
+    const manifest = readJson(path.join(root, 'extensions/my-extension/package.json'));
+
+    // vsce refuses to package when @types/vscode is newer than engines.vscode.
+    assert.equal(manifest.engines.vscode, '^1.999.0');
 });
