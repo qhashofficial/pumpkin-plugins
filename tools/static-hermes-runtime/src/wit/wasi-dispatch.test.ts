@@ -571,3 +571,30 @@ int main() {
 `,
     );
 }, 20_000);
+
+it('reports a failed result with no error payload through the error marker', () => {
+    const apiInterface: WitApiInterface = {
+        packageName: 'pumpkin:plugin',
+        name: 'ipc',
+        specifier: 'pumpkin:plugin/ipc@0.1.0',
+        functions: [],
+        resources: [],
+        records: [],
+        variants: [],
+        enums: [],
+        flags: [],
+        types: [],
+    };
+    const generated = generateWitApiFunctionForResolvedOperation({
+        apiPackage: { packageName: 'pumpkin:plugin', version: '0.1.0', interfaces: [apiInterface] },
+        apiInterface,
+        operation: { name: 'send', isStatic: false, parameters: [], result: 'result<u32>' },
+        parameters: [],
+        resultType: { kind: 'result', ok: { kind: 'primitive', name: 'u32' }, error: { kind: 'unit' } },
+    });
+
+    if (generated === undefined) throw new Error('Expected an adapter for the supported WIT operation');
+    const failure = generated.slice(generated.indexOf('if (!callSucceeded)'));
+    expect(failure).toContain('"__staticHermesWitError"');
+    expect(failure).not.toContain('"tag"');
+});
