@@ -47,6 +47,10 @@ function contentEntries() {
     return ['package/package.json', 'package/src/index.ts'];
 }
 
+function profileJson(mode) {
+    return JSON.stringify({ name: 'test-maintainer', tfa: mode ? { pending: false, mode } : false });
+}
+
 function makeFixture({
     packagePath = 'tools/pumpkin-api',
     archiveEntries,
@@ -410,7 +414,7 @@ describe('npm first-release bootstrap', () => {
             assert.equal(options?.cwd, os.tmpdir());
             commands.push(args[0]);
             if (args[0] === 'whoami') return { status: 0, stdout: 'test-maintainer\n', stderr: '' };
-            if (args[0] === 'profile') return { status: 0, stdout: 'two-factor auth: auth-only\n', stderr: '' };
+            if (args[0] === 'profile') return { status: 0, stdout: profileJson('auth-only'), stderr: '' };
             if (args[0] === 'org') return { status: 0, stdout: '{"test-maintainer":"developer"}', stderr: '' };
             if (args[0] === 'publish') return { status: 0, stdout: '', stderr: '' };
             return { status: 1, stdout: '', stderr: 'unexpected npm command' };
@@ -429,7 +433,7 @@ describe('npm first-release bootstrap', () => {
         fixture.adapters.runCommand = (command, args) => {
             commands.push([command, args]);
             if (args[0] === 'whoami') return { status: 0, stdout: 'expected-owner\n', stderr: '' };
-            if (args[0] === 'profile') return { status: 0, stdout: 'two-factor auth: auth-only\n', stderr: '' };
+            if (args[0] === 'profile') return { status: 0, stdout: profileJson('auth-only'), stderr: '' };
             if (args[0] === 'owner') {
                 return { status: 0, stdout: 'unexpected-owner <owner@example.invalid>\n', stderr: '' };
             }
@@ -465,7 +469,7 @@ describe('npm first-release bootstrap', () => {
                 commands.push([command, args]);
                 if (args[0] === 'whoami') return { status: 0, stdout: 'test-maintainer\n', stderr: '' };
                 if (args[0] === 'profile') {
-                    return { status: 0, stdout: `two-factor auth: ${twoFactorMode}\n`, stderr: '' };
+                    return { status: 0, stdout: profileJson(twoFactorMode), stderr: '' };
                 }
                 if (args[0] === 'org') {
                     return { status: 0, stdout: '{"test-maintainer":"developer"}', stderr: '' };
@@ -506,7 +510,7 @@ describe('npm first-release bootstrap', () => {
         fixture.adapters.runCommand = (command, args) => {
             commands.push([command, args]);
             if (args[0] === 'whoami') return { status: 0, stdout: 'maintainer-account\n', stderr: '' };
-            if (args[0] === 'profile') return { status: 0, stdout: 'two-factor auth: auth-only\n', stderr: '' };
+            if (args[0] === 'profile') return { status: 0, stdout: profileJson('auth-only'), stderr: '' };
             if (args[0] === 'publish') {
                 assert.equal(authorizationNotes.length, 1, 'authorization confirmation must be visible before publish');
             }
@@ -534,7 +538,7 @@ describe('npm first-release bootstrap', () => {
         fixture.adapters.runCommand = (command, args) => {
             commands.push([command, args]);
             if (args[0] === 'whoami') return { status: 0, stdout: 'test-maintainer\n', stderr: '' };
-            if (args[0] === 'profile') return { status: 0, stdout: 'two-factor auth: auth-only\n', stderr: '' };
+            if (args[0] === 'profile') return { status: 0, stdout: profileJson('auth-only'), stderr: '' };
             if (args[0] === 'org') return { status: 0, stdout: '{"somebody-else":"owner"}', stderr: '' };
             return { status: 0, stdout: '', stderr: '' };
         };
@@ -547,6 +551,21 @@ describe('npm first-release bootstrap', () => {
             commands.some(([command, args]) => command === 'npm' && args[0] === 'publish'),
             false,
         );
+    });
+
+    it('does not publish when the npm account has no account-level 2FA', async () => {
+        const fixture = makeFixture();
+        fixture.adapters.npm = undefined;
+        const commands = [];
+        fixture.adapters.runCommand = (_command, args) => {
+            commands.push(args[0]);
+            if (args[0] === 'whoami') return { status: 0, stdout: 'test-maintainer\n', stderr: '' };
+            if (args[0] === 'profile') return { status: 0, stdout: profileJson(undefined), stderr: '' };
+            return { status: 0, stdout: '', stderr: '' };
+        };
+
+        await assert.rejects(bootstrapFixture(fixture), /npm account must have account-level 2FA enabled/);
+        assert.equal(commands.includes('publish'), false);
     });
 
     it('does not publish when the authenticated npm preflight fails', async () => {
@@ -587,7 +606,7 @@ describe('npm first-release bootstrap', () => {
         fixture.adapters.runCommand = (command, args) => {
             commands.push([command, args]);
             if (args[0] === 'whoami') return { status: 0, stdout: 'test-maintainer\n', stderr: '' };
-            if (args[0] === 'profile') return { status: 0, stdout: 'two-factor auth: auth-and-writes\n', stderr: '' };
+            if (args[0] === 'profile') return { status: 0, stdout: profileJson('auth-and-writes'), stderr: '' };
             if (args[0] === 'owner') {
                 return {
                     status: 0,
