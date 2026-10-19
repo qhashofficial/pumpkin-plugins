@@ -128,8 +128,9 @@ command configures Pumpkin's plugin hot reload to match the mode you chose. In h
 file into the server's `plugins/` directory. Pumpkin watches that directory, while build output lives
 inside each package; copying the file ensures Pumpkin sees changes because a link to the build output
 would not notify it when the target changes. Automatic Market update checks are disabled in the
-default development builds and included in `--release` builds. Plugins that request permissions
-still need those permissions granted on their initial load; a hot reload can't prompt for them.
+default development builds and included in `--release` builds. Each rebuild changes the `.wasm`
+file, so a hot reload denies a plugin's permissions until you restart the server or pre-allow them
+in the dev server's `pumpkin.toml`; see [Runtime caveats](#runtime-caveats).
 
 To use a local server binary instead of downloading the latest release, set `PUMPKIN_BIN`. Set
 `PUMPKIN_CACHE_DIR` to change the binary cache directory. To reset the dev server's world, config,
@@ -157,6 +158,12 @@ pnpm dlx @pumpkin-plugins/codemod update-build .
 
 ## Runtime caveats
 
+Pumpkin handles plugin permissions the same way for both engines. It asks the operator to approve
+them on the server console unless every requested permission is listed in `allowed_permissions`
+under `[plugins]` in `pumpkin.toml`, or `ask_permission_confirmation` is off. Pumpkin remembers the answer for
+that exact `.wasm` file and permission list, so it asks again after either one changes. A hot reload
+can't show the prompt and denies the permissions, so restart the server to answer it.
+
 ### QuickJS runtime
 
 QuickJS plugins run inside the server's WebAssembly runtime, which has a few limits to account for:
@@ -169,9 +176,6 @@ QuickJS plugins run inside the server's WebAssembly runtime, which has a few lim
   range.
 - Scheduler delays and periods are `u64` (`bigint`); handler and task IDs are `u32` (`number`). The
   plugin-kit scheduler helpers accept safe integer tick counts and pass them as `BigInt`.
-- The first time a plugin requests permissions, the server prompts for them in its console. A hot
-  reload can't show that prompt and denies the permissions, so restart the server for the first
-  load.
 - Two builds of the same source produce different bytes. If you sign or upload a build, use the
   artifact from the build job instead of rebuilding it.
 
