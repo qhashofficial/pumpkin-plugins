@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import {
     assertPublicToolPackage,
     assertPublicToolPackageContents,
+    compareVersions,
     discoverPublicToolPackages,
     getPublicToolReleasePrerequisites,
     nodeEngineRange,
@@ -44,7 +45,7 @@ export async function publishToolPackages({
     releaseMetadata,
     packPackage = packPublicToolPackage,
     getRegistryIntegrity = getNpmRegistryIntegrity,
-    publishPackage = publishNpmTarball,
+    publishPackage = publishToNpm,
     log = console.log,
     waitForRegistry = wait,
 }) {
@@ -318,15 +319,34 @@ function packPublicToolPackage(packagePath, root) {
 }
 
 /**
+ * Picks the npm dist-tag for a release so that publishing an older version leaves `latest` alone.
+ *
+ * @param {string} version - Version being published.
+ * @param {string | undefined} latestVersion - The registry's current `latest` dist-tag, if any.
+ * @returns {'latest' | 'backfill'} `latest` for a version above the current latest, otherwise `backfill`.
+ * @throws {Error} When the version is a prerelease, which the automated publisher does not tag.
+ */
+export function npmDistTag(version, latestVersion) {
+    if (version.split('+')[0].includes('-')) throw new Error(`prerelease ${version} has no automated npm dist-tag`);
+    return latestVersion === undefined || compareVersions(version, latestVersion) > 0 ? 'latest' : 'backfill';
+}
+
+async function publishToNpm({ packageName, version, tarballPath }) {
+    const latestVersion = (await readNpmPackument(packageName, fetch))['dist-tags']?.latest;
+    publishNpmTarball({ tarballPath, distTag: npmDistTag(version, latestVersion) });
+}
+
+/**
  * Publishes a verified npm tarball with provenance from its temporary directory.
  *
  * @param {object} release - Verified package tarball.
  * @param {string} release.tarballPath - Path to the package tarball.
+ * @param {string} release.distTag - npm dist-tag the version receives.
  * @returns {void} Completes after npm accepts the publish.
  * @throws {Error} When npm fails to publish the tarball.
  */
-export function publishNpmTarball({ tarballPath }) {
-    execFileSync('npm', ['publish', tarballPath, '--access', 'public', '--provenance'], {
+export function publishNpmTarball({ tarballPath, distTag }) {
+    execFileSync('npm', ['publish', tarballPath, '--access', 'public', '--provenance', '--tag', distTag], {
         cwd: path.dirname(tarballPath),
         stdio: 'inherit',
     });
