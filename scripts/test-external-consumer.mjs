@@ -10,9 +10,8 @@ import {
     assertPublicToolPackageContents,
     assertPublicToolTemplateDependencies,
     discoverPublicToolPackages,
-    embeddedPackageManifestEntries,
     nodeVersion,
-    parseTarEntries,
+    packAndInspect,
 } from './utils/tool-packages.mjs';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -78,35 +77,21 @@ try {
 
     const packedPackages = new Map();
     for (const packagePath of packagePaths) {
-        const packageDirectory = path.join(repositoryRoot, packagePath);
-        await run(
-            packageManager.command,
-            [...packageManager.args, 'pack', '--pack-destination', tarballDirectory],
-            packageDirectory,
-            process.env,
-            ['ignore', 'ignore', 'inherit'],
-        );
         const packageJson = publicToolsByPath.get(packagePath).packageJson;
-        const tarball = fs
-            .readdirSync(tarballDirectory)
-            .find((filename) => filename.startsWith(tarballName(packageJson.name)));
-        if (!tarball) throw new Error(`pnpm pack did not create a tarball for ${packageJson.name}`);
-        const tarballPath = path.join(tarballDirectory, tarball);
-        const packedPackageJson = JSON.parse(
-            execFileSync('tar', ['-xOf', tarballPath, 'package/package.json'], { encoding: 'utf8' }),
-        );
+        const {
+            tarballPath,
+            entries,
+            packageJson: packedPackageJson,
+            embeddedPackageJsons,
+        } = packAndInspect(path.join(repositoryRoot, packagePath), tarballDirectory, packageManager);
         if (packedPackageJson.name !== packageJson.name) {
             throw new Error(`Packed package name changed from ${packageJson.name} to ${packedPackageJson.name}`);
         }
         assertPublicToolPackage(packedPackageJson, packageJson.name, repositoryRoot);
-        const entries = parseTarEntries(execFileSync('tar', ['-tzf', tarballPath], { encoding: 'utf8' }));
         assertPublicToolPackageContents(entries, packagePath, packedPackageJson);
-        const embeddedPackageJsons = embeddedPackageManifestEntries(entries).map((entry) =>
-            JSON.parse(execFileSync('tar', ['-xOf', tarballPath, entry], { encoding: 'utf8' })),
-        );
         packedPackages.set(packedPackageJson.name, {
             packageJson: packedPackageJson,
-            filename: tarball,
+            filename: path.basename(tarballPath),
             bytes: fs.readFileSync(tarballPath),
             embeddedPackageJsons,
         });
@@ -313,10 +298,6 @@ try {
     } finally {
         fs.rmSync(temporaryRoot, { recursive: true, force: true });
     }
-}
-
-function tarballName(name) {
-    return `${name.replace(/^@/, '').replaceAll('/', '-')}-`;
 }
 
 function dependencyClosure(roots, publicTools) {
