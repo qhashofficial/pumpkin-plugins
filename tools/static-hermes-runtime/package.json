@@ -56,7 +56,6 @@
         "dist",
         "cmake",
         "hermes-patches",
-        "schemas",
         "hermes-source.lock.json",
         "toolchain-versions.json",
         "wasi-sdk.lock.json",
