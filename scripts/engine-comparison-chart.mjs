@@ -1,7 +1,15 @@
 import * as fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import {
+    apiHeaders,
+    encodePath,
+    encodeRepository,
+    normalizeBaseUrl,
+    readJsonResponse,
+    requestJson,
+    requireString,
+} from './utils/github-api.mjs';
 
-const API_VERSION = '2022-11-28';
 const CHART_BRANCH = 'benchmark-charts';
 const MAX_SVG_BYTES = 10_000_000;
 
@@ -96,17 +104,14 @@ async function getExistingChart({ fetchImpl, filePath, headers, uploadUrl }) {
 }
 
 async function ensureChartBranch({ apiBaseUrl, defaultBranch, fetchImpl, headers, repositoryPath }) {
-    const chartRefUrl = apiEndpoint(apiBaseUrl, `repos/${repositoryPath}/git/ref/heads/${encodeRefPath(CHART_BRANCH)}`);
+    const chartRefUrl = apiEndpoint(apiBaseUrl, `repos/${repositoryPath}/git/ref/heads/${encodePath(CHART_BRANCH)}`);
     const chartRefResponse = await fetchImpl(chartRefUrl, { headers });
     if (chartRefResponse.ok) return;
     if (chartRefResponse.status !== 404) {
         await readJsonResponse(chartRefResponse, 'GitHub chart branch lookup');
     }
 
-    const defaultRefUrl = apiEndpoint(
-        apiBaseUrl,
-        `repos/${repositoryPath}/git/ref/heads/${encodeRefPath(defaultBranch)}`,
-    );
+    const defaultRefUrl = apiEndpoint(apiBaseUrl, `repos/${repositoryPath}/git/ref/heads/${encodePath(defaultBranch)}`);
     const defaultRef = await requestJson(fetchImpl, defaultRefUrl, { headers }, 'GitHub default branch lookup');
     if (typeof defaultRef.object?.sha !== 'string' || !defaultRef.object.sha) {
         throw new Error('GitHub default branch lookup did not return a commit SHA');
@@ -130,60 +135,8 @@ async function ensureChartBranch({ apiBaseUrl, defaultBranch, fetchImpl, headers
     await readJsonResponse(createRefResponse, 'GitHub chart branch creation');
 }
 
-function encodeRepository(value) {
-    const parts = requireString(value, 'GitHub repository').split('/');
-    if (parts.length !== 2 || parts.some((part) => !part)) {
-        throw new Error(`Invalid GitHub repository: ${value}`);
-    }
-    return parts.map(encodeURIComponent).join('/');
-}
-
-function encodePath(value) {
-    return value.split('/').map(encodeURIComponent).join('/');
-}
-
-function encodeRefPath(value) {
-    return value.split('/').map(encodeURIComponent).join('/');
-}
-
 function apiEndpoint(baseUrl, path) {
     return new URL(path, baseUrl);
-}
-
-function normalizeBaseUrl(value, description) {
-    let url;
-    try {
-        url = new URL(requireString(value, description));
-    } catch {
-        throw new Error(`${description} must be a valid URL`);
-    }
-    if (url.protocol !== 'https:') throw new Error(`${description} must use HTTPS`);
-    return new URL(url.href.endsWith('/') ? url.href : `${url.href}/`);
-}
-
-function apiHeaders(token) {
-    return {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${token}`,
-        'X-GitHub-Api-Version': API_VERSION,
-    };
-}
-
-async function requestJson(fetchImpl, url, options, description) {
-    return readJsonResponse(await fetchImpl(url, options), description);
-}
-
-async function readJsonResponse(response, description) {
-    if (!response.ok) {
-        const body = await response.text();
-        const detail = body ? `: ${body.slice(0, 500)}` : '';
-        throw new Error(`${description} failed with HTTP ${response.status}${detail}`);
-    }
-    try {
-        return await response.json();
-    } catch {
-        throw new Error(`${description} returned invalid JSON`);
-    }
 }
 
 function validateDownloadUrl(value, serverUrl) {
@@ -201,11 +154,6 @@ function validateDownloadUrl(value, serverUrl) {
         throw new Error('GitHub chart upload returned an unexpected download URL');
     }
     return url.href;
-}
-
-function requireString(value, description) {
-    if (typeof value !== 'string' || !value.trim()) throw new Error(`${description} is required`);
-    return value.trim();
 }
 
 function writeGitHubOutput(name, value) {
