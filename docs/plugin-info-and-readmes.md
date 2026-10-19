@@ -50,7 +50,12 @@ class MyPlugin extends PluginBase {
 ```
 
 `__PLUGIN_VERSION__` is injected from the package version during builds and by the Vitest config
-when tests run. `PluginBase` uses the object and version to build Pumpkin's plugin metadata: name,
+when tests run. Its type declaration ships with `@pumpkin-plugins/build`, so add
+`node_modules/@pumpkin-plugins/build/globals.d.ts` to the `include` list in your `tsconfig.json`;
+without it, TypeScript reports `Cannot find name '__PLUGIN_VERSION__'`. Plugins in this repository
+include `../../tools/build/globals.d.ts` instead.
+
+`PluginBase` uses the object and version to build Pumpkin's plugin metadata: name,
 version, authors, description and requested permissions. The metadata also includes the automatic
 update-check permission, `http.outbound`; the README lists it too, with its reason, even though you
 don't need to add it to `info.permissions`.
