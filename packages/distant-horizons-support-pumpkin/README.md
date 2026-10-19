@@ -73,6 +73,7 @@ Settings live in `plugins/data/DistantHorizonsSupportPumpkin/config.toml`. The p
 | `support.cached_requests_per_tick` | integer | `8` | Maximum cached LOD requests checked per server tick across all players. |
 | `support.cached_packets_per_tick` | integer | `64` | Maximum transfer packets for cached LODs per server tick across all players. |
 | `support.memory_cache_entries` | integer | `512` | Maximum LOD sections cached in memory. Set to 0 to disable; any negative value means unlimited. |
+| `support.memory_cache_mb` | integer | `64` | Maximum megabytes of LOD data cached in memory; memory_cache_entries also applies. A complex section can take about 1 MB. |
 | `support.disk_cache_entries` | integer | `4096` | Maximum LOD sections cached on disk. Set to 0 to disable; any negative value means unlimited. |
 | `support.refresh_seconds` | integer | `30` | Rebuild cached sections after this age when all their chunks are loaded. |
 | `worlds."<world>".height` | integer | none | World height in blocks above its minimum Y. |
@@ -124,6 +125,10 @@ cached_packets_per_tick = 64
 # Maximum LOD sections cached in memory. Set to 0 to disable; any negative value means unlimited.
 memory_cache_entries = 512
 
+# Maximum megabytes of LOD data cached in memory; memory_cache_entries also applies. A complex
+# section can take about 1 MB.
+memory_cache_mb = 64
+
 # Maximum LOD sections cached on disk. Set to 0 to disable; any negative value means unlimited.
 disk_cache_entries = 4096
 
@@ -158,8 +163,9 @@ The plugin captures material changes, caves, biomes and lighting from terrain th
 loaded. It reads terrain through world-level accessors, so a multi-tick capture does not depend on
 short-lived chunk handles. Air above the heightmap is collapsed without reading every empty block.
 
-Completed sections use the configured memory and disk cache limits independently. Disk entries
-survive restarts. See [Configuration](#configuration) for the current limits and how to disable each
+Completed sections use the configured memory and disk cache limits independently. The memory tier
+also holds at most `memory_cache_mb` of LOD data and evicts the least recently used sections first;
+a section larger than that limit is kept only on disk. Disk entries survive restarts. See [Configuration](#configuration) for the current limits and how to disable each
 cache tier. When upgrading from an earlier version, the old shared cache limit is copied to both
 new limits. An uncached section may take many ticks to finish. A cache miss stays pending while any required chunk is unavailable; availability
 checks retry with exponential backoff, and pending requests count toward the configured queue limit.

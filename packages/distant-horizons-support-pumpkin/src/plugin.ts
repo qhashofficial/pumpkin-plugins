@@ -50,7 +50,12 @@ class DistantHorizonsSupportPumpkin extends PluginBase {
 
     private initializePlugin(ctx: Context, files: WasiDataDir): void {
         const settings = readSettings(files, hostLogger);
-        const cache = new LodCache(files, settings.memory_cache_entries, settings.disk_cache_entries);
+        const cache = new LodCache(
+            files,
+            settings.memory_cache_entries,
+            settings.disk_cache_entries,
+            settings.memory_cache_mb * 1024 * 1024,
+        );
         const sessions = new Sessions(settings, cache, hostLogger);
         this.placeholders = new DistantHorizonsPlaceholderService({
             sessions,
