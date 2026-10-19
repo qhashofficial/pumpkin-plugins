@@ -3,11 +3,8 @@ import type { Server } from 'pumpkin:plugin/server@0.1.0';
 import { type RgbColor, TextComponent } from 'pumpkin:plugin/text@0.1.0';
 import * as uuid from 'pumpkin:plugin/uuid@0.1.0';
 import { disposeWasiResource } from '@pumpkin-plugins/plugin-kit/wasi-resource';
-import { type ApplyResult, JAVA_DISPLAY_VERSION, type PlayerSnapshot, type RenderedLine } from '../model.ts';
+import type { ApplyResult, PlayerSnapshot, RenderedLine } from '../model.ts';
 import type { TabDisplayHost } from '../service.ts';
-
-/** Java client version currently allowed through the adapter gate. */
-export { JAVA_DISPLAY_VERSION };
 
 interface ActivePlayer {
     readonly player: Player;
@@ -82,8 +79,6 @@ export class JavaTabDisplayHost implements TabDisplayHost {
     setEntryName(uuidValue: string, value: RenderedLine | undefined): ApplyResult {
         const active = this.activePlayers.get(uuidValue);
         if (active === undefined) return { kind: 'failed', error: 'Player is not in the current display snapshot' };
-        const supported = javaDisplaySupport(active.snapshot);
-        if (supported.kind === 'unsupported') return supported;
         if (active.snapshot.edition !== 'java') return bedrockUnsupported('row names');
 
         const owner = this.nameOwnership.get(uuidValue);
@@ -126,8 +121,6 @@ export class JavaTabDisplayHost implements TabDisplayHost {
     setHeaderFooter(uuidValue: string, header: readonly RenderedLine[], footer: readonly RenderedLine[]): ApplyResult {
         const active = this.activePlayers.get(uuidValue);
         if (active === undefined) return { kind: 'failed', error: 'Player is not in the current display snapshot' };
-        const supported = javaDisplaySupport(active.snapshot);
-        if (supported.kind === 'unsupported') return supported;
         if (active.snapshot.edition !== 'java') return bedrockUnsupported('header and footer');
 
         let headerComponent: TextComponent | undefined;
@@ -235,17 +228,6 @@ function readPlayer(player: Player): PlayerSnapshot {
         disposeWasiResource(java);
         disposeWasiResource(bedrock);
     }
-}
-
-function javaDisplaySupport(snapshot: PlayerSnapshot): ApplyResult {
-    if (snapshot.edition !== 'java') return bedrockUnsupported('Java tab display fields');
-    if (snapshot.javaVersion !== JAVA_DISPLAY_VERSION) {
-        return {
-            kind: 'unsupported',
-            reason: `Java tab display calls are gated to ${JAVA_DISPLAY_VERSION}; live client behavior is unverified`,
-        };
-    }
-    return { kind: 'applied' };
 }
 
 function bedrockUnsupported(feature: string): ApplyResult {

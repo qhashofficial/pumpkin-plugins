@@ -303,6 +303,17 @@ describe('Java tab display host', () => {
         host.endTick();
     });
 
+    it('formats Java players on any protocol version the server accepts', () => {
+        const player = javaPlayer('java', 'v-26-4');
+        const host = new JavaTabDisplayHost();
+        host.setServer(fakeServer([player.player]));
+        host.snapshotPlayers(10);
+
+        expect(host.setEntryName('java', { text: 'Name' })).toEqual({ kind: 'applied' });
+        expect(host.setHeaderFooter('java', [{ text: 'Header' }], [])).toEqual({ kind: 'applied' });
+        host.endTick();
+    });
+
     it('never writes Java player-list fields to Bedrock handles', () => {
         const player = bedrockPlayer('bedrock');
         const host = new JavaTabDisplayHost();

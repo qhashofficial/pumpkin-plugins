@@ -13,26 +13,17 @@ Install `tab-display.wasm` in the server's `plugins/` directory and restart. Tab
 `plugins/data/TabDisplay/config.toml`. It requests `fs.read.data` and `fs.write.data` for that file;
 the normal Pumpkin Market update check also requests `http.outbound`.
 
-## Current capability boundary
+## What it changes
 
-The Java adapter makes tab-name and header/footer calls only for the protocol version listed in the
-capability table below. It leaves other Java versions unchanged and reports them as unsupported in
-`/tabdisplay status`. These adapter calls have not been verified with a live Java client in this
-environment. Status and documentation do not claim that a live client displayed the result.
+| Surface | Behavior |
+| --- | --- |
+| Java row names | One name format for every listed player |
+| Java header and footer | Lines rendered for each viewer |
+| Bedrock player list | Left unchanged |
+| Per-viewer row names, fake rows and fixed slots | Not implemented |
 
 TabDisplay does not sort the player list or show numeric objectives. It does not send Java tab
 fields to Bedrock players or modify names, scores, identities, skins or roster membership.
-
-<!-- docs:begin capabilities -->
-<!-- Generated from src/model.ts and docs.ts. Run `pnpm readme`. -->
-
-| Surface | Current behavior |
-| --- | --- |
-| Java row names | Global subject formatting, gated to `v-26-3`; live client behavior unverified |
-| Java header/footer | Per-viewer formatted lines, gated to `v-26-3`; live client behavior unverified |
-| Bedrock roster | Left unchanged |
-| Per-viewer row names, fake rows and fixed slots | Not implemented |
-<!-- docs:end capabilities -->
 
 ## PumpkinPIE placeholders
 
