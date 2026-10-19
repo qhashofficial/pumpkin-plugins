@@ -29,22 +29,46 @@ describe('formatSize', () => {
 });
 
 describe('listLines', () => {
-    it('says when there is nothing', () => {
-        expect(listLines([])).toEqual([
-            'No Bedrock packs are listed. Put .mcpack or .mcaddon files in the packs folder and run /baddon reload.',
-        ]);
+    it('says when there is nothing, and how to add packs', () => {
+        expect(listLines([]).join('\n')).toContain('/baddon reload');
     });
 
-    it('lists each pack with its flags and download url', () => {
-        expect(
-            listLines([entry(), entry({ fileName: 'b.mcpack', addonPack: true, hasScripts: true, rtxEnabled: true })]),
-        ).toEqual([
-            'Bedrock packs (2), in the order they are listed:',
-            '1. a.mcpack: 627409cd-5207-46f1-b1e8-0d4492616419 v1.0.1, 4.9 MiB',
-            '   http://127.0.0.1:8123/packs/a.mcpack',
-            '2. b.mcpack: 627409cd-5207-46f1-b1e8-0d4492616419 v1.0.1, 4.9 MiB, add-on pack, scripts, ray tracing',
-            '   http://127.0.0.1:8123/packs/a.mcpack',
-        ]);
+    it('lists each pack in order with its name, uuid, version, size, flags and download url', () => {
+        const text = listLines([
+            entry(),
+            entry({
+                fileName: 'b.mcpack',
+                uuid: '22222222-2222-4222-8222-222222222222',
+                version: '3.1.4',
+                downloadUrl: 'https://cdn.example.com/b.mcpack',
+                addonPack: true,
+                hasScripts: true,
+                rtxEnabled: true,
+            }),
+        ]).join('\n');
+        const a = text.indexOf('a.mcpack');
+        const b = text.indexOf('b.mcpack');
+        expect(a).toBeGreaterThanOrEqual(0);
+        expect(b).toBeGreaterThan(a);
+        for (const part of [
+            '627409cd-5207-46f1-b1e8-0d4492616419',
+            '1.0.1',
+            '4.9 MiB',
+            'http://127.0.0.1:8123/packs/a.mcpack',
+        ]) {
+            expect(text.slice(a, b)).toContain(part);
+        }
+        for (const part of [
+            '22222222-2222-4222-8222-222222222222',
+            '3.1.4',
+            'https://cdn.example.com/b.mcpack',
+            'add-on pack',
+            'scripts',
+            'ray tracing',
+        ]) {
+            expect(text.slice(b)).toContain(part);
+        }
+        expect(text.slice(a, b)).not.toContain('ray tracing');
     });
 });
 

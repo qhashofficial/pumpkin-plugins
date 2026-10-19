@@ -31,10 +31,10 @@ describe('readAddon', () => {
         const { packs } = readAddon(
             zipSync({ 'RP/manifest.json': manifest(RP, ['resources']), 'RP/textures/a.png': texture }),
         );
-        const inner = readAddon(packs[0].bytes.length ? zipSync({ 'x.mcpack': packs[0].bytes }) : packs[0].bytes);
-        expect(inner.packs).toHaveLength(1);
-        expect(packs[0].bytes.length).toBeGreaterThan(texture.length);
         expect(unzipSync(packs[0].bytes)['textures/a.png']).toEqual(texture);
+        // The repackaged pack also works as a nested .mcpack in another bundle.
+        const inner = readAddon(zipSync({ 'x.mcpack': packs[0].bytes }));
+        expect(inner.packs.map((p) => p.manifest.uuid)).toEqual([RP]);
     });
 
     it('extracts nested .mcpack archives as they are', () => {

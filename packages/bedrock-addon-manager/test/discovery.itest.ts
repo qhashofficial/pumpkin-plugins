@@ -14,8 +14,9 @@ describe('pack discovery', () => {
         await r.server.waitForLog(/No packs in packs\//);
 
         r.put('packs/late.mcpack', bigPack);
-        await new Promise((resolve) => setTimeout(resolve, 2500));
-        expect(r.server.lines.some((l) => l.includes('late.mcpack'))).toBe(false);
+        const before = r.server.lines.length;
+        r.server.command('baddon list');
+        await r.server.waitForLog(/No Bedrock packs are listed/, 10_000, before);
 
         const from = r.server.lines.length;
         r.server.command('baddon reload');
