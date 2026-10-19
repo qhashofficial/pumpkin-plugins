@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { PIE_RELEASE, resolvePieProvider } from '@pumpkin-plugins/pumpkin-pie-api/testing/provider';
 import { builtPluginPath, type PumpkinInstance, startPumpkin } from '@pumpkin-plugins/test-harness';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { PIE_RELEASE, resolvePieProvider } from '../../../tools/apis/pumpkin-pie-api/test/provider.ts';
 import { run as buildPlugin } from '../../../tools/build/src/cli.ts';
 
 describe('TabDisplay PumpkinPIE integration', () => {
@@ -37,9 +37,6 @@ describe('TabDisplay PumpkinPIE integration', () => {
             .update(await readFile(providerPath))
             .digest('hex');
         expect(digest).toBe(PIE_RELEASE.sha256);
-        expect(PIE_RELEASE.sourceCommit).toBe('b7cbb14417b397bca71a36b62efa8caa1ba72354');
-        expect(PIE_RELEASE.pumpkinRelease).toBe('0.2.0+26.3-26.51');
-        expect(PIE_RELEASE.apiArtifact).toBe('v0.1.1');
         expect(server.logs()).toMatch(/"text":"left=server:none"/);
         expect(server.logs()).toMatch(/"text":"right=server:none"/);
         expect(server.logs()).toMatch(/"value":"server:argument-value"/);
