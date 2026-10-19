@@ -1,4 +1,3 @@
-import type { CommandSender, ConsumedArgs } from 'pumpkin:plugin/command@0.1.0';
 import type { Context } from 'pumpkin:plugin/context@0.1.0';
 import type {
     EntityRemoveEventData,
@@ -20,10 +19,9 @@ import type { Server } from 'pumpkin:plugin/server@0.1.0';
 import * as uuid from 'pumpkin:plugin/uuid@0.1.0';
 import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import { WasiDataDir } from '@pumpkin-plugins/plugin-kit/data-dir';
-import { cancelTask, runCommand, scheduleDelayed, scheduleRepeating } from '@pumpkin-plugins/plugin-kit/host';
+import { cancelTask, scheduleDelayed, scheduleRepeating } from '@pumpkin-plugins/plugin-kit/host';
 import { PluginBase, registerPlugin } from '@pumpkin-plugins/plugin-kit/plugin';
 import { disposeWasiResource } from '@pumpkin-plugins/plugin-kit/wasi-resource';
-import { handleCommand as apiHandleCommand } from '@pumpkin-plugins/pumpkin-api';
 import { registerCommands } from './commands/register.ts';
 import { loadPluginConfig } from './config/load.ts';
 import { info } from './info.ts';
@@ -388,11 +386,6 @@ function sourceLevels(sources: Record<string, { light_level?: number }>): Record
 
 registerPlugin(new DynamicLightsPumpkin());
 
-export { handleTask } from '@pumpkin-plugins/plugin-kit/plugin';
-
-/** Dispatches plugin command handlers before delegating to Pumpkin's API package. */
-export function handleCommand(id: number, sender: CommandSender, server: Server, args: ConsumedArgs): number {
-    return runCommand(id, sender, args) ?? apiHandleCommand(id, sender, server, args);
-}
+export { handleCommand, handleTask } from '@pumpkin-plugins/plugin-kit/plugin';
 
 export * from '@pumpkin-plugins/pumpkin-api';
