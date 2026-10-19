@@ -126,8 +126,9 @@ other permissions in `info.permissions`:
 ## Without the generator
 
 For a plugin in this monorepo, the generator handles several pieces that are easy to miss. If you
-create the package by hand, you can copy `packages/bedrock-addon-manager` or create a generated
-plugin and remove what you don't need. Then check that you:
+create the package by hand, you can copy `packages/dynamic-lights-pumpkin`, a released plugin with
+commands, config and tests, and delete its `CHANGELOG.md`. You can also create a generated plugin
+and remove what you don't need. Then check that you:
 
 - Register it in both `release-please-config.json` and `.release-please-manifest.json`, and start
   its `package.json` version at `0.0.0`. The first-release config entry needs
