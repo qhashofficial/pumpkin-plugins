@@ -1,7 +1,12 @@
 import * as fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
-
-const API_VERSION = '2022-11-28';
+import {
+    apiHeaders,
+    encodeRepository,
+    normalizeBaseUrl,
+    readJsonResponse,
+    requireString,
+} from './utils/github-api.mjs';
 
 /** Finds the current benchmark report and the newest successful matching default-branch baseline. */
 export async function discoverBenchmarkArtifacts(input, { fetchImpl = fetch, writeOutput = writeGitHubOutput } = {}) {
@@ -89,31 +94,6 @@ export async function discoverBenchmarkArtifacts(input, { fetchImpl = fetch, wri
     };
 }
 
-function encodeRepository(repository) {
-    const parts = requireString(repository, 'GitHub repository').split('/');
-    if (parts.length !== 2 || parts.some((part) => !part)) throw new Error(`Invalid GitHub repository: ${repository}`);
-    return parts.map(encodeURIComponent).join('/');
-}
-
-function normalizeBaseUrl(value, description) {
-    let url;
-    try {
-        url = new URL(requireString(value, description));
-    } catch {
-        throw new Error(`${description} must be a valid URL`);
-    }
-    if (url.protocol !== 'https:') throw new Error(`${description} must use HTTPS`);
-    return new URL(url.href.endsWith('/') ? url.href : `${url.href}/`);
-}
-
-function apiHeaders(token) {
-    return {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${requireString(token, 'GitHub App token')}`,
-        'X-GitHub-Api-Version': API_VERSION,
-    };
-}
-
 async function getPullRequestBaseSha({ apiBaseUrl, fetchImpl, headers, pullRequestNumber, repositoryPath }) {
     const pullRequest = await getJson(
         fetchImpl,
@@ -153,29 +133,11 @@ function getNextPageUrl(response, workflowRunsUrl, apiBaseUrl) {
     return undefined;
 }
 
-async function readJsonResponse(response, description) {
-    if (!response.ok) {
-        const body = await response.text();
-        const detail = body ? `: ${body.slice(0, 500)}` : '';
-        throw new Error(`${description} failed with HTTP ${response.status}${detail}`);
-    }
-    try {
-        return await response.json();
-    } catch {
-        throw new Error(`${description} returned invalid JSON`);
-    }
-}
-
 function findReportArtifact(payload) {
     if (!Array.isArray(payload.artifacts)) return undefined;
     return payload.artifacts.find(
         (artifact) => artifact?.name === 'engine-comparison-report' && artifact.expired === false,
     );
-}
-
-function requireString(value, description) {
-    if (typeof value !== 'string' || !value.trim()) throw new Error(`${description} is required`);
-    return value.trim();
 }
 
 function writeGitHubOutput(name, value) {
