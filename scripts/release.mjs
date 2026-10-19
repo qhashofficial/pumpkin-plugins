@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { Command } from 'commander';
 import { installCommitFilesCache } from './utils/commit-files-cache.mjs';
 import { bundledChangesPlugin, workspacePackages } from './utils/release-commits.mjs';
-import { collectReleaseFanout } from './utils/release-fanout.mjs';
+import { collectReleaseFanout, releaseOutputs } from './utils/release-fanout.mjs';
 import { recoverImmutableReleaseConflict } from './utils/release-recovery.mjs';
 import { resolveReleaseTargetSha } from './utils/release-target.mjs';
 import { enableLegacyReleaseTitleParsing } from './utils/release-title-compat.mjs';
@@ -159,25 +159,7 @@ if (!dryRun && !pullRequestsOnly) {
         root: repositoryRoot,
         toolOnly,
     });
-    outputs.paths_released = JSON.stringify(releasePaths.pluginPaths);
-    outputs.action_paths_released = JSON.stringify(releasePaths.actionPaths);
-    outputs.tool_paths_released = JSON.stringify(releasePaths.toolPaths);
-    outputs.extension_paths_released = JSON.stringify(releasePaths.extensionPaths);
-    outputs.release_count = String(releases.length);
-    const releaseMetadata = {};
-    const releaseNotes = {};
-    for (const release of releases) {
-        outputs[`${release.path}--release_created`] = !release.recovered;
-        if (release.recovered) outputs[`${release.path}--release_recovered`] = true;
-        for (const [name, value] of Object.entries(release)) {
-            const key = { tagName: 'tag_name', uploadUrl: 'upload_url', notes: 'body', url: 'html_url' }[name] ?? name;
-            outputs[`${release.path}--${key}`] = value;
-            if (key === 'tag_name' || key === 'sha') releaseMetadata[`${release.path}--${key}`] = value;
-            if (key === 'body') releaseNotes[`${release.path}--${key}`] = value;
-        }
-    }
-    outputs.release_metadata = JSON.stringify(releaseMetadata);
-    outputs.release_notes = JSON.stringify(releaseNotes);
+    Object.assign(outputs, releaseOutputs(releases, releasePaths));
 }
 const manifest = await load();
 manifest.plugins.push(
