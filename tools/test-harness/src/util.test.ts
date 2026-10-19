@@ -14,6 +14,11 @@ describe('assetName', () => {
         expect(assetName('linux', 'x64')).toBe('pumpkin-X64-Linux');
         expect(assetName('win32', 'x64')).toBe('pumpkin-X64-Windows.exe');
     });
+    it('picks the musl build on musl Linux only', () => {
+        expect(assetName('linux', 'x64', true)).toBe('pumpkin-X64-Linux-musl');
+        expect(assetName('linux', 'arm64', true)).toBe('pumpkin-ARM64-Linux-musl');
+        expect(assetName('darwin', 'arm64', true)).toBe('pumpkin-ARM64-macOS');
+    });
     it('tells the user about PUMPKIN_BIN for unsupported ones', () => {
         expect(() => assetName('darwin', 'x64')).toThrow(/PUMPKIN_BIN/);
     });

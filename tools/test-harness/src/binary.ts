@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { PUMPKIN_RELEASE } from './pumpkin-version.ts';
 import { REPO_ROOT } from './repo-root.ts';
-import { assetName, parseChecksums } from './util.ts';
+import { assetName, isMuslLinux, parseChecksums } from './util.ts';
 
 function downloadUrl(file: string): string {
     return `https://github.com/Pumpkin-MC/Pumpkin/releases/download/${encodeURIComponent(PUMPKIN_RELEASE)}/${file}`;
@@ -28,7 +28,7 @@ export async function resolvePumpkinBinary(): Promise<string> {
         return path.resolve(override);
     }
 
-    const asset = assetName(process.platform, process.arch);
+    const asset = assetName(process.platform, process.arch, isMuslLinux());
     const cacheDir = process.env.PUMPKIN_CACHE_DIR ?? path.join(REPO_ROOT, '.cache/pumpkin');
     const target = path.join(cacheDir, `${PUMPKIN_RELEASE}-${asset}`);
     const sums = parseChecksums(await fetchText(downloadUrl('checksums.sha256')));
