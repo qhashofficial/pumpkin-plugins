@@ -127,8 +127,9 @@ for (const [dir, { type, version, packageName }] of components) {
         }
     }
 
-    // Plugins and actions start at 0.0.0 and use 0.0.1 as their first release. Public tools retain
-    // their pre-release package version and use a 0.0.0 manifest baseline until their first 0.1.0 tag.
+    // Plugins, actions and extensions start at 0.0.0 and use 0.0.1 as their first release. Public
+    // tools retain their pre-release package version and use a 0.0.0 manifest baseline until their
+    // first 0.1.0 tag.
     const releaseAs = entry?.['release-as'];
     if (type === 'tool' && entry && manifest[dir] === FIRST_VERSION_BASE && releaseAs !== FIRST_TOOL_RELEASE) {
         problems.push(
