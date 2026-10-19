@@ -39,9 +39,9 @@ for JavaScript and TypeScript.
 Builder-release migrations go in `src/codemods/build-migrations.ts`. Each entry names the first
 published builder version that requires the consumer change. Add an entry only when you have
 verified that release needs it, and test both the change and repeat-run idempotence. The
-`update-build` workflow selects migrations newer than the installed builder and no newer than the
-latest version fetched from npm, then applies them in version order. Leave the registry empty until
-a published release requires a migration; don't add placeholders.
+`update-build` workflow selects migrations newer than the builder installed for each file's package
+and no newer than the latest version fetched from npm, then applies them in version order. Leave the
+registry empty until a published release requires a migration; don't add placeholders.
 
 The ID becomes a CLI argument, so keep it unique and stable. `matchesFile` receives a slash-separated
 path relative to the runner's working directory—the directory where the CLI was invoked. A source
