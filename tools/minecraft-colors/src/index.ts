@@ -70,13 +70,18 @@ const NAMED_COLORS = {
 type MinecraftColor = keyof typeof COLORS;
 type MinecraftFormat = keyof typeof FORMATS;
 type MinecraftNamedRole = keyof typeof NAMED_COLORS;
-type TextFormatter = ((text: string | number) => string) & {
+/**
+ * Formats text with the style chained so far. Each color or modifier property returns a new
+ * formatter that adds that style, and `hex()` sets an RGB color.
+ */
+export type TextFormatter = ((text: string | number) => string) & {
     readonly [Key in MinecraftColor | MinecraftFormat]: TextFormatter;
 } & {
     hex(color: string): TextFormatter;
 };
 type NamedFormatters = { readonly [Role in MinecraftNamedRole]: TextFormatter };
-type ColorApi = TextFormatter & { readonly named: NamedFormatters };
+/** The shape of the `color` and `ansi` exports: a formatter with `named` role formatters. */
+export type ColorApi = TextFormatter & { readonly named: NamedFormatters };
 type FormatterOutput = 'minecraft' | 'ansi';
 
 interface FormatterState {
@@ -176,9 +181,16 @@ addNamedFormatters(color, 'minecraft');
 addNamedFormatters(ansi, 'ansi');
 
 /** Returns a terminal table previewing every color in normal and bold text. */
-export function colorTable(): string {
+export function ansiColorTable(): string {
     return makeColorTable(ansi);
 }
+
+/**
+ * Returns a terminal table previewing every color in normal and bold text.
+ *
+ * @deprecated Use `ansiColorTable()`; this name will be removed in the next breaking release.
+ */
+export const colorTable = ansiColorTable;
 
 /** Returns a table previewing every color with Minecraft's legacy codes. */
 export function minecraftColorTable(): string {

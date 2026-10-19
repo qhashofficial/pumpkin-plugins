@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { ansi, color, colorTable, minecraftColorTable } from './index.ts';
+import {
+    ansi,
+    ansiColorTable,
+    type ColorApi,
+    color,
+    colorTable,
+    minecraftColorTable,
+    type TextFormatter,
+} from './index.ts';
 
 describe('Minecraft string formatting', () => {
     it('returns legacy codes that can be embedded in a message string', () => {
@@ -126,7 +134,7 @@ describe('Minecraft string formatting', () => {
             ['white', 97],
         ] as const;
         const nameWidth = 11;
-        const lines = colorTable().split('\n');
+        const lines = ansiColorTable().split('\n');
 
         expect(lines).toHaveLength(colors.length + 2);
         expect(lines[0]).toBe('Color       | Bold');
@@ -137,5 +145,16 @@ describe('Minecraft string formatting', () => {
                 return `\u001b[${code}m${name}\u001b[0m${padding} | \u001b[1;${code}m${name}\u001b[0m`;
             }),
         );
+    });
+
+    it('keeps colorTable as an alias of ansiColorTable', () => {
+        expect(colorTable).toBe(ansiColorTable);
+    });
+
+    it('accepts either formatter where a formatter type is expected', () => {
+        const warn = (formatter: TextFormatter) => formatter('Warning');
+        const apis: ColorApi[] = [color, ansi];
+
+        expect(apis.map((api) => warn(api.named.error))).toEqual(['§4§lWarning§r', '\u001b[1;31mWarning\u001b[0m']);
     });
 });
