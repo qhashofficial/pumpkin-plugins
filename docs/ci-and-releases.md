@@ -176,12 +176,13 @@ skipped too, and CI result reports each of them.
 ## Label management
 
 `.github/labels.yml` is the full label catalog for the repository. Add `ai_apply_when` only to labels
-CodeRabbit is allowed to apply.
+CodeRabbit is allowed to apply. Each plugin package needs a `plugin: <Name>` label whose
+`ai_apply_when` names `packages/<dir>/`.
 
 `reviews.labeling_instructions` in `.coderabbit.yaml` is generated from the catalog. After editing
 `.github/labels.yml`, run `node .github/scripts/coderabbit-labels.mjs` and commit both files.
 Issue form validation runs the same script with `--check` on pull requests and fails when the
-catalog is invalid or `.coderabbit.yaml` is out of date.
+catalog is invalid, a plugin has no label, or `.coderabbit.yaml` is out of date.
 CodeRabbit applies labels using those instructions. The `ready-for-agent` and `ready-for-human`
 labels remain outside its eligible set.
 

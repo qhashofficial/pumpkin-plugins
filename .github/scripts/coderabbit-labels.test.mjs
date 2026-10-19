@@ -98,6 +98,16 @@ describe('CodeRabbit label guidance', () => {
         assert.equal(readConfig(dir), codeRabbitConfig);
     });
 
+    it('requires one plugin label per plugin package', async () => {
+        const missing = repo({ packages: { waypoints: true, 'tab-display': true, 'shared-lib': false } });
+        const { errors } = await syncCodeRabbitLabels({ root: missing });
+        assert.equal(errors.length, 1);
+        assert.match(errors[0], /packages\/tab-display/);
+
+        const extra = repo({ packages: {} });
+        assert.equal((await syncCodeRabbitLabels({ root: extra })).errors.length, 1);
+    });
+
     it('writes a sync manifest without the CodeRabbit field', async () => {
         const dir = repo();
         const manifest = path.join(dir, 'manifest.yml');
