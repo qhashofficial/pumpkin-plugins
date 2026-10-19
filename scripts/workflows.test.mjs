@@ -495,3 +495,93 @@ describe('CI job selection and release prerequisites', () => {
         assert.ok(extensions.jobs.verify.steps.some((step) => step.run?.includes('run package')));
     });
 });
+
+describe('engine comparison comment workflow', () => {
+    const workflow = parse(
+        fs.readFileSync(path.join(scripts, '../.github/workflows/engine-comparison-comment.yml'), 'utf8'),
+    );
+    const job = workflow.jobs.report;
+    const startsWith = (value, prefix) => String(value ?? '').startsWith(prefix);
+    const runsFor = (workflowRun) =>
+        runInNewContext(job.if.trim().replace(/^\$\{\{|\}\}$/g, ''), {
+            startsWith,
+            github: { event: { workflow_run: workflowRun } },
+        });
+    const forkRun = {
+        event: 'pull_request',
+        conclusion: 'success',
+        head_branch: 'feature',
+        head_sha: 'a'.repeat(40),
+        pull_requests: [],
+    };
+
+    it('reports successful pull request runs, including runs from forks', () => {
+        assert.equal(runsFor(forkRun), true, 'fork runs carry no pull_requests entry');
+        assert.equal(runsFor({ ...forkRun, conclusion: 'failure' }), false);
+        assert.equal(runsFor({ ...forkRun, event: 'push' }), false);
+        assert.equal(runsFor({ ...forkRun, head_branch: 'release-please--branches--master' }), false);
+    });
+
+    /** Runs the pull request lookup step against a fake `gh` that returns `pulls` as the API response. */
+    function findPullRequest(pulls, head) {
+        const step = job.steps.find((candidate) => candidate.run?.includes('/pulls'));
+        assert.ok(step, 'the job must look up the pull request for the run');
+        const dir = repo({
+            'bin/gh': `#!/bin/sh\nprintf '%s\\n' "$@" > "$FAKE_GH_DIR/gh-args"\ncat "$FAKE_GH_DIR/pulls.json"\n`,
+            'pulls.json': JSON.stringify(pulls),
+        });
+        fs.chmodSync(path.join(dir, 'bin/gh'), 0o755);
+        const output = path.join(dir, 'github-output');
+        const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', step.run], {
+            cwd: dir,
+            env: {
+                ...process.env,
+                PATH: `${path.join(dir, 'bin')}:${process.env.PATH}`,
+                GITHUB_OUTPUT: output,
+                GH_TOKEN: 'token',
+                GH_REPO: 'owner/repo',
+                FAKE_GH_DIR: dir,
+                ...head,
+            },
+            encoding: 'utf8',
+        });
+        assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+        return {
+            args: fs.readFileSync(path.join(dir, 'gh-args'), 'utf8'),
+            outputs: fs.existsSync(output) ? fs.readFileSync(output, 'utf8') : '',
+            dir,
+        };
+    }
+
+    const head = {
+        HEAD_OWNER: 'contributor',
+        HEAD_REPOSITORY: 'contributor/repo',
+        HEAD_BRANCH: 'feature',
+        HEAD_SHA: 'a'.repeat(40),
+    };
+    const pull = (number, sha, repository = 'contributor/repo') => ({
+        number,
+        head: { sha, repo: { full_name: repository } },
+        base: { sha: 'b'.repeat(40) },
+    });
+
+    it('finds a fork pull request by its head repository and commit', () => {
+        const { args, outputs } = findPullRequest(
+            [pull(11, 'c'.repeat(40)), pull(12, 'a'.repeat(40), 'someone/else'), pull(13, 'a'.repeat(40))],
+            head,
+        );
+        assert.match(args, /^head=contributor:feature$/m);
+        assert.equal(outputs, `number=13\nbase_sha=${'b'.repeat(40)}\n`);
+    });
+
+    it('reports nothing when no open pull request has the run commit as its head', () => {
+        assert.equal(findPullRequest([pull(11, 'c'.repeat(40))], head).outputs, '');
+        assert.equal(findPullRequest([], head).outputs, '');
+    });
+
+    it('passes the fork branch name to the API without running it as shell', () => {
+        const { args, dir } = findPullRequest([], { ...head, HEAD_BRANCH: '$(touch pwned)`touch pwned`' });
+        assert.match(args, /^head=contributor:\$\(touch pwned\)`touch pwned`$/m);
+        assert.equal(fs.existsSync(path.join(dir, 'pwned')), false);
+    });
+});
