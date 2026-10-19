@@ -231,10 +231,20 @@ function normalizeAccess(value: WaypointAccess): WaypointAccess {
     }
     const grants = new Map<string, AccessGrant>();
     for (const grant of value.grants) {
-        if (!isAccessGrant(grant)) throw new TypeError('Waypoint access grant is invalid.');
+        if (!isAccessGrant(grant)) throw new TypeError(invalidGrantMessage(grant));
         grants.set(grantKey(grant), { ...grant });
     }
     return { mode: value.mode, grants: [...grants.values()] };
+}
+
+function invalidGrantMessage(grant: unknown): string {
+    const type = isRecord(grant) ? grant.type : undefined;
+    if (type === 'player') return 'Player grants need a player UUID.';
+    if (type === 'permission') return 'Permission grants need a node in the form namespace:node.';
+    if (type === 'group') {
+        return 'Group names need 1 to 64 lowercase letters, digits, hyphens or underscores, starting with a letter or digit.';
+    }
+    return 'Waypoint access grant is invalid.';
 }
 
 function isPosition(value: unknown): value is WaypointPosition {

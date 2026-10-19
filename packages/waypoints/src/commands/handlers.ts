@@ -410,7 +410,7 @@ function mutationLines(result: MutationResult, success: string): CommandLine[] {
     if (result.status === 'created' || result.status === 'updated' || result.status === 'removed') return [success];
     if (result.status === 'not-found') return [errorLine(INACCESSIBLE)];
     if (result.status === 'conflict') return [errorLine('A waypoint with that name already exists.')];
-    if (result.status === 'invalid') return [errorLine('The waypoint data is invalid.')];
+    if (result.status === 'invalid') return [errorLine(result.reason ?? 'The waypoint data is invalid.')];
     return [errorLine(STORAGE_ERROR)];
 }
 
