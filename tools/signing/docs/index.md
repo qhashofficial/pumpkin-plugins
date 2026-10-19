@@ -12,6 +12,11 @@ returns the public key and release metadata; compare that key with one you trust
 file. Tools can inspect the sections or remove trailing signing sections, and signing replaces
 existing trailing signing sections before adding a new signature.
 
+`verifyWasm` reads the signature from a `wasm_signature` or `pumpkin.signature` section and accepts
+hex in either case, as Pumpkin does. It is stricter than Pumpkin in two places: it reads only the
+signing sections at the end of the file, and it needs a version 1 Ed25519 envelope rather than raw
+signature bytes. Files from `signWasm` pass both checks.
+
 ## Metadata IDs
 
 The metadata IDs `plugin_id`, `dev_id`, and `user_id` use the host's signed 64-bit range. Pass them

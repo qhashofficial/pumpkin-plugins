@@ -4,8 +4,10 @@ import { appendCustomSections, METADATA_SECTION, SIGNATURE_SECTION, stripSignatu
 const PKCS8_PREFIX = Buffer.from('302e020100300506032b657004220420', 'hex');
 const SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 const SECRET_PATTERN = /^[0-9a-fA-F]{64}$/;
-const PUBLIC_PATTERN = /^[0-9a-f]{64}$/;
-const SIGNATURE_PATTERN = /^[0-9a-f]{128}$/;
+const PUBLIC_PATTERN = /^[0-9a-fA-F]{64}$/;
+const SIGNATURE_PATTERN = /^[0-9a-fA-F]{128}$/;
+// Pumpkin reads its legacy `pumpkin.signature` section name as a signature too.
+const SIGNATURE_SECTIONS = [SIGNATURE_SECTION, 'pumpkin.signature'];
 
 /** An ID in Pumpkin signing metadata. Numbers must be safe integers; bigints support the full s64 range. */
 export type SigningId = bigint | number;
@@ -151,8 +153,8 @@ export function signWasm(wasm: Uint8Array, metadata: SigningMetadata, secretKeyH
     ]);
 }
 
-function last(sections: WasmSection[], name: string): WasmSection | undefined {
-    return [...sections].reverse().find((s) => s.name === name);
+function last(sections: WasmSection[], names: readonly string[]): WasmSection | undefined {
+    return [...sections].reverse().find((s) => s.name !== undefined && names.includes(s.name));
 }
 
 const ID_FIELDS = ['plugin_id', 'dev_id', 'user_id'];
@@ -227,6 +229,12 @@ function isSigningMetadata(
 
 /**
  * Checks the signature of a wasm binary. Never throws: problems are reported in the result.
+ *
+ * Like Pumpkin, it reads the signature from a `wasm_signature` or `pumpkin.signature` section and
+ * accepts hex in either case. It still differs from Pumpkin in three ways: it reads only the signing
+ * sections at the end of the file, it requires a version 1 Ed25519 JSON envelope where Pumpkin also
+ * accepts raw signature bytes, and it keeps the last value of a repeated JSON key where Pumpkin
+ * rejects the section.
  * @param wasm - The binary to check.
  * @returns Whether it is signed, whether the signature is valid, and what it says.
  */
@@ -237,8 +245,8 @@ export function verifyWasm(wasm: Uint8Array): VerifyResult {
     } catch (error) {
         return { signed: false, valid: false, error: (error as Error).message };
     }
-    const metadataSection = last(stripped.trailing, METADATA_SECTION);
-    const signatureSection = last(stripped.trailing, SIGNATURE_SECTION);
+    const metadataSection = last(stripped.trailing, [METADATA_SECTION]);
+    const signatureSection = last(stripped.trailing, SIGNATURE_SECTIONS);
     if (!signatureSection?.data) return { signed: false, valid: false, error: 'no signature found' };
     if (!metadataSection?.data) {
         return { signed: true, valid: false, error: `signature without a ${METADATA_SECTION} section` };
@@ -250,18 +258,19 @@ export function verifyWasm(wasm: Uint8Array): VerifyResult {
     const envelope = parseJson(signatureSection.data);
     const base = { signed: true, valid: false, ...(metadata ? { metadata } : {}) };
     if (!envelope) return { ...base, error: 'signature envelope is not a JSON object' };
-    const publicKeyHex = envelope.public_key_hex;
+    const rawPublicKeyHex = envelope.public_key_hex;
     const signatureHex = envelope.signature_hex;
     if (envelope.version !== 1) return { ...base, error: `unsupported signature version ${String(envelope.version)}` };
     if (envelope.algorithm !== 'Ed25519') {
         return { ...base, error: `unsupported signature algorithm ${String(envelope.algorithm)}` };
     }
-    if (typeof publicKeyHex !== 'string' || !PUBLIC_PATTERN.test(publicKeyHex)) {
-        return { ...base, error: 'public_key_hex must be 64 lowercase hex characters' };
+    if (typeof rawPublicKeyHex !== 'string' || !PUBLIC_PATTERN.test(rawPublicKeyHex)) {
+        return { ...base, error: 'public_key_hex must be 64 hex characters' };
     }
     if (typeof signatureHex !== 'string' || !SIGNATURE_PATTERN.test(signatureHex)) {
-        return { ...base, error: 'signature_hex must be 128 lowercase hex characters' };
+        return { ...base, error: 'signature_hex must be 128 hex characters' };
     }
+    const publicKeyHex = rawPublicKeyHex.toLowerCase();
     const withKey = { ...base, publicKeyHex };
     const key = createPublicKey({
         key: Buffer.concat([SPKI_PREFIX, Buffer.from(publicKeyHex, 'hex')]),
