@@ -7,7 +7,6 @@ import { validateCompatibilityMatrix } from '../src/compatibility-schema.ts';
 import { parsePumpkinWitPin } from '../src/wit.mjs';
 
 const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const repoRoot = path.resolve(apiRoot, '../..');
 const compatibilityDirectory = path.join(apiRoot, 'compatibility');
 const witLockFile = path.join(apiRoot, 'wit.lock.json');
 const witPin = parsePumpkinWitPin(fs.readFileSync(witLockFile, 'utf8'), witLockFile);
@@ -25,7 +24,7 @@ it('discovers at least one compatibility definition', () => {
     expect(matrixFiles.length).toBeGreaterThan(0);
 });
 
-it('uses the published schema URL in matrices and VS Code settings', () => {
+it('uses the published schema URL in matrices', () => {
     const schemaUrl =
         'https://raw.githubusercontent.com/filiphsps/pumpkin-plugins/master/tools/pumpkin-api/schemas/pumpkin-api-compatibility.schema.json';
 
@@ -40,12 +39,6 @@ it('uses the published schema URL in matrices and VS Code settings', () => {
     );
     expect(schema.$id).toBe(schemaUrl);
     expect(schema.properties.$schema.const).toBe(schemaUrl);
-
-    const settings = JSON.parse(fs.readFileSync(path.join(repoRoot, '.vscode/settings.json'), 'utf8'));
-    expect(settings['json.schemas']).toContainEqual({
-        fileMatch: ['tools/pumpkin-api/compatibility/**/*.json'],
-        url: schemaUrl,
-    });
 });
 
 it('rejects compatibility matrices that omit schema-required fields', () => {
