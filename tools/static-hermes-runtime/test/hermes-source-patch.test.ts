@@ -4,7 +4,13 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 import { acquireHermesBuildLock, isHermesBuildCacheCurrent, saveHermesBuildCache } from '../src/hermes/build.ts';
-import { applyHermesPatchSeries, readHermesPatchSeries, verifyHermesPatchSeriesApplied } from '../src/hermes/patch.ts';
+import type { HermesPatch } from '../src/hermes/patch.ts';
+import {
+    applyHermesPatchSeries,
+    HermesPatchConflictError,
+    readHermesPatchSeries,
+    verifyHermesPatchSeriesApplied,
+} from '../src/hermes/patch.ts';
 import {
     ensureHermesSource,
     parseHermesSourcePin,
@@ -175,35 +181,43 @@ it('discovers patches by numeric order and rejects gaps before applying', () => 
     expect(() => readHermesPatchSeries(directory)).toThrow('expected 0002, found 0003-second.patch');
 });
 
-it('applies each ordered patch once and skips patches already applied', () => {
-    const directory = temporaryDirectory();
-    writePatch(directory, '0001-first.patch', 'first.txt');
-    writePatch(directory, '0002-second.patch', 'second.txt');
-    const patches = readHermesPatchSeries(directory);
-    const applied = new Set<string>();
-    const commands: string[] = [];
-    const runner: HermesProcessRunner = {
-        run(_command, args, options) {
-            commands.push(args.join(' '));
-            const filename = patchTargetFromInput(options);
-            if (args.includes('--check')) {
-                if (args.includes('--reverse') ? applied.has(filename) : !applied.has(filename)) return;
-                throw new Error('patch check failed');
-            }
-            if (args.includes('apply')) applied.add(filename);
-        },
-        output(_command, args) {
-            return isPorcelainStatusCommand(args) ? '' : 'git-dir';
-        },
-        buffer() {
-            return Buffer.alloc(0);
-        },
-    };
-    applyHermesPatchSeries({ source: directory, patches, process: runner });
-    applyHermesPatchSeries({ source: directory, patches, process: runner });
+it('applies overlapping patches in order and treats a patched source as applied', () => {
+    const { source, patches } = overlappingSeries();
 
-    expect([...applied]).toHaveLength(2);
-    expect(commands.filter((command) => command.includes(' apply') && !command.includes('--check'))).toHaveLength(2);
+    applyHermesPatchSeries({ source, patches });
+    expect(fs.readFileSync(path.join(source, 'lines.txt'), 'utf8')).toBe('a\nB\nC\nd\n');
+    expect(() => verifyHermesPatchSeriesApplied(source, patches)).not.toThrow();
+
+    applyHermesPatchSeries({ source, patches });
+    expect(fs.readFileSync(path.join(source, 'lines.txt'), 'utf8')).toBe('a\nB\nC\nd\n');
+});
+
+it('applies only the patches a partly patched source is missing', () => {
+    const { source, patches, contents } = overlappingSeries();
+    git(source, ['apply'], contents[0]);
+
+    expect(() => verifyHermesPatchSeriesApplied(source, patches)).toThrow(/not applied: .*0002-second\.patch/);
+    applyHermesPatchSeries({ source, patches });
+
+    expect(fs.readFileSync(path.join(source, 'lines.txt'), 'utf8')).toBe('a\nB\nC\nd\n');
+});
+
+it('rejects unrelated edits and patch conflicts with actionable paths', () => {
+    const { source, patches } = overlappingSeries();
+    fs.writeFileSync(path.join(source, 'unrelated.txt'), 'local edit\n');
+    expect(() => applyHermesPatchSeries({ source, patches })).toThrow(/outside the managed patch set.*unrelated\.txt/);
+
+    fs.writeFileSync(path.join(source, 'unrelated.txt'), 'keep\n');
+    fs.writeFileSync(path.join(source, 'lines.txt'), 'a\nlocal\nc\nd\n');
+    let failure: unknown;
+    try {
+        applyHermesPatchSeries({ source, patches });
+    } catch (error) {
+        failure = error;
+    }
+    expect(failure).toBeInstanceOf(HermesPatchConflictError);
+    expect(String(failure)).toMatch(/does not apply to the pinned source.*0001-first\.patch/);
+    expect(fs.readFileSync(path.join(source, 'lines.txt'), 'utf8')).toBe('a\nlocal\nc\nd\n');
 });
 
 it('applies long-path CRLF patches from stdin on Windows', () => {
@@ -255,35 +269,6 @@ it('applies long-path CRLF patches from stdin on Windows', () => {
     expect(() => applyHermesPatchSeries({ source, patches, process: runner })).not.toThrow();
     expect(() => verifyHermesPatchSeriesApplied(source, patches, runner)).not.toThrow();
     expect(fs.readFileSync(path.join(source, 'first.txt'), 'utf8')).toBe('new\n');
-});
-
-it('rejects unrelated edits and patch conflicts with actionable paths', () => {
-    const directory = temporaryDirectory();
-    writePatch(directory, '0001-first.patch', 'first.txt');
-    const patches = readHermesPatchSeries(directory);
-    const conflictRunner: HermesProcessRunner = {
-        run(_command, args) {
-            if (args.includes('--check')) throw new Error('conflict');
-        },
-        output(_command, args) {
-            if (isPorcelainStatusCommand(args)) return args.includes('-z') ? ' M unrelated.txt\0' : ' M unrelated.txt';
-            return 'git-dir';
-        },
-        buffer() {
-            return Buffer.alloc(0);
-        },
-    };
-
-    expect(() => applyHermesPatchSeries({ source: directory, patches, process: conflictRunner })).toThrow(
-        /outside the managed patch set.*unrelated.txt/,
-    );
-    const cleanRunner = {
-        ...conflictRunner,
-        output: (_command: string, args: readonly string[]) => (isPorcelainStatusCommand(args) ? '' : 'git-dir'),
-    };
-    expect(() => applyHermesPatchSeries({ source: directory, patches, process: cleanRunner })).toThrow(
-        /does not apply to the pinned source.*0001-first.patch/,
-    );
 });
 
 it('rejects refreshing a managed rename whose destination is outside the patch set', () => {
@@ -433,12 +418,46 @@ function writePatch(directory: string, name: string, filename: string): void {
     );
 }
 
-function patchTargetFromInput(options: Parameters<HermesProcessRunner['run']>[2]): string {
-    const contents = options?.input;
-    if (typeof contents !== 'string') throw new Error('Git patch contents are missing');
-    const filename = contents.match(/^diff --git a\/([^\s]+) b\//m)?.[1];
-    if (filename === undefined) throw new Error('Git patch target is missing');
-    return filename;
+/** Run Git in a fixture repository without signing or line-ending conversion from user config. */
+function git(cwd: string, args: string[], input?: string): string {
+    return execFileSync('git', ['-c', 'commit.gpgsign=false', '-c', 'core.autocrlf=false', '-C', cwd, ...args], {
+        encoding: 'utf8',
+        input,
+        stdio: ['pipe', 'pipe', 'pipe'],
+    });
+}
+
+/** Create a committed Git repository with the given files. */
+function repository(files: Record<string, string>): string {
+    const directory = temporaryDirectory();
+    git(directory, ['init', '--quiet']);
+    git(directory, ['config', 'user.name', 'Hermes test']);
+    git(directory, ['config', 'user.email', 'hermes-test@example.com']);
+    for (const [filename, text] of Object.entries(files)) {
+        fs.mkdirSync(path.dirname(path.join(directory, filename)), { recursive: true });
+        fs.writeFileSync(path.join(directory, filename), text);
+    }
+    git(directory, ['add', '.']);
+    git(directory, ['commit', '--quiet', '-m', 'source fixture']);
+    return directory;
+}
+
+/** Build a two-patch series where the second patch's context includes the first patch's change. */
+function overlappingSeries(): { source: string; patches: HermesPatch[]; contents: string[] } {
+    const base = { 'lines.txt': 'a\nb\nc\nd\n', 'unrelated.txt': 'keep\n' };
+    const author = repository(base);
+    const patchesDirectory = temporaryDirectory();
+    const contents = ['a\nB\nc\nd\n', 'a\nB\nC\nd\n'].map((text, index) => {
+        fs.writeFileSync(path.join(author, 'lines.txt'), text);
+        const patch = git(author, ['diff']);
+        git(author, ['commit', '--quiet', '-am', `step ${index + 1}`]);
+        fs.writeFileSync(
+            path.join(patchesDirectory, `000${index + 1}-${index === 0 ? 'first' : 'second'}.patch`),
+            patch,
+        );
+        return patch;
+    });
+    return { source: repository(base), patches: readHermesPatchSeries(patchesDirectory), contents };
 }
 
 function isPorcelainStatusCommand(args: readonly string[]): boolean {
