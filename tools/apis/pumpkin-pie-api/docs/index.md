@@ -1,7 +1,7 @@
 # PumpkinPIE API
 
 <!-- docs:begin overview -->
-<!-- Generated from protocol/session constants, test/provider.ts and package.json. Run `pnpm readme`. -->
+<!-- Generated from protocol/session constants, test/release.ts and package.json. Run `pnpm readme`. -->
 
 Host-independent TypeScript client, expansion router and recovery session for
 [PumpkinPIE (EXTERNAL)](https://github.com/Rennex07/PumpkinPIE) protocol 0.
@@ -187,7 +187,7 @@ Coordinate ownership centrally rather than letting independent components unregi
 ## Scheduling, recovery and failures
 
 <!-- docs:begin scheduling -->
-<!-- Generated from protocol/session constants, test/provider.ts and package.json. Run `pnpm readme`. -->
+<!-- Generated from protocol/session constants, test/release.ts and package.json. Run `pnpm readme`. -->
 
 The session starts unavailable. Call `tick()` explicitly with a monotonic millisecond clock; there
 are no global timers. Failed attempts use exponential backoff (1000–300000 ms).
@@ -217,7 +217,7 @@ the correct result wrapper. Unknown additive fields are ignored. Invalid UTF-8, 
 fields, counts, cache policies, contradictory values or result variants fail validation.
 
 <!-- docs:begin limits -->
-<!-- Generated from protocol/session constants, test/provider.ts and package.json. Run `pnpm readme`. -->
+<!-- Generated from protocol/session constants, test/release.ts and package.json. Run `pnpm readme`. -->
 
 | Limit | Maximum |
 | --- | --- |
@@ -292,7 +292,7 @@ pnpm --filter @pumpkin-plugins/pumpkin-pie-api test:integration
 ```
 
 <!-- docs:begin provenance -->
-<!-- Generated from protocol/session constants, test/provider.ts and package.json. Run `pnpm readme`. -->
+<!-- Generated from protocol/session constants, test/release.ts and package.json. Run `pnpm readme`. -->
 
 Global setup downloads the exact
 [PumpkinPIE v0.2.3 release](https://github.com/Rennex07/PumpkinPIE/releases/tag/v0.2.3), never `latest`,
@@ -329,6 +329,10 @@ network access; `pnpm test` and coverage select only the unit project.
 Additional integration files can use `inject('pieProviderPath')` from Vitest after this global setup
 and pass it to `startPumpkin({ plugins: [providerPath, consumerPath] })`. Build any guest consumer
 before that test. Do not substitute Node unit transports for the compiled consumer's host IPC.
+
+Integration tests in other workspace packages import `resolvePieProvider` and `PIE_RELEASE` from
+`@pumpkin-plugins/pumpkin-pie-api/testing/provider`. The subpath resolves only inside this
+repository: it depends on the private test harness and is removed from the published manifest.
 
 These provider tests verify release provenance, ABI loading and console behavior. Compiled consumer
 IPC, expansion callbacks, outage/recovery and per-subject mapping still require guest integration
