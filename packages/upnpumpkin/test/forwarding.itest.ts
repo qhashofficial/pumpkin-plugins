@@ -82,7 +82,11 @@ describe.skipIf(hasPublicAddress)('port forwarding', () => {
         );
         const from = server.lines.length;
         server.command('upnp reload');
-        await server.waitForLog(/Reloaded the config\. 1 port is being kept open\./, 10_000, from);
+        await server.waitForLog(
+            /Reloaded the config\. 1 port requested; \/upnp status shows which are open\./,
+            10_000,
+            from,
+        );
         await server.waitForLog(/Opened TCP port 25570/, 10_000, from);
         expect([...router.igd.mappings.keys()]).toEqual(['tcp:25570']);
         expect(router.igd.actions.filter((a) => a === 'DeletePortMapping')).toHaveLength(1);
