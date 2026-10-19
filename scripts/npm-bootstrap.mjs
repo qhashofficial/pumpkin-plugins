@@ -138,7 +138,7 @@ export async function bootstrapPublicTool(options, injected = {}) {
                 )}@${String(sourceManifest.version)}`,
             );
         }
-        const taggedPrerequisiteVersions = readTaggedPrerequisiteVersions(sourceRoot);
+        const taggedPrerequisiteVersions = publicToolPackageVersions(sourceRoot);
 
         await archive.install(sourceRoot);
         const packDirectory = path.join(temporaryDirectory, 'packed');
@@ -161,7 +161,13 @@ export async function bootstrapPublicTool(options, injected = {}) {
         }
         assertPublicToolPackageContents(packed.entries, selectedPath, packed.packageJson);
 
-        const prerequisites = getPrerequisites(selectedPath, packed, taggedPrerequisiteVersions, sourceRoot);
+        const prerequisites = getPublicToolReleasePrerequisites(
+            selectedPath,
+            packed.packageJson,
+            taggedPrerequisiteVersions,
+            packed.embeddedPackageJsons,
+            sourceRoot,
+        );
         for (const prerequisite of prerequisites) {
             const result = await readRegistryVersion(registry, prerequisite.packageName, prerequisite.version);
             if (result.kind !== 'found') {
@@ -246,20 +252,6 @@ export async function bootstrapPublicTool(options, injected = {}) {
     } finally {
         removeTempDirectory(temporaryDirectory);
     }
-}
-
-function readTaggedPrerequisiteVersions(sourceRoot) {
-    return publicToolPackageVersions(sourceRoot);
-}
-
-function getPrerequisites(packagePath, packed, taggedVersions, sourceRoot) {
-    return getPublicToolReleasePrerequisites(
-        packagePath,
-        packed.packageJson,
-        taggedVersions,
-        packed.embeddedPackageJsons ?? [],
-        sourceRoot,
-    );
 }
 
 async function downloadSourceArchive(fetchArchive, sourceUrl, archiveFile, tag) {
@@ -603,9 +595,7 @@ export async function main(args = process.argv.slice(2)) {
                 `${result.packageName}@${result.version} is already bootstrapped; registry integrity matches the packed tarball.`,
             );
         } else if (result.status === 'dry-run') {
-            console.log(
-                `Dry run passed for ${result.packageName}@${result.version}; no publish or trust changes were made.`,
-            );
+            console.log(`Dry run passed for ${result.packageName}@${result.version}; no package was published.`);
         } else {
             console.log(`Published ${result.packageName}@${result.version}.`);
         }

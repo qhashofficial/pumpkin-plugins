@@ -68,7 +68,6 @@ function makeFixture({
         registry: [],
         preflight: [],
         published: [],
-        trustChanges: [],
         removed: [],
     };
     const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'npm-bootstrap-test-'));
@@ -384,7 +383,7 @@ describe('npm first-release bootstrap', () => {
         assert.deepEqual(fixture.events.published, []);
     });
 
-    it('dry-run validates against the registry without publishing or changing trust', async () => {
+    it('dry-run validates against the registry without publishing', async () => {
         const fixture = makeFixture();
 
         const result = await bootstrapFixture(fixture, { dryRun: true });
@@ -393,7 +392,6 @@ describe('npm first-release bootstrap', () => {
         assert.ok(fixture.events.registry.some(([kind]) => kind === 'package'));
         assert.deepEqual(fixture.events.preflight, []);
         assert.deepEqual(fixture.events.published, []);
-        assert.deepEqual(fixture.events.trustChanges, []);
     });
 
     it('treats only an npm E404 response as a definitive missing package version', async () => {
