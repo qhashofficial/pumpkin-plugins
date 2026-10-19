@@ -11,6 +11,25 @@ import { MAX_POINTS_PER_SECTION } from './constants.ts';
 
 const EMPTY_DH_MATERIAL = /_DH-BSW_minecraft:(?:air|void_air)$/;
 
+// Field values for DH core FullDataSourceV2DTO, written in the order of its encode().
+/** DTO.dataChecksum, left unset. */
+const DATA_CHECKSUM = 0;
+/** EDhApiWorldGenerationStep.LIGHT: every column is fully generated. */
+const GENERATION_STEP_LIGHT = 9;
+/** EDhApiWorldCompressionMode.MERGE_SAME_BLOCKS for every column. */
+const WORLD_COMPRESSION_MERGE_SAME_BLOCKS = 0;
+/** DTO.DATA_FORMAT.V1_NO_ADJACENT_DATA, so the four adjacent-data arrays stay empty. */
+const DATA_FORMAT_V1_NO_ADJACENT_DATA = 1;
+/** EDhApiDataCompressionMode.UNCOMPRESSED. */
+const DATA_COMPRESSION_UNCOMPRESSED = 0;
+const EMPTY = new Uint8Array();
+
+/**
+ * Size of a DTO whose arrays are all empty: position, checksum, seven array lengths, format and
+ * compression bytes, three flags and two timestamps. Shorter payloads cannot be a DTO.
+ */
+export const MIN_DTO_BYTES = 8 + 4 + 7 * 4 + 2 + 3 + 2 * 8;
+
 /** Incrementally captures terrain and encodes a completed section for the DH client. */
 export class LodBuilder {
     private readonly capture: TerrainCapture;
@@ -79,22 +98,22 @@ export class LodBuilder {
 
         return new Writer()
             .words(this.section.high, this.section.low)
-            .int(0)
+            .int(DATA_CHECKSUM)
             .blob(columnData.finish())
-            .int(0)
-            .int(0)
-            .int(0)
-            .int(0)
-            .blob(new Uint8Array(SECTION_AREA).fill(9))
-            .blob(new Uint8Array(SECTION_AREA))
+            .blob(EMPTY) // north adjacent data
+            .blob(EMPTY) // south adjacent data
+            .blob(EMPTY) // east adjacent data
+            .blob(EMPTY) // west adjacent data
+            .blob(new Uint8Array(SECTION_AREA).fill(GENERATION_STEP_LIGHT))
+            .blob(new Uint8Array(SECTION_AREA).fill(WORLD_COMPRESSION_MERGE_SAME_BLOCKS))
             .blob(mappingData.finish())
-            .byte(1)
-            .byte(0)
-            .bool(true)
-            .bool(false)
-            .bool(false)
-            .timestamp(now)
-            .timestamp(now)
+            .byte(DATA_FORMAT_V1_NO_ADJACENT_DATA)
+            .byte(DATA_COMPRESSION_UNCOMPRESSED)
+            .bool(true) // applyToParent
+            .bool(false) // applyToChildren
+            .bool(false) // regenerate
+            .timestamp(now) // lastModifiedUnixDateTime
+            .timestamp(now) // createdUnixDateTime
             .finish();
     }
 }
