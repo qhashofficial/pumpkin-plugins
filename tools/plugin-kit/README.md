@@ -10,6 +10,19 @@ encoders, plus in-memory fakes for tests. `PluginBase` builds Pumpkin metadata f
 `PluginInfo`, and `registerPlugin` starts the non-blocking Pumpkin Market update check after the
 plugin loads.
 
+The kit keeps its own handler ids for scheduled tasks and commands, and Pumpkin's API package
+doesn't know them. Export the kit's dispatchers from your entry point so Pumpkin's callbacks reach
+them:
+
+```ts
+export { handleCommand, handleTask } from '@pumpkin-plugins/plugin-kit/plugin';
+export * from '@pumpkin-plugins/pumpkin-api';
+```
+
+The named exports replace the API package's `handleCommand` and `handleTask`, which `export *`
+would otherwise re-export. Without them, commands registered with `registerCommands` fail with
+`No handler for command ID`, and the kit's scheduled tasks, including the update check, never run.
+
 The [plugin-kit guide](docs/index.md) covers the lifecycle, scheduling, data folders, commands and
 test fakes. [Plugin info and READMEs](../../docs/plugin-info-and-readmes.md) explains `PluginInfo`
 and command declarations, and the [code style guide](../../docs/code-style.md) covers shared

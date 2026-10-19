@@ -15,7 +15,8 @@ version.
 ## Use the plugin-kit check
 
 `PluginBase` and `registerPlugin` enable the check as part of the normal plugin lifecycle. Export
-`handleTask` from your entry point so the plugin kit can dispatch the scheduled HTTP polls:
+the kit's `handleTask` from your entry point so the plugin kit can dispatch the scheduled HTTP polls.
+If the plugin registers commands with `registerCommands`, export `handleCommand` the same way:
 
 ```ts
 import type { Context } from 'pumpkin:plugin/context@0.1.0';
@@ -34,7 +35,8 @@ class MyPlugin extends PluginBase {
 
 registerPlugin(new MyPlugin());
 
-export { handleTask } from '@pumpkin-plugins/plugin-kit/plugin';
+export { handleCommand, handleTask } from '@pumpkin-plugins/plugin-kit/plugin';
+export * from '@pumpkin-plugins/pumpkin-api';
 ```
 
 Add the `http` capability to `pumpkinPlugin.wasi` in `package.json`. The server must also grant the
