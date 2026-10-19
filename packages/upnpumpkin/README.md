@@ -24,9 +24,12 @@ in to it:
 
 - It opens the Java Edition port (TCP 25565) and the Bedrock Edition port (UDP 19132). Change them in
   `config.toml` if your server listens elsewhere.
-- Ports are leased: the router forgets them if the server dies, they are renewed at half the lease
-  time or every five minutes, whichever comes first, and they are closed again when the server
-  stops.
+- Ports are leased and renewed at half the lease time or every five minutes, whichever comes first,
+  and they are closed again when the server stops. If the server dies, the router drops them when
+  the lease runs out. Routers that only accept permanent mappings keep them after a crash until you
+  remove them in the router settings.
+- Only IPv4 is supported. The plugin opens no IPv6 firewall pinholes, so IPv6-only players can't
+  reach the server through it.
 - When this machine already has a public address (a VPS or dedicated server) there is nothing to
   open, and `/upnp status` says so.
 - `/upnp status` shows the router that was found, its public address and every port.
@@ -92,7 +95,8 @@ watcher.start(); // asks at once and keeps asking
 
 It copes with UPnPumpkin loading later or not being installed (`state.kind` is `unavailable`). The
 port is closed when the watcher stops, or after five minutes without a request. The router search
-itself is the `@pumpkin-plugins/port-mapping` package, which any plugin can use directly.
+itself lives in `@pumpkin-plugins/port-mapping` (`tools/port-mapping`), an internal workspace
+package that is not published to npm.
 
 ## Permissions
 

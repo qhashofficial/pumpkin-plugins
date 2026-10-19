@@ -11,6 +11,12 @@ local network. UPnP normally uses multicast discovery. If the server's network b
 set `router.upnp_search` in `plugins/data/UPnPumpkin/config.toml` to the router's IPv4 address and
 UPnP port, for example `192.168.1.1:1900`. Run `/upnp reload` to apply the change.
 
+If the reason says the plugin is not allowed to use the network that way, Pumpkin blocked the
+socket. Check that the plugin's `network.*` permissions were granted when Pumpkin asked on the
+console, and that `pumpkin.toml` doesn't list them in `plugins.blocked_permissions`. Also check that
+`plugins.loopback_only` is off, or that `[plugins.overrides.UPnPumpkin]` sets
+`loopback_only = false`. With it on, the plugin can only reach localhost, never the router.
+
 For NAT-PMP, set `router.nat_pmp_gateway` to the gateway's IPv4 address and port (usually
 `192.168.1.1:5351`) if automatic probing does not find it. In a container or a network with
 multiple routers, check that the server can reach the router and receive its replies; a container
