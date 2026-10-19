@@ -100,7 +100,7 @@ The old [`pumpkin-plugin-build <entry-file.ts> <output-file.wasm>` command](http
 
 Keep both packages under `dependencies`, as in the [standalone plugin template](../../create-pumpkin-plugin/templates/typescript/package.json).
 
-Keep `engine: "quickjs"` if you want to retain the old QuickJS runtime. The new builder defaults to Static Hermes, so changing engines is a separate runtime migration. Copy the WASI capabilities your plugin uses into `wasi`; keep the empty list only if it uses none. See [Building](../../../docs/building.md) for supported engines and capabilities.
+The old builder ran only QuickJS. The new builder defaults to Static Hermes when `engine` is missing, and the codemod sets a missing `engine` to `"static-hermes"`. Set `engine: "quickjs"` to keep the old runtime. Moving to Static Hermes is a separate runtime migration: the build fails if the plugin imports a WASI interface that Static Hermes has no adapter for. Copy the WASI capabilities your plugin uses into `wasi`; keep the empty list only if it uses none. See [Building](../../../docs/building.md) for supported engines and capabilities.
 
 Add the generated declaration glob to the `include` list in `tsconfig.json`, keeping any source patterns your project already has:
 
