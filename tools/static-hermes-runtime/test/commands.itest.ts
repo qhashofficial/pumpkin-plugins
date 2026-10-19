@@ -7,7 +7,7 @@ import type { CommandSender, ConsumedArgs } from 'pumpkin:plugin/command@0.1.0';
 import type { Context } from 'pumpkin:plugin/context@0.1.0';
 import * as logging from 'pumpkin:plugin/logging@0.1.0';
 import type { Server } from 'pumpkin:plugin/server@0.1.0';
-import { defineCommands } from '@pumpkin-plugins/docs';
+import { CommandFailed, defineCommands } from '@pumpkin-plugins/docs';
 import { runCommand } from '@pumpkin-plugins/plugin-kit/host';
 import { registerCommands } from '@pumpkin-plugins/plugin-kit/register-commands';
 import { handleCommand as apiHandleCommand, Plugin, registerPlugin } from '@pumpkin-plugins/pumpkin-api';
@@ -18,6 +18,7 @@ const commands = defineCommands('CommandProbe', {
         permission: 'CommandProbe:command.players',
         arguments: [{ name: 'targets', type: 'players' }],
     },
+    'probe-fail': { description: 'Fail with a message', permission: 'CommandProbe:command.fail' },
 });
 
 class CommandProbe extends Plugin {
@@ -28,6 +29,9 @@ class CommandProbe extends Plugin {
         super.onLoad(context);
         registerCommands(context, commands, {
             'probe-players <targets>': (_sender, { targets }) => ['probe selected ' + targets.length + ' players'],
+            'probe-fail': () => {
+                throw new CommandFailed('probe failure message');
+            },
         });
         logging.log('info', 'CommandProbe ready');
     }
@@ -71,4 +75,10 @@ it('passes a players argument to a plugin-kit command handler', async () => {
     const output = await run('players-argument', 'probe-players @a');
     expect(output).toContain('probe selected 0 players');
     expect(output).not.toContain('missing or invalid');
+});
+
+it('shows the message of a plugin-kit CommandFailed to the sender', async () => {
+    const output = await run('command-failed', 'probe-fail');
+    expect(output).toContain('probe failure message');
+    expect(output).not.toContain('Invalid consumption');
 });
