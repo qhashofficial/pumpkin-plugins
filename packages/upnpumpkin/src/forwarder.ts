@@ -91,9 +91,12 @@ export class PortForwarder {
         this.reload();
     }
 
-    /** Reloads `config.toml`. The router is searched for again only when its settings changed. */
+    /**
+     * Reloads `config.toml`. The router is searched for again only when its settings changed.
+     * @throws {ConfigSyntaxError} When the file is not valid TOML. The current settings stay.
+     */
     reload(): void {
-        this.settings = loadPluginConfig(this.files, this.log);
+        this.settings = loadPluginConfig(this.files, this.log, this.settings);
         const { router } = this.settings;
         const key = JSON.stringify(router);
         if (this.mapper && key !== this.mapperSettings) this.retireMapper();
