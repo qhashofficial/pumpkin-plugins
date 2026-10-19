@@ -823,24 +823,6 @@ class CommandSenderObject final : public ResourceObject {
     std::shared_ptr<ResourceState> state_;
 };
 
-const char *commandArgumentStringTag(const pumpkin_plugin_command_arg_t &argument) {
-    switch (argument.tag) {
-    case PUMPKIN_PLUGIN_COMMAND_ARG_SIMPLE: return "simple";
-    case PUMPKIN_PLUGIN_COMMAND_ARG_MSG: return "msg";
-    case PUMPKIN_PLUGIN_COMMAND_ARG_ITEM: return "item";
-    case PUMPKIN_PLUGIN_COMMAND_ARG_ITEM_PREDICATE: return "item-predicate";
-    case PUMPKIN_PLUGIN_COMMAND_ARG_RESOURCE_LOCATION: return "resource-location";
-    case PUMPKIN_PLUGIN_COMMAND_ARG_BLOCK: return "block";
-    case PUMPKIN_PLUGIN_COMMAND_ARG_BLOCK_PREDICATE: return "block-predicate";
-    case PUMPKIN_PLUGIN_COMMAND_ARG_PARTICLE: return "particle";
-    case PUMPKIN_PLUGIN_COMMAND_ARG_DAMAGE_TYPE: return "damage-type";
-    case PUMPKIN_PLUGIN_COMMAND_ARG_EFFECT: return "effect";
-    case PUMPKIN_PLUGIN_COMMAND_ARG_ENCHANTMENT: return "enchantment";
-    case PUMPKIN_PLUGIN_COMMAND_ARG_ADVANCEMENT: return "advancement";
-    default: return nullptr;
-    }
-}
-
 class ConsumedArgsObject final : public ResourceObject {
   public:
     explicit ConsumedArgsObject(std::shared_ptr<ResourceState> state)
@@ -849,112 +831,15 @@ class ConsumedArgsObject final : public ResourceObject {
 
     Value getResourceProperty(Runtime &runtime, const PropNameID &name) override {
         const auto key = propertyName(runtime, name);
-        if (key == "getValue")
-            return hostFunction(
-                runtime, "getValue", 1,
-                [state = state_](Runtime &rt, const Value &, const Value *args,
-                                 std::size_t count) -> Value {
-                    if (count < 1)
-                        throw JSError(
-                            rt,
-                            "ConsumedArgs.getValue expects an argument name");
-                    auto name = wasiInputString(rt, args[0]);
-                    pumpkin_plugin_command_arg_t argument{};
-                    pumpkin_plugin_command_method_consumed_args_get_value(
-                        pumpkin_plugin_command_borrow_consumed_args_t{
-                            state->handle},
-                        &name, &argument);
-                    plugin_string_free(&name);
-
-                    Object result(rt);
-                    if (const char *tag = commandArgumentStringTag(argument)) {
-                        plugin_string_t *text = &argument.val.simple;
-                        result.setProperty(rt, "tag", tag);
-                        result.setProperty(
-                            rt, "val", jsString(rt, wasiStringValue(*text)));
-                    } else if (argument.tag == PUMPKIN_PLUGIN_COMMAND_ARG_NUM) {
-                        result.setProperty(rt, "tag", "num");
-                        Object numericResult(rt);
-                        const auto &number = argument.val.num;
-                        if (!number.is_err) {
-                            numericResult.setProperty(rt, "tag", "ok");
-                            numericResult.setProperty(
-                                rt, "val",
-                                commandNumberValue(rt, number.val.ok));
-                        } else {
-                            numericResult.setProperty(rt, "tag", "err");
-                            Object bounds(rt);
-                            const auto &error = number.val.err;
-                            const bool lower =
-                                error.tag ==
-                                PUMPKIN_PLUGIN_COMMAND_NOT_IN_BOUNDS_LOWER_BOUND;
-                            bounds.setProperty(rt, "tag",
-                                               lower ? "lower-bound"
-                                                     : "upper-bound");
-                            Array values(rt, 2);
-                            const auto &pair = lower ? error.val.lower_bound
-                                                     : error.val.upper_bound;
-                            values.setValueAtIndex(
-                                rt, 0, commandNumberValue(rt, pair.f0));
-                            values.setValueAtIndex(
-                                rt, 1, commandNumberValue(rt, pair.f1));
-                            bounds.setProperty(rt, "val", std::move(values));
-                            numericResult.setProperty(rt, "val",
-                                                      std::move(bounds));
-                        }
-                        result.setProperty(rt, "val", std::move(numericResult));
-                    } else if (argument.tag ==
-                               PUMPKIN_PLUGIN_COMMAND_ARG_BOOL) {
-                        result.setProperty(rt, "tag", "bool");
-                        result.setProperty(rt, "val", argument.val.bool_);
-                    } else if (argument.tag ==
-                               PUMPKIN_PLUGIN_COMMAND_ARG_TIME) {
-                        result.setProperty(rt, "tag", "time");
-                        result.setProperty(
-                            rt, "val", static_cast<double>(argument.val.time));
-                    } else {
-                        pumpkin_plugin_command_arg_free(&argument);
-                        throw JSError(rt, "Static Hermes does not support this "
-                                          "Pumpkin command argument type");
-                    }
-                    pumpkin_plugin_command_arg_free(&argument);
-                    return result;
-                });
+        auto generated = generatedWitSimpleMethod(
+            runtime, "command", "consumed-args", key, state_);
+        if (!generated.isUndefined())
+            return generated;
         if (key == "drop") return dropResourceFunction(runtime, state_);
         return Value::undefined();
     }
 
   private:
-    static Value
-    commandNumberValue(Runtime &runtime,
-                       const pumpkin_plugin_command_number_t &number) {
-        Object result(runtime);
-        switch (number.tag) {
-        case PUMPKIN_PLUGIN_COMMAND_NUMBER_FLOAT64:
-            result.setProperty(runtime, "tag", "float64");
-            result.setProperty(runtime, "val", Value(number.val.float64));
-            break;
-        case PUMPKIN_PLUGIN_COMMAND_NUMBER_FLOAT32:
-            result.setProperty(runtime, "tag", "float32");
-            result.setProperty(runtime, "val",
-                               Value(static_cast<double>(number.val.float32)));
-            break;
-        case PUMPKIN_PLUGIN_COMMAND_NUMBER_INT32:
-            result.setProperty(runtime, "tag", "int32");
-            result.setProperty(runtime, "val",
-                               Value(static_cast<double>(number.val.int32)));
-            break;
-        case PUMPKIN_PLUGIN_COMMAND_NUMBER_INT64:
-            result.setProperty(runtime, "tag", "int64");
-            result.setProperty(runtime, "val",
-                               BigInt::fromInt64(runtime, number.val.int64));
-            break;
-        default:
-            throw JSError(runtime, "Unknown Pumpkin command number variant");
-        }
-        return result;
-    }
-
     std::shared_ptr<ResourceState> state_;
 };
 
