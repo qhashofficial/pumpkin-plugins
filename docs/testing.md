@@ -137,8 +137,9 @@ plugin ABI should match the WIT pinned in the API package's
 [`wit.lock.json`](../tools/pumpkin-api/wit.lock.json). The harness chooses the server binary in this order:
 
 1. `PUMPKIN_BIN`, if set.
-2. If `PUMPKIN_BIN` isn't set, the pinned release, downloaded once into `.cache/pumpkin` and checked
-   against the release's `checksums.sha256`.
+2. If `PUMPKIN_BIN` isn't set, the pinned release, downloaded once into `.cache/pumpkin`. The download
+   and the cached file are checked against the SHA-256 pinned beside the release, so a cached binary
+   needs no network. Update those checksums when you change the release.
 
 | Variable | Effect |
 | --- | --- |
