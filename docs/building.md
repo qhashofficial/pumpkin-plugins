@@ -47,10 +47,10 @@ fork of `componentize-qjs`. The fork is needed because the upstream Wasmtime 47 
 WASI HTTP types used by plugins. The pinned release's own build script uses a componentizer that
 produces 55 MB plugins and can't run the WASI socket code.
 
-Production builds are minified. When you build a plugin inside this repository, a component larger
-than 5 MiB (5,242,880 bytes) fails before the build replaces the existing `.wasm` output. If you use
-the published build package outside this repository, it warns above the same limit but still writes
-the component. Development bundles stay readable and skip the size check. Static Hermes development
+Production builds are minified. A component larger than 5 MiB (5,242,880 bytes) produces a warning,
+but the build still writes it. Set `PUMPKIN_PLUGINS_FAIL_ON_SIZE_LIMIT=1` to make an oversized
+component fail the build before it replaces the existing `.wasm` output. Development bundles stay
+readable and skip the size check. Static Hermes development
 components optimize native code for size while retaining Hermes source locations and native line
 tables for backtraces.
 

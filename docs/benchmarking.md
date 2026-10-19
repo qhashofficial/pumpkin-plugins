@@ -34,7 +34,7 @@ The parser setting changes a compiler flag, not the benchmark code or inputs. Th
 
 Here, “Static Hermes” means Hermes is linked into the WASI component. The plugin's JavaScript is compiled to Hermes bytecode before the component runs; it is not translated into native Wasm instructions. JIT is disabled in this WASI build. Pumpkin runs every configuration as a Wasm component, not as a native desktop engine binary.
 
-Production builds minify the bundle. For plugins built inside this repository, the build tool enforces a 5 MiB component limit (5,242,880 bytes). External consumers get a warning and can continue. See the [Static Hermes Runtime guide](../tools/static-hermes-runtime/README.md) and [build guide](building.md) for build flags, pinned tools, and runtime details.
+Production builds minify the bundle. The build tool warns about components above 5 MiB (5,242,880 bytes) and fails on them when `PUMPKIN_PLUGINS_FAIL_ON_SIZE_LIMIT=1` is set. See the [Static Hermes Runtime guide](../tools/static-hermes-runtime/README.md) and [build guide](building.md) for build flags, pinned tools, and runtime details.
 
 ## Method and scope
 
