@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { startPumpkin } from '@pumpkin-plugins/test-harness';
 import { expect, it } from 'vitest';
+import { formatInteger } from './benchmark-results.ts';
 import { type EngineResult, formatConsoleReport, formatReport } from './engine-comparison-report.ts';
 import {
     createEngineComparisonMatrix,
@@ -192,13 +193,13 @@ function validateReport(report: string, results: EngineResult[], baseline: Engin
     expect(report).toContain(baseline.label);
     for (const result of results) {
         expect(report).toContain(result.label);
-        expect(report).toContain(`${result.binarySizeBytes.toLocaleString()} bytes`);
+        expect(report).toContain(`${formatInteger(result.binarySizeBytes)} bytes`);
     }
 
     for (const workload of baseline.workloads) {
         expect(report).toContain(workload.name);
         expect(report).toContain(workload.area);
-        expect(report).toContain(workload.operationsPerSample.toLocaleString());
+        expect(report).toContain(formatInteger(workload.operationsPerSample));
         for (const result of results) {
             const resultWorkload = result.workloads.find(({ name }) => name === workload.name);
             if (!resultWorkload) throw new Error(`${result.label} is missing workload ${workload.name}`);

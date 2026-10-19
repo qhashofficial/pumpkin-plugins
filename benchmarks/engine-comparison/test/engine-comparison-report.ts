@@ -1,4 +1,5 @@
 import type { BenchmarkWorkload, WorkloadProvenance } from '../src/benchmark-workloads.ts';
+import { formatInteger } from './benchmark-results.ts';
 
 export interface EngineResult {
     apiBehavior: {
@@ -36,7 +37,7 @@ export function formatReport(engines: readonly EngineResult[], baselineId: strin
                 engine.id === baselineId
                     ? 'baseline'
                     : formatSizeDifference(engine.binarySizeBytes, baseline.binarySizeBytes);
-            return `| ${escapeTableCell(engine.label)} | ${engine.binarySizeBytes.toLocaleString()} bytes | ${difference} |`;
+            return `| ${escapeTableCell(engine.label)} | ${formatInteger(engine.binarySizeBytes)} bytes | ${difference} |`;
         }),
         '',
         `| Benchmark type | Scope / workload | Inputs per sample | ${performanceColumns.join(' | ')} | ${ratioEngines.map(({ label }) => `${baseline.label}/${label}`).join(' | ')} |`,
@@ -60,7 +61,7 @@ export function formatReport(engines: readonly EngineResult[], baselineId: strin
         const type = provenanceLabel(baselineWorkload.provenance);
         const description = escapeTableCell(`${baselineWorkload.area} / ${baselineWorkload.name}`);
         lines.push(
-            `| ${type} | ${description} | ${baselineWorkload.operationsPerSample.toLocaleString()} | ${timingCells.join(' | ')} | ${ratioCells.join(' | ')} |`,
+            `| ${type} | ${description} | ${formatInteger(baselineWorkload.operationsPerSample)} | ${timingCells.join(' | ')} | ${ratioCells.join(' | ')} |`,
         );
     }
 
@@ -76,7 +77,7 @@ export function formatReport(engines: readonly EngineResult[], baselineId: strin
     ).length;
     const realWorkloads = baseline.workloads.filter(({ provenance }) => provenance === 'real Pumpkin API');
     const behavior = Object.entries(baseline.apiBehavior)
-        .map(([name, value]) => `${name}: ${value.toLocaleString()}`)
+        .map(([name, value]) => `${name}: ${formatInteger(value)}`)
         .join(', ');
     const averageCells = engines.map((engine) => averageBenchmarkMedian(engine.workloads).toFixed(2));
 
@@ -90,7 +91,7 @@ export function formatReport(engines: readonly EngineResult[], baselineId: strin
             : []),
         ...(realWorkloads.length > 0
             ? [
-                  `Real Pumpkin API workloads: ${realWorkloads.map(({ area, operationsPerSample }) => `${area} (${operationsPerSample.toLocaleString()} inputs per sample)`).join('; ')}.`,
+                  `Real Pumpkin API workloads: ${realWorkloads.map(({ area, operationsPerSample }) => `${area} (${formatInteger(operationsPerSample)} inputs per sample)`).join('; ')}.`,
                   'The comparison server has no connected players; player-oriented guest workloads use deterministic fixtures.',
               ]
             : []),
@@ -124,7 +125,7 @@ export function formatConsoleReport(engines: readonly EngineResult[], baselineId
             ['Engine', 'Component size', 'Difference from baseline'],
             engines.map((engine) => [
                 engine.label,
-                `${engine.binarySizeBytes.toLocaleString()} bytes`,
+                `${formatInteger(engine.binarySizeBytes)} bytes`,
                 engine.id === baselineId
                     ? 'baseline'
                     : formatSizeDifference(engine.binarySizeBytes, baseline.binarySizeBytes),
@@ -145,7 +146,7 @@ export function formatConsoleReport(engines: readonly EngineResult[], baselineId
         });
         lines.push(
             '',
-            `${provenanceLabel(baselineWorkload.provenance)} | ${baselineWorkload.area} / ${baselineWorkload.name} | ${baselineWorkload.operationsPerSample.toLocaleString()} inputs/sample`,
+            `${provenanceLabel(baselineWorkload.provenance)} | ${baselineWorkload.area} / ${baselineWorkload.name} | ${formatInteger(baselineWorkload.operationsPerSample)} inputs/sample`,
             formatConsoleTable(['Engine', 'Median (ms)', 'Min–max (ms)', 'Baseline/engine'], workloadRows),
         );
     }
@@ -162,7 +163,7 @@ export function formatConsoleReport(engines: readonly EngineResult[], baselineId
     ).length;
     const realWorkloads = baseline.workloads.filter(({ provenance }) => provenance === 'real Pumpkin API');
     const behavior = Object.entries(baseline.apiBehavior)
-        .map(([name, value]) => `${name}: ${value.toLocaleString()}`)
+        .map(([name, value]) => `${name}: ${formatInteger(value)}`)
         .join(', ');
     const averageRows = [
         [
@@ -184,7 +185,7 @@ export function formatConsoleReport(engines: readonly EngineResult[], baselineId
             : []),
         ...(realWorkloads.length > 0
             ? [
-                  `Real Pumpkin API workloads: ${realWorkloads.map(({ area, operationsPerSample }) => `${area} (${operationsPerSample.toLocaleString()} inputs per sample)`).join('; ')}.`,
+                  `Real Pumpkin API workloads: ${realWorkloads.map(({ area, operationsPerSample }) => `${area} (${formatInteger(operationsPerSample)} inputs per sample)`).join('; ')}.`,
                   'The comparison server has no connected players; player-oriented guest workloads use deterministic fixtures.',
               ]
             : []),
@@ -249,7 +250,7 @@ function provenanceLabel(provenance: WorkloadProvenance): string {
 function formatSizeDifference(sizeBytes: number, baselineBytes: number): string {
     const differenceBytes = sizeBytes - baselineBytes;
     const differencePercent = (100 * differenceBytes) / baselineBytes;
-    const signedBytes = `${differenceBytes > 0 ? '+' : ''}${differenceBytes.toLocaleString()}`;
+    const signedBytes = `${differenceBytes > 0 ? '+' : ''}${formatInteger(differenceBytes)}`;
     const signedPercent = `${differencePercent > 0 ? '+' : ''}${differencePercent.toFixed(2)}`;
     return `${signedBytes} bytes (${signedPercent}%)`;
 }

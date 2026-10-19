@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { code, table } from '@pumpkin-plugins/docs/markdown';
 import type { DocumentSpec } from '@pumpkin-plugins/docs/node';
 import ts from 'typescript';
+import { formatInteger } from './test/benchmark-results.ts';
 
 interface WorkloadRow {
     area: string;
@@ -29,7 +30,7 @@ const workloadRows = table(
     workloads.map(({ area, kind, name, operationsPerSample }) => [
         kind,
         code(name),
-        new Intl.NumberFormat('en-US').format(operationsPerSample),
+        formatInteger(operationsPerSample),
         area,
     ]),
 );
