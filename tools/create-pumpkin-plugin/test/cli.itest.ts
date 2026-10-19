@@ -70,6 +70,10 @@ it.each([
     const outputPath = path.resolve(destination, manifest.pumpkinPlugin.output);
     expect(fs.existsSync(entryPath)).toBe(true);
     const source = fs.readFileSync(entryPath, 'utf8');
+    // Stand in for the installed builder so the config can be checked without an install.
+    const buildGlobals = path.join(destination, 'node_modules/@pumpkin-plugins/build/globals.d.ts');
+    fs.mkdirSync(path.dirname(buildGlobals), { recursive: true });
+    fs.writeFileSync(buildGlobals, 'declare const __PLUGIN_VERSION__: string;\n');
     const tsconfigPath = path.join(destination, 'tsconfig.json');
     const configFile = ts.readConfigFile(tsconfigPath, ts.sys.readFile);
     expect(configFile.error).toBeUndefined();
@@ -82,6 +86,8 @@ it.each([
     expect(path.extname(outputPath)).toBe('.wasm');
     expect(source).toContain(projectName);
     expect(source).not.toContain('__PLUGIN_NAME__');
+    // The build injects the package.json version, so the starter must not hard-code one.
+    expect(source).not.toMatch(/version:\s*['"]/);
     expect(source).toMatch(/registerPlugin\s*\(/);
     expect(source).toMatch(/export\s+\*\s+from\s+['"]@pumpkin-plugins\/pumpkin-api['"]/);
     expect(manifest.dependencies['@pumpkin-plugins/pumpkin-api']).toBeTruthy();
@@ -91,6 +97,7 @@ it.each([
     expect(manifest.scripts.typecheck).toContain('tsc --noEmit');
     expect(tsconfig.errors).toHaveLength(0);
     expect(tsconfig.fileNames).toContain(entryPath);
+    expect(tsconfig.fileNames).toContain(buildGlobals);
     expect(tsconfig.options.allowImportingTsExtensions).toBe(true);
 
     if (language === 'JavaScript') {
