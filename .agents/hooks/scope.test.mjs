@@ -92,8 +92,8 @@ describe('Codex hook scope', () => {
             session_id: 'session-a',
             turn_id: 'turn-a',
             tool_use_id: 'tool-a',
-            tool_name: 'Edit',
-            tool_input: { path: 'packages/p/src/shared.ts' },
+            tool_name: 'apply_patch',
+            tool_input: { command: '*** Begin Patch\n*** Update File: packages/p/src/shared.ts\n*** End Patch' },
         };
 
         scope.beforeTool(request);

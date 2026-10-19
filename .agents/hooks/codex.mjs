@@ -6,12 +6,9 @@ import { hookScope } from './scope.mjs';
 
 const MAX_FAILURE_REPORT_LENGTH = 6000;
 
-/** Convert a Codex tool name to the portable runner's aliases. */
+/** Convert a Codex tool name to the portable runner's aliases. Codex sends every file edit as `apply_patch`. */
 function portableTool(name) {
-    if (name === 'Bash') return 'bash';
-    if (name === 'Edit') return 'edit';
-    if (name === 'Write') return 'write';
-    return name;
+    return name === 'Bash' ? 'bash' : name;
 }
 
 /** Return a Codex response that blocks a tool call with a visible reason. */
