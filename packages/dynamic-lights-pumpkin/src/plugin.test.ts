@@ -20,6 +20,7 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock('pumpkin:plugin/logging@0.1.0', () => ({ log: vi.fn() }));
+vi.mock('pumpkin:plugin/uuid@0.1.0', () => ({ toString: (id: string) => id }));
 vi.mock('@pumpkin-plugins/pumpkin-api', () => ({ handleCommand: vi.fn() }));
 vi.mock('@pumpkin-plugins/plugin-kit/plugin', () => ({
     PluginBase: class {
@@ -174,6 +175,18 @@ describe('DynamicLightsPumpkin host lifecycle', () => {
         expect(files[Symbol.dispose]).toHaveBeenCalledOnce();
     });
 
+    it("keeps a player's disabled choice after they change name", () => {
+        const env = setup();
+        env.player.item = 'minecraft:torch';
+        env.plugin.togglePlayerLights(env.player as unknown as Player);
+        env.player.name = 'Steve';
+
+        env.event('player-join-event');
+        env.delayed();
+
+        expect(env.player.sent).toEqual([]);
+    });
+
     it('cancels a pending refresh when the player leaves', () => {
         const env = setup();
         env.event('player-join-event');
@@ -199,7 +212,9 @@ function setup() {
         entities: [] as ReturnType<typeof entity>[],
         sent: [] as { x: number; y: number; z: number; level: number }[],
         resets: [] as { x: number; y: number; z: number }[],
-        getName: () => 'Alex',
+        name: 'Alex',
+        getId: () => '853c80ef-3c37-49fd-aa49-938b674adae6',
+        getName: () => player.name,
         getPosition: () => [0, 64, 0],
         getItemInHand: (hand: string) =>
             hand === 'right' && player.item !== undefined ? { getRegistryKey: () => player.item } : null,

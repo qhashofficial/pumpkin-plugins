@@ -36,8 +36,8 @@ spawn or drop. A player drop is identified only when exactly one new nearby item
 ambiguous drops and existing drops after a plugin or server restart are deliberately not guessed at.
 
 Use `/dynamiclights` to toggle dynamic lights for yourself. It is available to all players by default and
-remembers your choice. Overlapping sources use the brightest level, and disabling lights or unloading
-the plugin restores the real blocks.
+remembers your choice, even after a name change. Overlapping sources use the brightest level, and
+disabling lights or unloading the plugin restores the real blocks.
 
 The plugin retains its old recovery data reader solely to repair temporary server light levels written by
 an earlier version.
