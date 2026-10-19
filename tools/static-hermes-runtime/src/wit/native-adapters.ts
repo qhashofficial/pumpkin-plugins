@@ -748,8 +748,7 @@ function generateWitResult(
             return: `${value.setup.join(' ')} auto converted = ${value.expression}; return converted;`,
         };
     }
-    if (type.kind === 'resource')
-        return generateWitResourceResult(apiPackage, apiInterface, type, functionName, callArguments, 'resource');
+    if (type.kind === 'resource') return generateWitResourceResult(apiPackage, type, functionName, callArguments);
     if (type.kind === 'option') {
         const value = generateWitResultValue(apiPackage, apiInterface, type.item, 'result', 'resultValue');
         if (!value) return undefined;
@@ -1138,51 +1137,19 @@ function generateWitEnumResult(
     };
 }
 
-/** Generate resource, optional-resource, or resource-list result conversion code. */
+/** Generate the call and conversion for an operation that returns an owned resource. */
 function generateWitResourceResult(
     apiPackage: WitApiPackage,
-    apiInterface: WitApiInterface,
     type: Extract<ResolvedWitType, { kind: 'resource' }>,
     functionName: string,
     argumentsList: string[],
-    resultKind: 'resource' | 'option' | 'list',
 ): GeneratedWitResult {
-    const ownerInterface = type.interfaceName;
-    const resource = type.name;
-    const ownType = witCType(apiPackage, apiInterface, type);
-    /** Generate the native wrapper return statement for one owned resource. */
     const ownerPackage = apiPackage.packageName.startsWith('wasi:') ? (type.packageName ?? apiPackage.packageName) : '';
-    const create = (source: string) =>
-        `auto resource = std::make_shared<ResourceState>(ResourceState{ResourceKind::Wit, ${source}.__handle, true, ${JSON.stringify(ownerInterface)}, ${JSON.stringify(resource)}, ${JSON.stringify(ownerPackage)}}); return wrapResourceObject(rt, makeWitResourceObject(resource));`;
-    if (resultKind === 'resource') {
-        return {
-            setup: [],
-            call: `const auto result = ${functionName}(${argumentsList.join(', ')});`,
-            cleanup: [],
-            return: create('result'),
-        };
-    }
-    if (resultKind === 'option') {
-        return {
-            setup: [`${ownType} result{};`],
-            call: `const bool hasResult = ${functionName}(${[...argumentsList, '&result'].join(', ')});`,
-            cleanup: [],
-            return: `if (!hasResult) return Value::null(); ${create('result')}`,
-        };
-    }
-    const listResourceType = {
-        kind: 'list' as const,
-        item: type,
-        packageName: type.packageName ?? apiPackage.packageName,
-        interfaceName: type.declaredInterface ?? type.interfaceName ?? apiInterface.name,
-    };
-    const listType = witCType(apiPackage, apiInterface, listResourceType);
-    const freeList = `${witTypeNamespace(apiPackage, apiInterface, listResourceType)}_${witTypeName(listResourceType)}_free`;
     return {
-        setup: [`${listType} result{};`],
-        call: `${functionName}(${[...argumentsList, '&result'].join(', ')});`,
+        setup: [],
+        call: `const auto result = ${functionName}(${argumentsList.join(', ')});`,
         cleanup: [],
-        return: `Array value(rt, result.len); for (std::size_t index = 0; index < result.len; ++index) { auto resource = std::make_shared<ResourceState>(ResourceState{ResourceKind::Wit, result.ptr[index].__handle, true, ${JSON.stringify(ownerInterface)}, ${JSON.stringify(resource)}, ${JSON.stringify(ownerPackage)}}); value.setValueAtIndex(rt, index, wrapResourceObject(rt, makeWitResourceObject(resource))); } ${freeList}(&result); return value;`,
+        return: `auto resource = std::make_shared<ResourceState>(ResourceState{ResourceKind::Wit, result.__handle, true, ${JSON.stringify(type.interfaceName)}, ${JSON.stringify(type.name)}, ${JSON.stringify(ownerPackage)}}); return wrapResourceObject(rt, makeWitResourceObject(resource));`,
     };
 }
 
