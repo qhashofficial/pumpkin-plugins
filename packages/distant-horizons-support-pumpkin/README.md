@@ -177,7 +177,7 @@ An empty cache entry can represent terrain that really contains only air, so the
 place. Older entries do not record whether their source chunks were loaded, so the plugin cannot
 safely identify these entries as corrupt.
 
-To rebuild one selected server cache entry, run `/dhs cache recover <x> <z>` as a Java player, using
+To rebuild one selected server cache entry, run `/dhs cache recover <x> <z>` as a player, using
 block coordinates in the current world. The plugin first checks that all 16 chunks for the section
 are loaded. If any are unavailable, recovery is deferred and the entry remains intact. Otherwise,
 the plugin backs up the selected DHP1 entry under `cache-recovery/`, records its key in the matching

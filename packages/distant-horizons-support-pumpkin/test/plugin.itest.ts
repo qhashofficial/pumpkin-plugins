@@ -62,7 +62,7 @@ describe(info.name, () => {
         const generateFrom = server.lines.length;
         server.command('dhs generate 0 0');
         const generateReply = await server.waitForLog(
-            /Run this command as a Java player so the current world is known/,
+            /Run this command as a player so the current world is known/,
             5000,
             generateFrom,
         );

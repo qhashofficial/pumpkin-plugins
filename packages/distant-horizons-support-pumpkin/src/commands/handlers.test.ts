@@ -12,8 +12,8 @@ import { type Peer, Sessions, sectionKey } from '../session.ts';
 import { commandHandlers } from './handlers.ts';
 import { commands } from './spec.ts';
 
-const platform = vi.hoisted(() => ({ withPlayer: vi.fn() }));
-vi.mock('../platform/peers.ts', () => ({ withPlayer: platform.withPlayer }));
+const platform = vi.hoisted(() => ({ withPlayerTerrain: vi.fn() }));
+vi.mock('../platform/peers.ts', () => ({ withPlayerTerrain: platform.withPlayerTerrain }));
 
 let activePeer: Peer | undefined;
 
@@ -42,10 +42,8 @@ function setup() {
         report: () => undefined,
         send: () => undefined,
     };
-    platform.withPlayer.mockImplementation((_player: unknown, _settings: unknown, use: (peer: Peer) => void) => {
-        if (!activePeer) return false;
-        use(activePeer);
-        return true;
+    platform.withPlayerTerrain.mockImplementation((_player: unknown, _settings: unknown, use: (peer: Peer) => void) => {
+        if (activePeer) use(activePeer);
     });
     const host = new FakeCommandHost();
     const [root] = buildCommands<CommandSender, typeof commands>(
@@ -208,7 +206,7 @@ describe('the /dhs commands', () => {
         expect(sender.lines.at(-3)).toContain('section §61§r, §6-1§r (radius §62§r');
     });
 
-    it('requires a Java player and rejects a second active forced capture', () => {
+    it('requires a player and rejects a second active forced capture', () => {
         const f = setup();
         const player = {
             getPosition: () => [0, 64, 0],
@@ -219,7 +217,7 @@ describe('the /dhs commands', () => {
         f.host.runAs(f.root, ['dhs', 'generate'], {}, sender as never);
         expect(() => f.host.runAs(f.root, ['dhs', 'generate'], {}, sender as never)).toThrow('already running');
         const consoleSender = f.host.runAs(f.root, ['dhs', 'generate']);
-        expect(consoleSender.errors).toEqual(['Run this command as a Java player so the current world is known.']);
+        expect(consoleSender.errors).toEqual(['Run this command as a player so the current world is known.']);
         expect(consoleSender.lines).toEqual(consoleSender.errors);
     });
 

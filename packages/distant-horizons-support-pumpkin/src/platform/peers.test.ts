@@ -481,6 +481,33 @@ describe('server player lookup', () => {
         expect(log.of('warn')).toEqual([]);
     });
 
+    it('gives Bedrock players terrain access without a DH channel', () => {
+        const border = { getCenterX: () => 0, getCenterZ: () => 0, getSize: () => 100, [Symbol.dispose]: vi.fn() };
+        const world = {
+            getName: () => 'world',
+            getDimension: () => 'minecraft:overworld',
+            getMinY: () => -64,
+            getWorldBorder: () => border,
+            [Symbol.dispose]: vi.fn(),
+        };
+        const player = {
+            asJava: () => undefined,
+            getWorld: () => world,
+            getName: () => 'Steve',
+            getPosition: () => [8, 64, -8],
+            [Symbol.dispose]: vi.fn(),
+        };
+        const peers = serverPeers({ getPlayerByName: () => player } as unknown as Server, settings, new MemoryLogger());
+        const seen: string[] = [];
+
+        expect(peers.withPeer('Steve', () => seen.push('session'))).toBe(false);
+        expect(
+            peers.withTerrain('Steve', (peer) => seen.push(`${peer.name} in ${peer.level}, ${peer.terrain.height}`)),
+        ).toBe(true);
+        expect(seen).toEqual(['Steve in world, 384']);
+        expect(world[Symbol.dispose]).toHaveBeenCalledTimes(1);
+    });
+
     it('warns and releases player handles when terrain access fails', () => {
         const java = { [Symbol.dispose]: vi.fn() };
         const player = {

@@ -8,7 +8,7 @@ import type { LodCache } from '../lod/cache.ts';
 import { FORCE_BLOCK_SAMPLES_PER_TICK, type ForcedLodStart } from '../lod/force-generation.ts';
 import { DEFAULT_LOD_GENERATION_RADIUS, lodGenerationSectionCount } from '../lod/generation.ts';
 import { DEFAULT_LOD_MAP_RADIUS, MAX_LOD_MAP_RADIUS, renderLodMap } from '../lod/map.ts';
-import { withPlayer } from '../platform/peers.ts';
+import { withPlayerTerrain } from '../platform/peers.ts';
 import type { Sessions } from '../session.ts';
 import type { commands } from './spec.ts';
 
@@ -69,15 +69,14 @@ function generateLODs(
         throw new CommandFailed(err instanceof Error ? err.message : String(err));
     }
     const player = sender.asPlayer();
-    if (!player) return [errorLine('Run this command as a Java player so the current world is known.')];
+    if (!player) return [errorLine('Run this command as a player so the current world is known.')];
 
     try {
         let started: ForcedLodStart | undefined;
-        const found = withPlayer(player, settings, (peer) => {
+        withPlayerTerrain(player, settings, (peer) => {
             const [x, z] = coordinates ?? [Math.floor(peer.x), Math.floor(peer.z)];
             started = sessions.forceGenerate(peer, x, z, radius);
         });
-        if (!found) throw new CommandFailed('Run this command as a Java player so terrain access is available.');
         if (!started) throw new CommandFailed('Could not start forced LOD capture.');
         return [
             `Started forced LOD capture at section ${color.named.value(String(started.centerX))}, ${color.named.value(String(started.centerZ))} (radius ${color.named.value(String(radius))}; ${color.named.value(String(started.sections))} sections requested).`,
@@ -103,14 +102,13 @@ function recoverCachedLod(
         throw new CommandFailed('Block coordinates must be safe integers.');
     }
     const player = sender.asPlayer();
-    if (!player) return [errorLine('Run this command as a Java player so the current world is known.')];
+    if (!player) return [errorLine('Run this command as a player so the current world is known.')];
 
     try {
         let recovery: ReturnType<Sessions['forceRecover']> | undefined;
-        const found = withPlayer(player, settings, (peer) => {
+        withPlayerTerrain(player, settings, (peer) => {
             recovery = sessions.forceRecover(peer, blockX, blockZ);
         });
-        if (!found) throw new CommandFailed('Run this command as a Java player so terrain access is available.');
         if (!recovery) throw new CommandFailed('Could not start cache recovery.');
         return [
             `Backed up ${recovery.backup.key} to ${recovery.backup.dataPath}; recorded the key in ${recovery.backup.manifestPath}.`,

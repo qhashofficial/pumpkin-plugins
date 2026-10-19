@@ -36,16 +36,22 @@ const INITIAL_TERRAIN_RETRY_MS = 1000;
 const MAX_TERRAIN_RETRY_MS = 30_000;
 const TERRAIN_RETRY_RETENTION_MS = 60_000;
 
-/** A Java player snapshot and terrain access, valid only during an adapter callback. */
-export interface Peer extends ForcedLodPeer {
+/** A player snapshot and terrain access, valid only during an adapter callback. */
+export interface PlayerTerrain extends ForcedLodPeer {
     dimension: string;
-    send(bytes: Uint8Array): void;
     x: number;
     z: number;
 }
+/** A Java player that can exchange DH messages, valid only during an adapter callback. */
+export interface Peer extends PlayerTerrain {
+    send(bytes: Uint8Array): void;
+}
 /** Obtains fresh host handles for one player, releasing them after the callback. */
 export interface Peers {
+    /** Returns false when the player is offline or has no Java handle for DH messages. */
     withPeer(name: string, use: (peer: Peer) => void): boolean;
+    /** Returns false when the player is offline; Bedrock players get terrain access too. */
+    withTerrain(name: string, use: (peer: PlayerTerrain) => void): boolean;
 }
 /** Scalar live-session values for placeholder callbacks, excluding client queues and identities. */
 export interface SessionPlaceholderSnapshot {
@@ -139,11 +145,11 @@ export class Sessions {
         this.forcedGeneration = new ForcedLodGeneration(cache, log, now, measureNow);
     }
     /** Starts a cache-refreshing capture that takes priority over ordinary DH work. */
-    forceGenerate(peer: Peer, blockX: number, blockZ: number, radius = 0): ForcedLodStart {
+    forceGenerate(peer: ForcedLodPeer, blockX: number, blockZ: number, radius = 0): ForcedLodStart {
         return this.forcedGeneration.start(peer, blockX, blockZ, radius);
     }
     /** Backs up and rebuilds one explicitly selected cached section from loaded terrain. */
-    forceRecover(peer: Peer, blockX: number, blockZ: number): ForcedLodRecovery {
+    forceRecover(peer: ForcedLodPeer, blockX: number, blockZ: number): ForcedLodRecovery {
         return this.forcedGeneration.recover(peer, blockX, blockZ);
     }
     /** Returns scalar live counters without traversing per-client packet queues. */
@@ -288,7 +294,10 @@ export class Sessions {
             )
                 this.endSession(name);
         }
-        const forcedWork = this.forcedGeneration.tick(peers, serverMspt);
+        const forcedWork = this.forcedGeneration.tick(
+            { withPeer: (name, use) => peers.withTerrain(name, use) },
+            serverMspt,
+        );
         if (forcedWork) {
             this.lastBlocksBudget = 0;
             this.lastServerMspt = serverMspt;
