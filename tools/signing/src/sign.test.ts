@@ -413,6 +413,20 @@ describe('verifyWasm', () => {
         ]);
         expect(verifyWasm(swapped).valid).toBe(false);
     });
+
+    it('rejects a file signed by another key when the expected signer is pinned', () => {
+        const other = generateKeyPair();
+        const resigned = signWasm(wasm, METADATA, other.secretKeyHex);
+
+        expect(verifyWasm(resigned).valid).toBe(true);
+        expect(verifyWasm(resigned, publicKeyOf(SEED))).toMatchObject({
+            signed: true,
+            valid: false,
+            error: expect.stringContaining('unexpected signer'),
+            publicKeyHex: other.publicKeyHex,
+        });
+        expect(verifyWasm(signed, publicKeyOf(SEED).toUpperCase()).valid).toBe(true);
+    });
 });
 
 describe('components', () => {

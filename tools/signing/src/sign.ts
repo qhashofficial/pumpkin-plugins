@@ -236,9 +236,12 @@ function isSigningMetadata(
  * accepts raw signature bytes, and it keeps the last value of a repeated JSON key where Pumpkin
  * rejects the section.
  * @param wasm - The binary to check.
+ * @param expectedPublicKeyHex - The trusted signer's public key in hex. When set, a file signed by any
+ *   other key is reported as invalid. Without it, a valid result only means the file agrees with its
+ *   own envelope, so compare `publicKeyHex` with a key you trust.
  * @returns Whether it is signed, whether the signature is valid, and what it says.
  */
-export function verifyWasm(wasm: Uint8Array): VerifyResult {
+export function verifyWasm(wasm: Uint8Array, expectedPublicKeyHex?: string): VerifyResult {
     let stripped: ReturnType<typeof stripSignature>;
     try {
         stripped = stripSignature(wasm);
@@ -280,6 +283,9 @@ export function verifyWasm(wasm: Uint8Array): VerifyResult {
     const payload = Buffer.concat([stripped.clean, metadataSection.data]);
     if (!verify(null, payload, key, Buffer.from(signatureHex, 'hex'))) {
         return { ...withKey, error: 'signature does not match the file contents' };
+    }
+    if (expectedPublicKeyHex !== undefined && publicKeyHex !== expectedPublicKeyHex.trim().toLowerCase()) {
+        return { ...withKey, error: `unexpected signer ${publicKeyHex}` };
     }
     if (!metadata) return { ...withKey, error: 'metadata does not match the Pumpkin host schema' };
     return { signed: true, valid: true, metadata, publicKeyHex };
