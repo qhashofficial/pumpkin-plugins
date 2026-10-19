@@ -505,7 +505,7 @@ export async function runDev({
         children.push(initialBuild);
         const buildResult = initialBuild.done.then(({ code, signal }) => {
             if (!shuttingDown && (code !== 0 || signal)) {
-                throw new Error(`turbo run build exited (${signal ?? code ?? 'unknown status'})`);
+                throw new Error(`pnpm run build exited (${signal ?? code ?? 'unknown status'})`);
             }
         });
         const startup = Promise.all([buildResult, resolveBinary({ root, latest, nightly })]);

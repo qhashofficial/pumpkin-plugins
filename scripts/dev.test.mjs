@@ -818,7 +818,7 @@ describe('runDev', () => {
         assert.ok(latest.requests.includes('https://api.github.com/repos/Pumpkin-MC/Pumpkin/releases/latest'));
     });
 
-    it('reports an initial Turbo build failure without starting Pumpkin', async () => {
+    it('reports an initial build failure without starting Pumpkin', async () => {
         const root = tempDir();
         const packageDir = path.join(root, 'packages', 'plugin');
         fs.mkdirSync(path.join(packageDir, 'build'), { recursive: true });
@@ -841,7 +841,7 @@ describe('runDev', () => {
                 spawnImpl,
                 resolveBinary: async () => ({ binary: '/fake/pumpkin', release: 'test release' }),
             }),
-            /turbo run build exited \(1\)/,
+            /pnpm run build exited \(1\)/,
         );
         assert.equal(calls.length, 1);
     });
