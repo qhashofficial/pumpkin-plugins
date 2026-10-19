@@ -177,6 +177,33 @@ describe('CLI informational options', () => {
     });
 });
 
+describe('executeCli', () => {
+    it('runs the build while the update lookup is still pending', async () => {
+        const output: string[] = [];
+        const stdout = vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+            output.push(String(chunk));
+            return true;
+        });
+        let finishLookup = (): void => {};
+        const lookup = new Promise<void>((resolve) => {
+            finishLookup = resolve;
+        });
+        try {
+            const execution = executeCli(['--version'], '/not-a-package', {
+                environment: {},
+                isTTY: true,
+                startUpdateCheck: () => lookup,
+            });
+            await vi.waitFor(() => expect(output.join('').trim()).toMatch(/^\d+\.\d+\.\d+/));
+            finishLookup();
+            await expect(execution).resolves.toBeUndefined();
+        } finally {
+            finishLookup();
+            stdout.mockRestore();
+        }
+    });
+});
+
 describe('run arguments', () => {
     it('fetches the explicitly selected upstream WIT version directory', async () => {
         const pluginDir = fs.mkdtempSync(path.join(os.tmpdir(), 'plugin-cli-versioned-wit-'));
