@@ -2,7 +2,6 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import {
     assertPublicToolPackage,
     assertPublicToolPackageContents,
@@ -15,7 +14,7 @@ import {
     publicToolPackageVersions,
 } from './utils/tool-packages.mjs';
 
-const rootDirectory = fileURLToPath(new URL('..', import.meta.url));
+const rootDirectory = path.resolve(import.meta.dirname, '..');
 const VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 const REGISTRY_VISIBILITY_RETRY_DELAYS_MS = [2_000, 5_000, 10_000, 20_000, 30_000, 30_000, 30_000];
 
@@ -362,7 +361,7 @@ async function main() {
     });
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (import.meta.main) {
     main().catch((error) => {
         console.error(error instanceof Error ? error.message : String(error));
         process.exitCode = 1;
