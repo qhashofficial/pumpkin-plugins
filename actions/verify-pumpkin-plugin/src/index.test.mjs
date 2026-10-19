@@ -5,7 +5,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
 import { publicKeyOf, signWasm } from '../../../tools/signing/src/sign.ts';
-import { METADATA, minimalWasm, SEED } from '../../../tools/signing/src/testing/fixtures.ts';
+import { METADATA, minimalWasm, SEED, signedMetadata } from '../../../tools/signing/src/testing/fixtures.ts';
 
 const actionRoot = path.resolve(import.meta.dirname, '..');
 const entrypoint = path.join(actionRoot, 'src/index.mjs');
@@ -108,7 +108,8 @@ describe('verify-pumpkin-plugin action', () => {
 
     it('rejects genuinely signed malformed metadata without success outputs', () => {
         const { dir, wasmFile } = fixture();
-        fs.writeFileSync(wasmFile, signWasm(minimalWasm(), { ...METADATA, plugin_name: undefined }, SEED));
+        const { plugin_name: _, ...withoutName } = METADATA;
+        fs.writeFileSync(wasmFile, signedMetadata(JSON.stringify(withoutName)));
         const result = run(dir);
         assert.equal(result.ok, false);
         assert.match(result.out, /metadata/);
