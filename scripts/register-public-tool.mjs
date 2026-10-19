@@ -1,6 +1,5 @@
 import fs from 'node:fs';
 import * as path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
 import { publicToolReleaseTitleOptions } from './utils/release-pr-title.mjs';
 
 const FIRST_TOOL_VERSION = '0.1.0';
@@ -112,10 +111,7 @@ function main(args = process.argv.slice(2)) {
     );
 }
 
-if (
-    process.argv[1] &&
-    pathToFileURL(path.resolve(process.argv[1])).href === pathToFileURL(fileURLToPath(import.meta.url)).href
-) {
+if (import.meta.main) {
     try {
         main();
     } catch (error) {
