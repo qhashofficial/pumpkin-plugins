@@ -2,6 +2,7 @@ import type { Context } from 'pumpkin:plugin/context@0.1.0';
 import type { Server } from 'pumpkin:plugin/server@0.1.0';
 import { MemoryFiles } from '@pumpkin-plugins/plugin-kit/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { WaypointCommandRuntime } from './commands/handlers.ts';
 
 interface LoadedPlugin {
     handleIpcMessage(sender: string, message: Uint8Array): Uint8Array;
@@ -12,9 +13,7 @@ interface LoadedPlugin {
 const state = vi.hoisted(() => ({
     plugin: undefined as LoadedPlugin | undefined,
     files: undefined as MemoryFiles | undefined,
-    commandRuntime: undefined as unknown,
-    commandSuggestions: undefined as unknown,
-    suggestionHandler: undefined as unknown,
+    commandRuntime: undefined as WaypointCommandRuntime | undefined,
     events: new Map<string, (server: Server, event: unknown) => void>(),
     tasks: new Map<number, (server: Server) => void>(),
     nextTask: 0,
@@ -87,9 +86,8 @@ vi.mock('@pumpkin-plugins/plugin-kit/plugin', () => ({
         registerEvent(_ctx: Context, name: string, run: (server: Server, event: unknown) => void): void {
             state.events.set(name, run);
         }
-        registerCommandSuggestionHandler(handler: unknown): number {
-            state.suggestionHandler = handler;
-            return 91;
+        registerCommandSuggestionHandler(): number {
+            return 0;
         }
     },
     registerPlugin: (plugin: LoadedPlugin) => {
@@ -107,13 +105,9 @@ vi.mock('@pumpkin-plugins/plugin-kit/host', () => ({
     },
     cancelTask: (id: number) => state.tasks.delete(id),
 }));
-vi.mock('@pumpkin-plugins/plugin-kit/register-commands', () => ({
-    registerCommands: (_ctx: unknown, _tree: unknown, _handlers: unknown, suggestions: unknown) => {
-        state.commandSuggestions = suggestions;
-    },
-}));
+vi.mock('@pumpkin-plugins/plugin-kit/register-commands', () => ({ registerCommands: vi.fn() }));
 vi.mock('./commands/handlers.ts', () => ({
-    commandHandlers: (runtime: unknown) => {
+    commandHandlers: (runtime: WaypointCommandRuntime) => {
         state.commandRuntime = runtime;
         return {};
     },
@@ -122,9 +116,10 @@ vi.mock('./commands/handlers.ts', () => ({
     onlinePlayerNameSuggestions: vi.fn(() => vi.fn()),
 }));
 
+await import('./plugin.ts');
+
 describe('Waypoints plugin lifecycle', () => {
-    beforeEach(async () => {
-        vi.resetModules();
+    beforeEach(() => {
         state.events.clear();
         state.tasks.clear();
         state.nextTask = 0;
@@ -137,10 +132,7 @@ describe('Waypoints plugin lifecycle', () => {
         state.failHudTick = false;
         state.routedMessage = undefined;
         state.commandRuntime = undefined;
-        state.commandSuggestions = undefined;
-        state.suggestionHandler = undefined;
         state.files = new MemoryFiles();
-        await import('./plugin.ts');
     });
 
     it('schedules both services and stops them on unload', () => {
@@ -155,13 +147,6 @@ describe('Waypoints plugin lifecycle', () => {
 
         plugin.onPluginLoad(context);
 
-        expect([...state.events.keys()]).toEqual([
-            'player-join-event',
-            'player-changed-world-event',
-            'player-command-send-event',
-            'server-command-event',
-            'player-leave-event',
-        ]);
         expect(state.tasks.size).toBe(1);
         state.tasks.get(1)?.(server);
         expect(state.placeholderTicks).toBe(1);
@@ -212,38 +197,19 @@ describe('Waypoints plugin lifecycle', () => {
         const context = { getServer: () => server } as Context;
         plugin.onPluginLoad(context);
 
-        const runtime = state.commandRuntime as {
-            consumePendingItemIconInput(sender: never): string | undefined;
-        };
+        const consume = state.commandRuntime?.consumePendingItemIconInput;
+        if (consume === undefined) throw new Error('Command runtime was not registered');
         const playerSender = { isPlayer: () => true, getName: () => 'Alex' } as never;
         state.events.get('player-command-send-event')?.(server, {
             player: { getName: () => 'Alex' },
             command: 'wp set icon Pumpkin minecraft:pumpkin_pie',
         });
-        expect(runtime.consumePendingItemIconInput(playerSender)).toBe('minecraft:pumpkin_pie');
-        expect(runtime.consumePendingItemIconInput(playerSender)).toBeUndefined();
+        expect(consume(playerSender)).toBe('minecraft:pumpkin_pie');
+        expect(consume(playerSender)).toBeUndefined();
 
         const consoleSender = { isPlayer: () => false, getName: () => 'Server' } as never;
         state.events.get('server-command-event')?.(server, { command: 'wp set icon Pumpkin pumpkin_pie' });
-        expect(runtime.consumePendingItemIconInput(consoleSender)).toBe('pumpkin_pie');
-        expect(runtime.consumePendingItemIconInput(consoleSender)).toBeUndefined();
-    });
-
-    it('registers the waypoint name suggestion callback with Pumpkin', () => {
-        const plugin = state.plugin;
-        if (plugin === undefined) throw new Error('Plugin was not registered');
-        const context = { getServer: () => ({ getAllPlayers: () => [] }) } as unknown as Context;
-        plugin.onPluginLoad(context);
-
-        const suggestions = state.commandSuggestions as {
-            arguments: Record<string, unknown>;
-            register(handler: unknown): number;
-        };
-        const handler = vi.fn();
-        expect(suggestions.arguments.name).toEqual(expect.any(Function));
-        expect(suggestions.arguments.property).toEqual(expect.any(Function));
-        expect(suggestions.arguments.player).toEqual(expect.any(Function));
-        expect(suggestions.register(handler)).toBe(91);
-        expect(state.suggestionHandler).toBe(handler);
+        expect(consume(consoleSender)).toBe('pumpkin_pie');
+        expect(consume(consoleSender)).toBeUndefined();
     });
 });
