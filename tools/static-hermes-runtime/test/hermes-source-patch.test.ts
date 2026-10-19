@@ -41,40 +41,21 @@ it('reports a missing source pin with its path', () => {
     expect(() => readHermesSourcePin(path.join(root, 'missing.json'))).toThrow(/Hermes source pin not found/);
 });
 
-it('clones and validates the pinned checkout through an injectable Git runner', () => {
-    const root = temporaryDirectory();
-    const source = path.join(root, 'source');
-    const commits = new Map<string, string>();
-    const runner: HermesProcessRunner = {
-        run(_command, args) {
-            if (args[0] === 'clone') {
-                const destination = args.at(-1);
-                if (destination === undefined) throw new Error('Git clone destination is missing');
-                fs.mkdirSync(path.join(destination, '.git'), { recursive: true });
-                commits.set(destination, 'not-checked-out');
-            } else if (args[0] === '-C' && args[2] === 'checkout') {
-                const directory = args[1];
-                if (directory === undefined) throw new Error('Git checkout directory is missing');
-                commits.set(directory, pin.commit);
-            }
-        },
-        output(_command, args) {
-            if (args.includes('--git-dir')) return '.git';
-            if (args.includes('HEAD')) {
-                const directory = args[1];
-                if (directory === undefined) throw new Error('Git HEAD directory is missing');
-                return commits.get(directory) ?? '';
-            }
-            if (isPorcelainStatusCommand(args)) return '';
-            throw new Error(`Unexpected Git command: ${args.join(' ')}`);
-        },
-        buffer() {
-            return Buffer.alloc(0);
-        },
-    };
+it('clones the pinned commit into a missing source directory', () => {
+    const { bare, commit } = upstream();
+    const source = path.join(temporaryDirectory(), 'source');
 
-    expect(ensureHermesSource({ pin, source, managedSource: true, managedPaths: [], process: runner })).toBe(source);
-    expect(fs.existsSync(path.join(source, '.git'))).toBe(true);
+    expect(
+        ensureHermesSource({
+            pin: { ...pin, repository: bare, commit },
+            source,
+            managedSource: true,
+            managedPaths: [],
+        }),
+    ).toBe(source);
+
+    expect(git(source, ['rev-parse', 'HEAD']).trim()).toBe(commit);
+    expect(fs.readFileSync(path.join(source, 'lines.txt'), 'utf8')).toBe('a\nb\nc\nd\n');
 });
 
 it('preserves LF source files when global Git config enables CRLF checkouts', () => {
@@ -125,50 +106,20 @@ it('preserves LF source files when global Git config enables CRLF checkouts', ()
 });
 
 it('retries an initial Hermes clone after a failed fetch', () => {
+    const { bare, working } = upstream();
+    fs.writeFileSync(path.join(working, 'lines.txt'), 'a\nb\nc\nd\ne\n');
+    git(working, ['commit', '--quiet', '-am', 'unpublished pin']);
+    const commit = git(working, ['rev-parse', 'HEAD']).trim();
     const root = temporaryDirectory();
     const source = path.join(root, 'source');
-    let cloneAttempts = 0;
-    let failFirstFetch = true;
-    const runner: HermesProcessRunner = {
-        run(_command, args) {
-            if (args[0] === 'clone') {
-                const destination = args.at(-1);
-                if (destination === undefined) throw new Error('Git clone destination is missing');
-                cloneAttempts += 1;
-                fs.mkdirSync(path.join(destination, '.git'), { recursive: true });
-            } else if (args[0] === '-C' && args[2] === 'fetch' && failFirstFetch) {
-                failFirstFetch = false;
-                throw new Error('network interrupted');
-            } else if (args[0] === '-C' && args[2] === 'checkout') {
-                const directory = args[1];
-                if (directory === undefined) throw new Error('Git checkout directory is missing');
-                fs.writeFileSync(path.join(directory, '.git', 'resolved-commit'), pin.commit);
-            }
-        },
-        output(_command, args) {
-            const directory = args[1];
-            if (directory === undefined) throw new Error('Git source directory is missing');
-            if (args.includes('--git-dir')) {
-                if (!fs.existsSync(path.join(directory, '.git'))) throw new Error('not a Git checkout');
-                return '.git';
-            }
-            if (args.includes('HEAD')) {
-                return fs.readFileSync(path.join(directory, '.git', 'resolved-commit'), 'utf8');
-            }
-            if (isPorcelainStatusCommand(args)) return '';
-            throw new Error(`Unexpected Git command: ${args.join(' ')}`);
-        },
-        buffer() {
-            return Buffer.alloc(0);
-        },
-    };
+    const options = { pin: { ...pin, repository: bare, commit }, source, managedSource: true, managedPaths: [] };
 
-    expect(() => ensureHermesSource({ pin, source, managedSource: true, managedPaths: [], process: runner })).toThrow(
-        'network interrupted',
-    );
+    expect(() => ensureHermesSource(options)).toThrow();
     expect(fs.readdirSync(root)).toEqual([]);
-    expect(ensureHermesSource({ pin, source, managedSource: true, managedPaths: [], process: runner })).toBe(source);
-    expect(cloneAttempts).toBe(2);
+
+    git(working, ['push', '--quiet', bare, 'HEAD:main']);
+    expect(ensureHermesSource(options)).toBe(source);
+    expect(git(source, ['rev-parse', 'HEAD']).trim()).toBe(commit);
 });
 
 it('discovers patches by numeric order and rejects gaps before applying', () => {
@@ -272,102 +223,36 @@ it('applies long-path CRLF patches from stdin on Windows', () => {
 });
 
 it('rejects refreshing a managed rename whose destination is outside the patch set', () => {
-    const root = temporaryDirectory();
-    const source = path.join(root, 'source');
-    let rebuildStarted = false;
-    const runner: HermesProcessRunner = {
-        run() {
-            rebuildStarted = true;
-            throw new Error('unexpected source rebuild');
-        },
-        output(_command, args) {
-            if (isPorcelainStatusCommand(args)) {
-                return args.includes('-z') ? 'R  unrelated.txt\0managed.txt\0' : 'R  managed.txt -> unrelated.txt';
-            }
-            if (args.includes('--git-dir')) return '.git';
-            if (args.includes('HEAD')) return pin.commit;
-            throw new Error(`Unexpected Git command: ${args.join(' ')}`);
-        },
-        buffer() {
-            return Buffer.alloc(0);
-        },
-    };
+    const source = repository({ 'managed.txt': 'managed\n' });
+    git(source, ['mv', 'managed.txt', 'unrelated.txt']);
+    const commit = git(source, ['rev-parse', 'HEAD']).trim();
 
     expect(() =>
-        refreshHermesSource({ pin, source, managedSource: true, managedPaths: ['managed.txt'], process: runner }),
+        refreshHermesSource({ pin: { ...pin, commit }, source, managedSource: true, managedPaths: ['managed.txt'] }),
     ).toThrow(/outside the managed patch set.*unrelated\.txt/);
-    expect(rebuildStarted).toBe(false);
+    expect(fs.existsSync(path.join(source, 'unrelated.txt'))).toBe(true);
 });
 
 it('rejects patch application when a patch-owned rename targets an unrelated path', () => {
-    const source = temporaryDirectory();
-    let patchCheckStarted = false;
-    const runner: HermesProcessRunner = {
-        run() {
-            patchCheckStarted = true;
-            throw new Error('unexpected patch check');
-        },
-        output(_command, args) {
-            if (isPorcelainStatusCommand(args)) {
-                return args.includes('-z') ? 'R  unrelated.txt\0managed.txt\0' : 'R  managed.txt -> unrelated.txt';
-            }
-            throw new Error(`Unexpected Git command: ${args.join(' ')}`);
-        },
-        buffer() {
-            return Buffer.alloc(0);
-        },
-    };
+    const source = repository({ 'managed.txt': 'managed\n' });
+    git(source, ['mv', 'managed.txt', 'unrelated.txt']);
 
-    expect(() =>
-        applyHermesPatchSeries({
-            source,
-            patches: [
-                {
-                    name: '0001-managed.patch',
-                    filename: '/patches/0001-managed.patch',
-                    sequence: 1,
-                    affectedPaths: ['managed.txt'],
-                },
-            ],
-            process: runner,
-        }),
-    ).toThrow(/outside the managed patch set.*unrelated\.txt/);
-    expect(patchCheckStarted).toBe(false);
+    expect(() => applyHermesPatchSeries({ source, patches: [managedPatch] })).toThrow(
+        /outside the managed patch set.*unrelated\.txt/,
+    );
 });
 
 it('rejects patch application when a patch-owned copy targets an unrelated path', () => {
-    const source = temporaryDirectory();
-    const runner: HermesProcessRunner = {
-        run() {
-            throw new Error('unexpected patch check');
-        },
-        output(_command, args) {
-            if (isPorcelainStatusCommand(args)) {
-                return args.includes('-z')
-                    ? 'C  unrelated-copy.txt\0managed.txt\0'
-                    : 'C  managed.txt -> unrelated-copy.txt';
-            }
-            throw new Error(`Unexpected Git command: ${args.join(' ')}`);
-        },
-        buffer() {
-            return Buffer.alloc(0);
-        },
-    };
+    const source = repository({ 'managed.txt': 'one\ntwo\nthree\nfour\n' });
+    git(source, ['config', 'status.renames', 'copies']);
+    fs.copyFileSync(path.join(source, 'managed.txt'), path.join(source, 'unrelated-copy.txt'));
+    fs.writeFileSync(path.join(source, 'managed.txt'), 'one\ntwo\nthree\nfive\n');
+    git(source, ['add', '.']);
+    expect(git(source, ['status', '--porcelain=v1'])).toMatch(/^C {2}managed\.txt -> unrelated-copy\.txt$/m);
 
-    expect(() =>
-        applyHermesPatchSeries({
-            source,
-            patches: [
-                {
-                    name: '0001-managed.patch',
-                    filename: '/patches/0001-managed.patch',
-                    sequence: 1,
-                    affectedPaths: ['managed.txt'],
-                },
-            ],
-            process: runner,
-        }),
-    ).toThrow(/outside the managed patch set.*unrelated-copy\.txt/);
+    expect(() => applyHermesPatchSeries({ source, patches: [managedPatch] })).toThrow(
+        /outside the managed patch set.*unrelated-copy\.txt/,
+    );
 });
 
 it('validates and atomically saves the build cache fingerprint', () => {
@@ -442,6 +327,23 @@ function repository(files: Record<string, string>): string {
     return directory;
 }
 
+/** Create a bare upstream repository and the working repository it was pushed from. */
+function upstream(): { bare: string; working: string; commit: string } {
+    const working = repository({ 'lines.txt': 'a\nb\nc\nd\n' });
+    git(working, ['branch', '--quiet', '-M', 'main']);
+    const bare = path.join(temporaryDirectory(), 'hermes.git');
+    git(working, ['clone', '--quiet', '--bare', working, bare]);
+    return { bare, working, commit: git(working, ['rev-parse', 'HEAD']).trim() };
+}
+
+/** A one-patch series that owns `managed.txt`; its file is never read because status checks fail first. */
+const managedPatch: HermesPatch = {
+    name: '0001-managed.patch',
+    filename: '/patches/0001-managed.patch',
+    sequence: 1,
+    affectedPaths: ['managed.txt'],
+};
+
 /** Build a two-patch series where the second patch's context includes the first patch's change. */
 function overlappingSeries(): { source: string; patches: HermesPatch[]; contents: string[] } {
     const base = { 'lines.txt': 'a\nb\nc\nd\n', 'unrelated.txt': 'keep\n' };
@@ -458,8 +360,4 @@ function overlappingSeries(): { source: string; patches: HermesPatch[]; contents
         return patch;
     });
     return { source: repository(base), patches: readHermesPatchSeries(patchesDirectory), contents };
-}
-
-function isPorcelainStatusCommand(args: readonly string[]): boolean {
-    return args.some((argument) => argument.startsWith('--porcelain'));
 }
