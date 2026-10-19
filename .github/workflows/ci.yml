@@ -342,22 +342,14 @@ jobs:
               id: build-release-artifacts
               run: node scripts/ci-run.mjs "Build release components" -- pnpm run build
 
-            # Fork PRs cannot access repository secrets. Sign their CI artifacts with a run-only
-            # key so the build and integration artifacts are always signed without exposing the
-            # repository release key.
+            # The release workflow signs every published asset again with the repository key, so CI
+            # signs with a run-only key and never puts the release key in this job's environment.
             - name: 🔏 Prepare signing key
               id: prepare-signing-key
-              env:
-                  PLUGIN_SIGNING_KEY: ${{ secrets.PLUGIN_SIGNING_KEY }}
               run: |
-                  PLUGIN_SIGNING_KEY="$(printf '%s' "$PLUGIN_SIGNING_KEY" | tr -d '[:space:]')"
-                  if [ "$GITHUB_EVENT_NAME" != "push" ] || [ -z "$PLUGIN_SIGNING_KEY" ]; then
-                      PLUGIN_SIGNING_KEY="$(node --input-type=module -e 'import { generateKeyPair } from "@pumpkin-plugins/signing"; process.stdout.write(generateKeyPair().secretKeyHex);')"
-                      echo "::add-mask::$PLUGIN_SIGNING_KEY"
-                      echo "signing-mode=Signing key: run-only CI key; these artifacts cannot be published." >> "$GITHUB_OUTPUT"
-                  else
-                      echo "signing-mode=Signing key: repository release key." >> "$GITHUB_OUTPUT"
-                  fi
+                  PLUGIN_SIGNING_KEY="$(node --input-type=module -e 'import { generateKeyPair } from "@pumpkin-plugins/signing"; process.stdout.write(generateKeyPair().secretKeyHex);')"
+                  echo "::add-mask::$PLUGIN_SIGNING_KEY"
+                  echo "signing-mode=Signing key: run-only CI key; these artifacts cannot be published." >> "$GITHUB_OUTPUT"
                   echo "PLUGIN_SIGNING_KEY=$PLUGIN_SIGNING_KEY" >> "$GITHUB_ENV"
 
             - name: 📦 Collect plugin artifacts
