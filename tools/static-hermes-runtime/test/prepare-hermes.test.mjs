@@ -204,7 +204,14 @@ function prepareFixture() {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'static-hermes-prepare-'));
     const packageRoot = path.join(root, 'runtime');
     fs.mkdirSync(packageRoot);
-    for (const entry of ['dist', 'cmake', 'package.json', 'toolchain-versions.json', 'wasi-sdk.lock.json']) {
+    for (const entry of [
+        'dist',
+        'cmake',
+        'package.json',
+        'toolchain-versions.json',
+        'wasi-sdk.lock.json',
+        'wasm-tools.lock.json',
+    ]) {
         fs.cpSync(path.join(runtimeDir, entry), path.join(packageRoot, entry), { recursive: true });
     }
     fs.symlinkSync(path.join(runtimeDir, 'node_modules'), path.join(packageRoot, 'node_modules'), 'junction');
