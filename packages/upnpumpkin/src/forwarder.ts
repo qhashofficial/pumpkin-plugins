@@ -20,6 +20,7 @@ import { blockedReason } from './blocklist.ts';
 import { parseEndpoint } from './config/fields.ts';
 import { loadPluginConfig } from './config/load.ts';
 import type { Config } from './config/schema.ts';
+import { ownKey, pluginKey } from './keys.ts';
 import { type Refusal, refusalMessage } from './refusal.ts';
 
 /** A request nobody has repeated for this long is dropped: the plugin that asked is gone. */
@@ -35,9 +36,6 @@ interface PluginRequest {
     sender: string;
     spec: MappingSpec;
 }
-
-const ownKey = (name: string) => `own:${name}`;
-const pluginKey = (sender: string, key: string) => `plugin:${sender}:${key}`;
 
 /** The wire form of a mapper state. */
 export function toStatus(state: MappingState | undefined): PortStatus {

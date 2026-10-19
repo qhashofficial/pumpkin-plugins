@@ -6,6 +6,7 @@ import {
     type MappingSpec,
     type MappingState,
 } from '@pumpkin-plugins/port-mapping';
+import { keyName } from '../keys.ts';
 import { refusalMessage } from '../refusal.ts';
 
 /** One requested port with its state, as the mapper reports it. */
@@ -13,13 +14,6 @@ export interface MappingLine {
     key: string;
     spec: MappingSpec;
     state: MappingState;
-}
-
-/** Turns a mapper key into a name for people: `own:java` is `java`, `plugin:Foo:web` is `Foo web`. */
-function nameOf(key: string): string {
-    if (key.startsWith('own:')) return key.slice(4);
-    const [, sender, ...rest] = key.split(':');
-    return `${sender} ${rest.join(':')}`;
 }
 
 function describeState(state: MappingState): string {
@@ -53,7 +47,7 @@ export function statusLines(info: MapperInfo, mappings: readonly MappingLine[]):
     if (mappings.length === 0)
         lines.push('No ports were asked for. Turn on java.enabled or bedrock.enabled in config.toml.');
     for (const { key, spec, state } of mappings) {
-        const what = `${nameOf(key)} (${spec.protocol.toUpperCase()} ${spec.port})`;
+        const what = `${keyName(key)} (${spec.protocol.toUpperCase()} ${spec.port})`;
         lines.push(info.refused ? `${what}: not opened` : `${what}: ${describeState(state)}`);
     }
     return lines;
