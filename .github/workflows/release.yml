@@ -364,9 +364,9 @@ jobs:
                   done <<< "$release_tags"
 
             - name: 📦 Configure npm OIDC publishing
-              uses: actions/setup-node@v7.0.0
+              uses: actions/setup-node@v7.1.0
               with:
-                  node-version: 24.21.0
+                  node-version-file: .node-version
                   registry-url: https://registry.npmjs.org
                   package-manager-cache: false
 
