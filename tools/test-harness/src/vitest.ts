@@ -14,6 +14,8 @@ export function definePluginVitestConfig() {
     return defineConfig({
         define: { __PLUGIN_VERSION__: JSON.stringify(pkg.version ?? '0.0.0') },
         test: {
+            // Keep this package's module cache to itself: concurrent runs clear vitest's workspace-wide default.
+            fsModuleCachePath: 'node_modules/.vitest-cache',
             coverage: {
                 provider: 'v8',
                 include: ['src/**/*.ts'],
