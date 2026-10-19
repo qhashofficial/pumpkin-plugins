@@ -8,7 +8,7 @@
  * Distributed WITHOUT ANY WARRANTY; see ../../LICENSE.
  */
 import { Reader, Writer } from './bytes.ts';
-import { PROTOCOL, TRANSFER_PACKET_BYTES } from './constants.ts';
+import { PROTOCOL, SECTION_DETAIL, TRANSFER_PACKET_BYTES } from './constants.ts';
 
 export * from './constants.ts';
 /** Plugin channel shared with the released DH client. */
@@ -47,6 +47,19 @@ export function readSection(input: Reader): Section {
     const x = (((low >>> 8) | ((high & 15) << 24)) << 4) >> 4;
     const z = ((high >>> 4) << 4) >> 4;
     return { high, low, detail: low & 255, x, z };
+}
+
+/** Packs block-detail section coordinates the way readSection unpacks them. */
+export function encodeSection(x: number, z: number): Section {
+    const packedX = x & 0x0fff_ffff;
+    const packedZ = z & 0x0fff_ffff;
+    return {
+        x,
+        z,
+        detail: SECTION_DETAIL,
+        high: ((packedZ << 4) | (packedX >>> 24)) >>> 0,
+        low: ((packedX << 8) | SECTION_DETAIL) >>> 0,
+    };
 }
 
 /** Reads only client-to-server messages and validates their complete layout. */

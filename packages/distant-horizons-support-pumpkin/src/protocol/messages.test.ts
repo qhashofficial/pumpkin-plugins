@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Reader, Writer } from './bytes.ts';
 import {
     decode,
+    encodeSection,
     levelInit,
     packet,
     readSection,
@@ -43,6 +44,19 @@ describe('Distant Horizons protocol', () => {
         expect(input.timestamp()).toBe(2 ** 40);
         input.end();
         expect(() => new Writer().string('x'.repeat(65536))).toThrow('too long');
+    });
+    it('packs section coordinates that read back unchanged', () => {
+        for (const [x, z] of [
+            [0, 0],
+            [-1, -1],
+            [123, -456],
+            [-(2 ** 27), 2 ** 27 - 1],
+        ] as const) {
+            const section = encodeSection(x, z);
+            const bytes = new Writer().words(section.high, section.low).finish();
+            expect(readSection(new Reader(bytes))).toEqual({ ...section, x, z, detail: 6 });
+        }
+        expect(encodeSection(-1, -1)).toMatchObject({ high: 0xffffffff, low: 0xffffff06 });
     });
     it('decodes signed section coordinates without rounding 64-bit positions', () => {
         const bytes = new Writer().words(0xffffffff, 0xffffff06).finish();

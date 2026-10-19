@@ -1,9 +1,9 @@
 import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import type { Logger } from '@pumpkin-plugins/plugin-kit/logger';
-import type { TerrainAccess, TerrainRegion, TerrainSource } from '@pumpkin-plugins/terrain';
+import type { TerrainAccess, TerrainRegion } from '@pumpkin-plugins/terrain';
 import { PLUGIN_NAME } from '../name.ts';
-import { SECTION_DETAIL, SECTION_SIZE_BLOCKS } from '../protocol/constants.ts';
-import type { Section } from '../protocol/messages.ts';
+import { SECTION_SIZE_BLOCKS } from '../protocol/constants.ts';
+import { encodeSection } from '../protocol/messages.ts';
 import { LodBuilder } from './builder.ts';
 import type { CacheRecoveryBackup, LodCache } from './cache.ts';
 import {
@@ -13,6 +13,7 @@ import {
     lodGenerationSectionCount,
     MAX_LOD_GENERATION_SECTIONS,
     sectionKey,
+    sectionRegion,
 } from './generation.ts';
 import { lodLocation } from './location.ts';
 
@@ -114,7 +115,7 @@ export class ForcedLodGeneration {
         const key = sectionKey(peer.level, centerX, centerZ);
         if (!this.cache.has(key)) throw new Error('No cached LOD section exists at the selected coordinates.');
         const selection = this.validateSelection(peer, blockX, blockZ, 0);
-        const prepared = peer.terrain.prepare?.(this.region({ x: centerX, z: centerZ }, peer.terrain));
+        const prepared = peer.terrain.prepare?.(sectionRegion({ x: centerX, z: centerZ }, peer.terrain));
         if (prepared?.status !== 'ready') {
             const reason = prepared && 'reason' in prepared ? ` ${prepared.reason}` : '';
             throw new Error(
@@ -256,7 +257,7 @@ export class ForcedLodGeneration {
             if (budget === 0) break;
 
             try {
-                const region = this.region(target.coordinate, peer.terrain);
+                const region = sectionRegion(target.coordinate, peer.terrain);
                 const prepared = prepareTerrain(region);
                 if (prepared?.status === 'pending') break;
                 if (prepared && prepared.status !== 'ready') {
@@ -264,10 +265,14 @@ export class ForcedLodGeneration {
                     continue;
                 }
 
-                target.builder ??= new LodBuilder(section(target.coordinate), region.minY, region.height);
-                const measured = measureTerrain(peer.terrain);
-                const complete = target.builder.step(measured.source, budget);
-                budget -= measured.samples();
+                target.builder ??= new LodBuilder(
+                    encodeSection(target.coordinate.x, target.coordinate.z),
+                    region.minY,
+                    region.height,
+                );
+                const sampled = target.builder.samples();
+                const complete = target.builder.step(peer.terrain, budget);
+                budget -= target.builder.samples() - sampled;
                 if (!complete) break;
 
                 const stillPrepared = prepareTerrain(region);
@@ -294,17 +299,6 @@ export class ForcedLodGeneration {
             return;
         }
         this.reportProgress(job, peer);
-    }
-
-    private region(section: LodSectionCoordinate, terrain: TerrainAccess): TerrainRegion {
-        return {
-            originX: section.x * SECTION_SIZE_BLOCKS,
-            originZ: section.z * SECTION_SIZE_BLOCKS,
-            width: SECTION_SIZE_BLOCKS,
-            depth: SECTION_SIZE_BLOCKS,
-            minY: terrain.minY,
-            height: terrain.height,
-        };
     }
 
     private skip(job: ForcedJob, reason: string): void {
@@ -408,30 +402,4 @@ function isInsideBorder(peer: ForcedLodPeer, coordinate: LodSectionCoordinate): 
         peer.insideBorder(minX, minZ) &&
         peer.insideBorder(minX + SECTION_SIZE_BLOCKS - 1, minZ + SECTION_SIZE_BLOCKS - 1)
     );
-}
-
-function section(coordinate: LodSectionCoordinate): Section {
-    const x = coordinate.x & 0x0fff_ffff;
-    const z = coordinate.z & 0x0fff_ffff;
-    return {
-        x: coordinate.x,
-        z: coordinate.z,
-        detail: SECTION_DETAIL,
-        high: ((z << 4) | (x >>> 24)) >>> 0,
-        low: ((x << 8) | SECTION_DETAIL) >>> 0,
-    };
-}
-
-function measureTerrain(source: TerrainSource): { source: TerrainSource; samples: () => number } {
-    let samples = 0;
-    const measured: TerrainSource = {
-        minY: source.minY,
-        height: source.height,
-        sample: (x, y, z) => {
-            samples++;
-            return source.sample(x, y, z);
-        },
-    };
-    if (source.top) measured.top = source.top.bind(source);
-    return { source: measured, samples: () => samples };
 }
