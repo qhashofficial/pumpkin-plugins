@@ -301,18 +301,15 @@ export function handleGeneratePhase(generatorId: number, phase: GenerationPhase,
 
 /** The metadata export consumed by Pumpkin during plugin loading. */
 export const metadata = {
-    /** Return metadata from the registered plugin, or a safe fallback when none exists. */
+    /**
+     * Return metadata from the registered plugin.
+     *
+     * @throws {Error} When `registerPlugin()` was not called, so Pumpkin fails the load instead of loading an unnamed
+     * plugin.
+     */
     getMetadata(): PluginMetadata {
-        return (
-            pluginInstance?.metadata() ?? {
-                name: 'unknown',
-                version: '0.0.0',
-                authors: [],
-                description: 'No metadata',
-                dependencies: [],
-                permissions: [],
-            }
-        );
+        if (!pluginInstance) throw new Error('registerPlugin() was not called before Pumpkin requested metadata');
+        return pluginInstance.metadata();
     },
 };
 

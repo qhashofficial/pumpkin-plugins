@@ -14,15 +14,8 @@ class TestPlugin extends Plugin {
     }
 }
 
-it('returns fallback metadata before a plugin is registered', () => {
-    expect(metadata.getMetadata()).toEqual({
-        name: 'unknown',
-        version: '0.0.0',
-        authors: [],
-        description: 'No metadata',
-        dependencies: [],
-        permissions: [],
-    });
+it('fails metadata requests before a plugin is registered', () => {
+    expect(() => metadata.getMetadata()).toThrowError(/registerPlugin\(\)/);
 });
 
 it('rejects IPC messages when a plugin does not provide a handler', () => {
