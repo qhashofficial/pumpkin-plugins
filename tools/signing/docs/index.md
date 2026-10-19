@@ -8,9 +8,11 @@ signing and verification GitHub Actions in a release workflow.
 
 Signing adds `pumpkin.metadata` and `wasm_signature` custom sections to the WebAssembly file. The
 signature covers the module bytes and embedded metadata. `verifyWasm` checks that signature and
-returns the public key and release metadata; compare that key with one you trust before accepting a
-file. Tools can inspect the sections or remove trailing signing sections, and signing replaces
-existing trailing signing sections before adding a new signature.
+returns the public key and release metadata. On its own, a valid result only means the file agrees
+with itself, so pass the trusted public key as the second argument: a file signed by any other key
+then comes back invalid with an `unexpected signer` error. Tools can inspect the sections or remove
+trailing signing sections, and signing replaces existing trailing signing sections before adding a
+new signature.
 
 `verifyWasm` reads the signature from a `wasm_signature` or `pumpkin.signature` section and accepts
 hex in either case, as Pumpkin does. It is stricter than Pumpkin in two places: it reads only the
