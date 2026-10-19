@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
-import { relative, resolve, sep } from 'node:path';
+import { matchesGlob, relative, resolve, sep } from 'node:path';
 import { discoverComponents } from '@pumpkin-plugins/docs/node';
 import ts from 'typescript';
 import { parse as parseYaml } from 'yaml';
@@ -276,7 +276,12 @@ function packageReleaseInputs(packages, releasePath, root) {
     if (releasePath.startsWith('tools/')) {
         const pkg = [...packages.values()].find((entry) => entry.path === releasePath);
         if (!pkg) throw new Error(`Unknown release package: ${releasePath}`);
-        const inputs = { paths: new Set([releasePath]), catalogs: new Set(), sharedFiles: new Set() };
+        const inputs = {
+            paths: new Set([releasePath]),
+            catalogs: new Set(),
+            sharedFiles: new Set(),
+            packedFiles: packedFileMatcher(releasePath, pkg.manifest.files),
+        };
         const compilerOptions = sourceModuleOptions(root);
         const visited = new Set();
         for (const file of sourceFilesIn(resolve(root, releasePath))) {
@@ -305,14 +310,41 @@ function packageReleaseInputs(packages, releasePath, root) {
     return inputs;
 }
 
+// npm packs these root files whatever the `files` list says.
+const NPM_ALWAYS_PACKED_PATTERN = /^(?:readme|licen[cs]e)(?:\.[^/]*)?$/i;
+
+/** Matches workspace files that npm packs for a tool, following its `files` globs and `!` exclusions. */
+function packedFileMatcher(packagePath, patterns = []) {
+    const included = patterns.filter((pattern) => !pattern.startsWith('!'));
+    const excluded = patterns.filter((pattern) => pattern.startsWith('!')).map((pattern) => pattern.slice(1));
+    // A directory entry packs everything below it.
+    const matches = (file, pattern) => matchesGlob(file, pattern) || matchesGlob(file, `${pattern}/**`);
+    return (file) => {
+        if (!file.startsWith(`${packagePath}/`)) return false;
+        const packageFile = file.slice(packagePath.length + 1);
+        if (NPM_ALWAYS_PACKED_PATTERN.test(packageFile)) return true;
+        return (
+            included.some((pattern) => matches(packageFile, pattern)) &&
+            !excluded.some((pattern) => matches(packageFile, pattern))
+        );
+    };
+}
+
 function shippedFile(file, inputs, commit, catalogChangesByCommit) {
+    const {
+        paths,
+        catalogs = new Set(),
+        sharedFiles = new Set(),
+        packedFiles,
+    } = inputs instanceof Set ? { paths: inputs } : inputs;
+    // Tool files npm packs ship as they are, including Markdown and test helpers exported to users.
+    if (packedFiles?.(file)) return true;
     if (
         /\.md$|(?:^|\/)(?:test|testing|__tests__)\/|^(?:packages|tools|extensions)\/[^/]+\/(?:build|dist|node_modules)\/|\.(?:spec|test|itest)\.[cm]?[jt]s$/.test(
             file,
         )
     )
         return false;
-    const { paths, catalogs = new Set(), sharedFiles = new Set() } = inputs instanceof Set ? { paths: inputs } : inputs;
     if (sharedFiles.has(file)) return true;
     if (file === 'pnpm-workspace.yaml') {
         const changedCatalogs = catalogChangesByCommit?.get(commit.sha);

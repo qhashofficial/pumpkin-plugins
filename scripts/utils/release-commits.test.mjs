@@ -719,6 +719,49 @@ describe('bundled release commits', () => {
         );
     });
 
+    it('selects public tool commits by the files the package publishes', async () => {
+        const root = writeWorkspace({
+            'tools/plugin-kit/package.json': {
+                name: '@pumpkin-plugins/plugin-kit',
+                publishConfig: { access: 'public' },
+                files: ['src/**/*.ts', '!src/**/*.test.ts', 'templates'],
+            },
+        });
+        try {
+            const history = [
+                commit('testing-helper', ['tools/plugin-kit/src/testing/memory-files.ts']),
+                commit('template-readme', ['tools/plugin-kit/templates/typescript/README.md']),
+                commit('unit-test', ['tools/plugin-kit/src/host.test.ts']),
+                commit('unpacked-notes', ['tools/plugin-kit/notes.md']),
+                commit('boundary', ['tools/plugin-kit/package.json']),
+            ];
+            const github = {
+                async *mergeCommitIterator() {
+                    yield* history;
+                },
+            };
+            const plugin = bundledChangesPlugin(
+                github,
+                'master',
+                workspacePackages(root),
+                { 'tools/plugin-kit': '0.1.0' },
+                500,
+                () => {},
+                root,
+            );
+            const commits = { 'tools/plugin-kit': [] };
+
+            await plugin.preconfigure({ 'tools/plugin-kit': {} }, commits, { 'tools/plugin-kit': { sha: 'boundary' } });
+
+            assert.deepEqual(
+                commits['tools/plugin-kit'].map((entry) => entry.sha),
+                ['testing-helper', 'template-readme'],
+            );
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
+    });
+
     it('falls back to the latest published release below a missing manifest release', async () => {
         const history = [
             commit('after-release', ['packages/plugin/src/plugin.ts']),
