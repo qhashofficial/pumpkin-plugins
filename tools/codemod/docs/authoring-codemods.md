@@ -77,6 +77,13 @@ pnpm turbo run typecheck --filter=@pumpkin-plugins/codemod
 pnpm turbo run build --filter=@pumpkin-plugins/codemod
 ```
 
+To try your changes on a plugin before a release, run the built CLI from the repository root:
+
+```sh
+node tools/codemod/dist/bin/pumpkin-codemod.js list
+node tools/codemod/dist/bin/pumpkin-codemod.js migrate-pumpkin-api-ts path/to/plugin
+```
+
 After changing the codemod registry or `engines.node`, regenerate the README and end-user guide with
 `pnpm turbo run readme --filter=@pumpkin-plugins/codemod`. Their codemod catalog and Node.js
 requirement come from the registry and `package.json`.
