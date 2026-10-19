@@ -101,10 +101,9 @@ function toolKey(request) {
     };
 }
 
-function completionIdentity(request) {
-    return request?.hook_event_name === 'SubagentStop'
-        ? `subagent:${request.agent_id ?? request.turn_id ?? 'unknown'}`
-        : 'root';
+/** The completion scope a Stop or SubagentStop request belongs to: the root agent or one subagent. */
+export function completionIdentity(request) {
+    return request?.hook_event_name === 'SubagentStop' ? `subagent:${request.agent_id ?? request.turn_id}` : 'root';
 }
 
 /**
