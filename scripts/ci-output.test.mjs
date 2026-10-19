@@ -6,6 +6,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, it } from 'node:test';
 import { parse } from 'yaml';
+import { requiredEnvironment, setOutput } from './utils/ci-output.mjs';
 
 const temporaryDirectories = [];
 afterEach(() => {
@@ -291,4 +292,44 @@ it('renders the deployment summary after the Pages mirror replaces the checkout'
         fs.readFileSync(summary, 'utf8'),
         /\[Open the published documentation\]\(https:\/\/example.github.io\/docs\/\)/,
     );
+});
+
+it('writes step outputs that keep line breaks and equals signs inside their values', () => {
+    const { directory } = fixture();
+    const outputFile = path.join(directory, 'output');
+    const previous = process.env.GITHUB_OUTPUT;
+    process.env.GITHUB_OUTPUT = outputFile;
+    try {
+        setOutput('report', 'first line\nsecond=line');
+        setOutput('url', 'https://example.test/chart.svg');
+    } finally {
+        if (previous === undefined) delete process.env.GITHUB_OUTPUT;
+        else process.env.GITHUB_OUTPUT = previous;
+    }
+
+    // Read the file the way the runner does: `name<<delimiter`, value lines, then the delimiter.
+    const outputs = Object.fromEntries(
+        [...fs.readFileSync(outputFile, 'utf8').matchAll(/^([\w-]+)<<(.+)\n([\s\S]*?)\n\2$/gm)].map(
+            ([, name, , value]) => [name, value],
+        ),
+    );
+    assert.deepEqual(outputs, { report: 'first line\nsecond=line', url: 'https://example.test/chart.svg' });
+
+    delete process.env.GITHUB_OUTPUT;
+    try {
+        assert.throws(() => setOutput('report', 'value'), /GITHUB_OUTPUT is required/);
+    } finally {
+        if (previous !== undefined) process.env.GITHUB_OUTPUT = previous;
+    }
+
+    process.env.CI_OUTPUT_TEST_VALUE = '  value  ';
+    process.env.CI_OUTPUT_TEST_BLANK = ' ';
+    try {
+        assert.equal(requiredEnvironment('CI_OUTPUT_TEST_VALUE'), 'value');
+        assert.throws(() => requiredEnvironment('CI_OUTPUT_TEST_BLANK'), /CI_OUTPUT_TEST_BLANK is required/);
+        assert.throws(() => requiredEnvironment('CI_OUTPUT_TEST_MISSING'), /CI_OUTPUT_TEST_MISSING is required/);
+    } finally {
+        delete process.env.CI_OUTPUT_TEST_VALUE;
+        delete process.env.CI_OUTPUT_TEST_BLANK;
+    }
 });

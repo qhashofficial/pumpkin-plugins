@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { requiredEnvironment, setOutput } from './utils/ci-output.mjs';
 import {
     apiHeaders,
     encodePath,
@@ -16,7 +17,7 @@ const MAX_SVG_BYTES = 10_000_000;
 /** Publishes a benchmark chart on a retained branch and writes its URL as a workflow output. */
 export async function uploadBenchmarkChart(
     input,
-    { fetchImpl = fetch, readFile = fs.readFileSync, writeOutput = writeGitHubOutput } = {},
+    { fetchImpl = fetch, readFile = fs.readFileSync, writeOutput = setOutput } = {},
 ) {
     const token = requireString(input.token, 'GitHub App token');
     const repositoryPath = encodeRepository(input.repository);
@@ -154,16 +155,6 @@ function validateDownloadUrl(value, serverUrl) {
         throw new Error('GitHub chart upload returned an unexpected download URL');
     }
     return url.href;
-}
-
-function writeGitHubOutput(name, value) {
-    const outputPath = process.env.GITHUB_OUTPUT;
-    if (!outputPath) throw new Error('GITHUB_OUTPUT is required');
-    fs.appendFileSync(outputPath, `${name}=${value}\n`);
-}
-
-function requiredEnvironment(name) {
-    return requireString(process.env[name], name);
 }
 
 async function runCli() {

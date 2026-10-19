@@ -1,15 +1,9 @@
-import * as fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import {
-    apiHeaders,
-    encodeRepository,
-    normalizeBaseUrl,
-    readJsonResponse,
-    requireString,
-} from './utils/github-api.mjs';
+import { requiredEnvironment, setOutput } from './utils/ci-output.mjs';
+import { apiHeaders, encodeRepository, normalizeBaseUrl, readJsonResponse } from './utils/github-api.mjs';
 
 /** Finds the current benchmark report and the newest successful matching default-branch baseline. */
-export async function discoverBenchmarkArtifacts(input, { fetchImpl = fetch, writeOutput = writeGitHubOutput } = {}) {
+export async function discoverBenchmarkArtifacts(input, { fetchImpl = fetch, writeOutput = setOutput } = {}) {
     const repositoryPath = encodeRepository(input.repository);
     const apiBaseUrl = normalizeBaseUrl(input.apiUrl, 'GitHub API URL');
     const headers = apiHeaders(input.token);
@@ -138,16 +132,6 @@ function findReportArtifact(payload) {
     return payload.artifacts.find(
         (artifact) => artifact?.name === 'engine-comparison-report' && artifact.expired === false,
     );
-}
-
-function writeGitHubOutput(name, value) {
-    const outputPath = process.env.GITHUB_OUTPUT;
-    if (!outputPath) throw new Error('GITHUB_OUTPUT is required');
-    fs.appendFileSync(outputPath, `${name}=${value}\n`);
-}
-
-function requiredEnvironment(name) {
-    return requireString(process.env[name], name);
 }
 
 async function runCli() {
