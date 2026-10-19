@@ -193,8 +193,8 @@ after the command or coordinates to select up to 31 sections from the center. Ea
 select at most 4,096 sections; radius 31 selects 3,969. The job checks up to 64 cached sections per
 tick, skipping valid entries. If every requested section is already cached, the plugin reports that
 no capture is needed. Only one forced job can run at a time. It gets up to 32,768 block samples per
-tick and pauses ordinary capture sampling while it runs, but cached-response delivery and transfers
-continue. The plugin reports progress in chat about every 10%, and `/dhs status` shows the active
+tick, fewer when server MSPT and the measured cost per sample leave less spare tick time, and pauses
+ordinary capture sampling while it runs, but cached-response delivery and transfers continue. The plugin reports progress in chat about every 10%, and `/dhs status` shows the active
 job. Forced capture uses terrain that is already loaded; it does not load or generate Minecraft
 chunks, and skips sections with unavailable chunks.
 

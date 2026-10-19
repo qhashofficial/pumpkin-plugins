@@ -79,6 +79,40 @@ describe('forced LOD generation', () => {
         expect(f.reports.at(-1)).toContain('complete: 1 built, 0 skipped');
     });
 
+    it('pauses forced sampling while the server has no spare tick time', () => {
+        const f = fixture();
+        f.generation.start(f.peer, 32, 32);
+
+        f.generation.tick(f.peers, 46);
+        expect(f.samples()).toBe(0);
+        expect(f.cache.has('world:0:0')).toBe(false);
+
+        f.generation.tick(f.peers, 10);
+        expect(f.cache.has('world:0:0')).toBe(true);
+    });
+
+    it('scales forced sampling to the measured cost of a sample', () => {
+        const f = fixture(16);
+        let clock = 0;
+        const sample = f.peer.terrain.sample;
+        f.peer.terrain.sample = (x, y, z) => {
+            clock += 0.01;
+            return sample(x, y, z);
+        };
+        const generation = new ForcedLodGeneration(
+            f.cache,
+            f.logger,
+            () => 1234,
+            () => clock,
+        );
+        generation.start(f.peer, 32, 32);
+
+        generation.tick(f.peers);
+        expect(f.samples()).toBe(32_768);
+        generation.tick(f.peers);
+        expect(f.samples() - 32_768).toBeLessThan(5_000);
+    });
+
     it('skips sections whose chunks are unavailable and reports the final count', () => {
         const f = fixture();
         f.peer.terrain.prepare = () => ({ status: 'unavailable', reason: 'Chunk is not loaded' });
