@@ -130,6 +130,15 @@ describe('/wp handlers', () => {
         ).toEqual(['"Market Place"', 'Meadow']);
     });
 
+    it('does not suggest existing names for a new waypoint', () => {
+        const { catalog, runtime, sender } = setup(true);
+        catalog.create({ id: waypointId, name: 'Market', dimension: 'world', position: { x: 0, y: 64, z: 0 } });
+
+        expect(
+            waypointNameSuggestions(runtime)(sender, { input: '/wp create M', cursor: 12, start: 11, remaining: 'M' }),
+        ).toEqual([]);
+    });
+
     it('suggests resettable properties and filters them by the typed prefix', () => {
         const { sender } = setup(true);
 
