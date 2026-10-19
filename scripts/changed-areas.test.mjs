@@ -619,6 +619,19 @@ describe('changed-areas', () => {
         assert.match(result.log, /Generated README update commit detected/);
     });
 
+    it('reports changes limited to label configuration as config only', () => {
+        const dir = repo({ '.github/labels.yml': '[]\n', 'packages/plug/src/plugin.ts': 'export {};\n' });
+        const labelsOnly = run(dir, change(dir, { '.github/labels.yml': '- name: bug\n' }), 'HEAD');
+        assert.ok(labelsOnly.ok, labelsOnly.log);
+        assertOutputs(labelsOnly.outputs, 'code=false\nconfig_only=true\n');
+        const mixed = run(
+            dir,
+            change(dir, { '.github/labels.yml': '[]\n', 'packages/plug/src/plugin.ts': 'export const a = 1;\n' }),
+            'HEAD',
+        );
+        assertOutputs(mixed.outputs, 'code=true\nconfig_only=false\n');
+    });
+
     /** Commits each subject in turn, each one changing the plugin's source, and returns the base. */
     function releasePush(subjects) {
         const dir = repo({ 'packages/plug/src/plugin.ts': 'export {};\n' });
