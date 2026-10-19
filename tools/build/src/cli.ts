@@ -16,7 +16,7 @@ import { cacheDir } from './repo.ts';
 import { generateTypes } from './types.ts';
 import { startBuildUpdateCheck } from './update-check.ts';
 import { ensureWasiWit, readLock } from './wasi-wit.ts';
-import { withWasiWitFileLock } from './wasi-wit-lock.ts';
+import { withFileLock } from './wasi-wit-lock.ts';
 import { prepareWit, publishWitSnapshot } from './wit.ts';
 
 /**
@@ -92,7 +92,7 @@ export async function run(args: string[], pluginDir: string): Promise<void> {
             target: temporaryWitRoot === undefined ? path.join(buildDir, 'wit') : path.join(temporaryWitRoot, 'wit'),
         });
         const witSnapshot = path.join(buildDir, 'wit');
-        await withWasiWitFileLock(path.join(buildDir, '.wit-publish.lock'), () => {
+        await withFileLock(path.join(buildDir, '.wit-publish.lock'), () => {
             if (temporaryWitRoot !== undefined) publishWitSnapshot(witDir, witSnapshot);
             else fs.rmSync(witSnapshot, { recursive: true, force: true });
         });
