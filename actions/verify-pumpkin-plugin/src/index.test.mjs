@@ -29,8 +29,7 @@ function run(dir, inputs = {}) {
     fs.writeFileSync(outputFile, '');
     const result = spawnSync(process.execPath, [entrypoint], {
         cwd: dir,
-        env: {
-            ...process.env,
+        env: childEnv(dir, {
             GITHUB_OUTPUT: outputFile,
             'INPUT_WASM-FILE': 'plugin.wasm',
             'INPUT_PLUGINS-MANIFEST': '',
@@ -38,13 +37,26 @@ function run(dir, inputs = {}) {
             'INPUT_PLUGIN-NAME': '',
             INPUT_VERSION: '',
             ...inputs,
-        },
+        }),
         encoding: 'utf8',
     });
     return {
         ok: result.status === 0,
         out: `${result.stdout}${result.stderr}`,
         outputs: fs.readFileSync(outputFile, 'utf8'),
+    };
+}
+
+// Start from a minimal environment so the runner's own INPUT_* and GITHUB_* values can't reach the action.
+// NODE_V8_COVERAGE stays so coverage runs still collect the child's coverage.
+function childEnv(dir, env) {
+    const base = { PATH: process.env.PATH, HOME: process.env.HOME };
+    for (const name of ['SystemRoot', 'NODE_V8_COVERAGE']) if (process.env[name]) base[name] = process.env[name];
+    return {
+        ...base,
+        GITHUB_OUTPUT: path.join(dir, 'unread-outputs.txt'),
+        GITHUB_STEP_SUMMARY: path.join(dir, 'unread-summary.md'),
+        ...env,
     };
 }
 
