@@ -145,7 +145,8 @@ it('transfers returned event allocations to Pumpkin instead of freeing them on s
         { event: 'server-command-event', record: 'server-command-event-data', fields: ['command', 'cancelled'] },
     ]);
 
-    expect(dispatch.indexOf('returnedEventCleanup.release();')).toBeGreaterThan(
-        dispatch.indexOf('*ret = returnedEvent;'),
-    );
+    const transfer = dispatch.indexOf('*ret = returnedEvent;');
+    const release = dispatch.indexOf('returnedEventCleanup.release();');
+    expect(transfer).toBeGreaterThanOrEqual(0);
+    expect(release).toBeGreaterThan(transfer);
 });
