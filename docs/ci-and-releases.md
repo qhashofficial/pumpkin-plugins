@@ -371,8 +371,10 @@ replace the existing files automatically.
 Signing lets Pumpkin detect whether a plugin file has changed. A signed `.wasm` carries two custom
 sections: `pumpkin.metadata` records the plugin name, version, developer and issue time; and
 `wasm_signature` contains an Ed25519 signature over the code and metadata, plus the public key.
-Pumpkin warns when it loads an unsigned plugin unless its config sets `allow_unsigned = false`.
-Local signing is optional.
+By default Pumpkin loads an unsigned plugin and logs a warning. If the server config sets
+`allow_unsigned = false`, globally or in a plugin's override, Pumpkin skips unsigned or invalid files
+instead of loading them. Local signing is optional, but unsigned local builds won't load on a server
+with that setting.
 
 `pnpm package` builds each production plugin with its configured engine (Static Hermes by default),
 copies the result into `dist/` and writes checksums. It doesn't sign files or warn that they're
