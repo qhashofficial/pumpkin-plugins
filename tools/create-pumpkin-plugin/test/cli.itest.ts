@@ -446,6 +446,7 @@ it('rejects a missing directory without creating a project', () => {
     const result = runCli([], { cwd });
 
     expect(result.status).not.toBe(0);
+    expect(result.stderr.match(/missing required argument/g)).toHaveLength(1);
     expect(fs.readdirSync(cwd)).toEqual([]);
 });
 
