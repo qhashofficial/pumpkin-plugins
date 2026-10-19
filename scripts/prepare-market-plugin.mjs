@@ -1,6 +1,5 @@
 // Verifies a signed GitHub release artifact, then removes publisher signing sections before Market upload.
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { publicKeyOf, stripSignature, verifyWasm } from '@pumpkin-plugins/signing';
 import { Command } from 'commander';
 
@@ -29,7 +28,7 @@ export function prepareMarketPlugin(wasm, expected) {
     return stripSignature(wasm).clean;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === import.meta.filename) {
+if (import.meta.main) {
     const program = new Command()
         .name('prepare-market-plugin')
         .description(
