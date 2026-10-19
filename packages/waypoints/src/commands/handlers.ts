@@ -151,6 +151,7 @@ export function commandHandlers(runtime: WaypointCommandRuntime): CommandHandler
             ),
         'wp access list <name>': (sender, { name }) =>
             withAdmin(runtime, sender, () => {
+                if (!runtime.catalog.isAvailable) return [errorLine(STORAGE_ERROR)];
                 const waypoint = runtime.catalog.getByName(name);
                 if (waypoint === undefined) return [errorLine('Waypoint not found.')];
                 return [
@@ -458,6 +459,7 @@ function updateAccess(
     success: string,
 ): CommandLine[] {
     return withAdmin(runtime, sender, () => {
+        if (!runtime.catalog.isAvailable) return [errorLine(STORAGE_ERROR)];
         const waypoint = runtime.catalog.getByName(name);
         if (waypoint === undefined) return [errorLine('Waypoint not found.')];
         return mutationLines(runtime.catalog.update(name, { access: update(waypoint.access) }), success);
@@ -465,6 +467,7 @@ function updateAccess(
 }
 
 function updateGrant(runtime: WaypointCommandRuntime, name: string, grant: AccessGrant, add: boolean): CommandLine[] {
+    if (!runtime.catalog.isAvailable) return [errorLine(STORAGE_ERROR)];
     const waypoint = runtime.catalog.getByName(name);
     if (waypoint === undefined) return [errorLine('Waypoint not found.')];
     const key = grantKey(grant);
