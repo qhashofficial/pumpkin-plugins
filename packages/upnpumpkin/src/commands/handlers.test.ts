@@ -16,11 +16,12 @@ import { COMMAND_PERMISSION, commands } from './spec.ts';
 
 function setup(igd = new FakeIgd()) {
     const net = new FakeNetwork([igd]);
-    const forwarder = new PortForwarder(new MemoryFiles(), new MemoryLogger(), net);
+    const files = new MemoryFiles();
+    const forwarder = new PortForwarder(files, new MemoryLogger(), net);
     forwarder.start();
     const host = new FakeCommandHost();
     const built = buildCommands(host, commands, commandHandlers(forwarder));
-    return { net, forwarder, host, root: built[0]?.node as FakeNode };
+    return { net, files, forwarder, host, root: built[0]?.node as FakeNode };
 }
 
 describe('the /upnp commands', () => {
@@ -45,6 +46,13 @@ describe('the /upnp commands', () => {
     it('reload says how many ports are kept open', () => {
         const { host, root } = setup();
         expect(host.run(root, ['upnp', 'reload'])).toEqual(['Reloaded the config. 3 ports are being kept open.']);
+    });
+
+    it('reload fails and keeps the current settings when the file is not valid TOML', () => {
+        const { host, root, files } = setup();
+        files.put('config.toml', '[java\nport = 25570\n');
+        expect(() => host.run(root, ['upnp', 'reload'])).toThrow(FakeCommandFailure);
+        expect(() => host.run(root, ['upnp', 'reload'])).toThrow(/not valid TOML.*current settings were kept/);
     });
 
     describe('with a router UPnPumpkin does not work with', () => {

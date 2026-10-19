@@ -101,6 +101,20 @@ describe('PortForwarder', () => {
         expect(net.sent.filter((s) => s.to.port === 1900)).toHaveLength(searches);
     });
 
+    it('keeps the current settings and ports when a reload finds broken TOML', () => {
+        const { files, forwarder, settle, keys, net } = setup('[java]\nport = 25570\n\n[bedrock]\nenabled = false\n');
+        forwarder.start();
+        settle(() => keys().length === 1);
+        const searches = net.sent.filter((s) => s.to.port === 1900).length;
+
+        files.put(CONFIG_FILE, '[java\nport = 25570\n');
+        expect(() => forwarder.reload()).toThrow();
+        settle(() => false, 1000);
+        expect(forwarder.config.java.port).toBe(25570);
+        expect(keys()).toEqual(['tcp:25570']);
+        expect(net.sent.filter((s) => s.to.port === 1900)).toHaveLength(searches);
+    });
+
     it('searches for the router again, and keeps what plugins asked for, when router settings change', () => {
         const { files, forwarder, settle, ask, keys, net } = setup(
             '[java]\nenabled = false\n\n[bedrock]\nenabled = false\n',
