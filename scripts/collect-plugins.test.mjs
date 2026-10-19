@@ -12,7 +12,7 @@ afterEach(() => {
     for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
 });
 
-function fixture() {
+function fixture({ info = 'src/info.mjs', name = 'Example Plugin' } = {}) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'collect-plugins-'));
     dirs.push(root);
     const pluginDir = path.join(root, 'packages', 'example-plugin');
@@ -23,11 +23,11 @@ function fixture() {
         path.join(pluginDir, 'package.json'),
         JSON.stringify({
             version: '1.2.3',
-            pumpkinPlugin: { output: 'build/example-plugin.wasm', info: 'src/info.mjs' },
+            pumpkinPlugin: { output: 'build/example-plugin.wasm', info },
         }),
     );
     fs.writeFileSync(path.join(pluginDir, 'build/example-plugin.wasm'), wasm);
-    fs.writeFileSync(path.join(pluginDir, 'src/info.mjs'), 'export const info = { name: "Example Plugin" };');
+    fs.writeFileSync(path.join(pluginDir, 'src/info.mjs'), `export const info = { name: ${JSON.stringify(name)} };`);
     return { root, wasm };
 }
 
@@ -51,5 +51,23 @@ describe('collect-plugins', () => {
                 'wasm-file': path.join(dist, 'example-plugin.wasm'),
             },
         ]);
+    });
+
+    it('rejects a multi-line plugin name instead of writing it to the signing manifest', async () => {
+        const { root } = fixture({ name: 'Example Plugin\nplugin-name=Other' });
+        const manifestFile = path.join(root, 'plugins.json');
+
+        await assert.rejects(collectPlugins({ root, manifestFile }), /single-line name/);
+        assert.equal(fs.existsSync(manifestFile), false);
+    });
+
+    it('rejects an info module outside the plugin package', async () => {
+        const { root } = fixture({ info: '../outside.mjs' });
+        fs.writeFileSync(path.join(root, 'packages/outside.mjs'), 'export const info = { name: "Outside" };');
+
+        await assert.rejects(
+            collectPlugins({ root, manifestFile: path.join(root, 'plugins.json') }),
+            /info path escapes the package/,
+        );
     });
 });

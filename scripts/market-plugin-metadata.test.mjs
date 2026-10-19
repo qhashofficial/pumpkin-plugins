@@ -55,6 +55,7 @@ describe('market-plugin-metadata', () => {
 
     it('adds README content without its installation or commands sections', () => {
         const dir = plugin({
+            name: 'ExamplePlugin',
             description: 'A short listing summary',
             commands: [],
         });
@@ -90,12 +91,12 @@ Players can share named locations and control who can see each one.
 
     it('supports a custom info path and a plugin with no commands', () => {
         const dir = plugin(
-            { description: 'No command listing', commands: [] },
+            { name: 'ExamplePlugin', description: 'No command listing', commands: [] },
             { package: { pumpkinPlugin: { info: 'src/market-info.ts' } } },
         );
         fs.writeFileSync(
             path.join(dir, 'src', 'market-info.ts'),
-            "export default { description: 'No command listing', commands: [] };",
+            "export default { name: 'ExamplePlugin', description: 'No command listing', commands: [] };",
         );
 
         const result = run(dir);
