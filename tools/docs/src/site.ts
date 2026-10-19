@@ -51,7 +51,7 @@ export interface DocumentationTreeFolder {
 export type DocumentationTreeNode = DocumentationTreeFolder | DocumentationTreePage;
 
 /** Read frontmatter from a Markdown file, returning an empty object when none is present. */
-function frontmatterOf(file: string): Record<string, unknown> {
+export function frontmatterOf(file: string): Record<string, unknown> {
     const source = readFileSync(file, 'utf8');
     const frontmatter = source.match(/^---\s*\n([\s\S]*?)\n---(?:\s*\n|$)/);
     if (!frontmatter) return {};
@@ -60,7 +60,7 @@ function frontmatterOf(file: string): Record<string, unknown> {
 }
 
 /** Return a readable title from frontmatter, the first H1, or the source filename. */
-function titleOf(file: string, fallback: string): string {
+export function titleOf(file: string, fallback: string): string {
     const frontmatterTitle = frontmatterOf(file).title;
     if (typeof frontmatterTitle === 'string' && frontmatterTitle.trim()) return frontmatterTitle.trim();
     const heading = readFileSync(file, 'utf8')
@@ -70,7 +70,7 @@ function titleOf(file: string, fallback: string): string {
 }
 
 /** Derive a short page description from frontmatter or the first prose paragraph. */
-function descriptionOf(file: string): string {
+export function descriptionOf(file: string): string {
     const description = frontmatterOf(file).description;
     if (typeof description === 'string') return description;
     const source = readFileSync(file, 'utf8')

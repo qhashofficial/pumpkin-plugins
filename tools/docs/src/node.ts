@@ -321,8 +321,11 @@ export type {
 export {
     buildDocumentationTree,
     componentApiRoute,
+    descriptionOf,
     discoverHandwrittenDocs,
+    frontmatterOf,
     githubPagesUrl,
     githubRepositoryUrl,
     rootPageRewrites,
+    titleOf,
 } from './site.ts';
