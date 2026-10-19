@@ -796,6 +796,7 @@ export default defineConfig({
         '**/AGENTS.md',
         'plans/**',
         '.agents/**',
+        'docs/agents/**',
         '.github/**',
         '**/node_modules/**',
         'docs/.vitepress/**',

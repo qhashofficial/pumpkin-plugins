@@ -342,4 +342,10 @@ describe('docs index CLI', { timeout: 15000 }, () => {
         expect(index).not.toContain('[Home]');
         expect(run(dir, 'docs-index', '--check').status).toBe(0);
     });
+
+    it('leaves agent instructions out of the public docs index', () => {
+        put('docs/agents/triage.md', '# Triage labels\n');
+        expect(run(dir, 'docs-index').status).toBe(0);
+        expect(read('docs/README.md')).not.toContain('Triage labels');
+    });
 });

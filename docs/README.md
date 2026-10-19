@@ -47,11 +47,6 @@ aren't listed here.
 
 ## Docs
 
-- **Agents**
-  - [Agent domain docs](agents/domain.md) — How agents use glossaries and ADRs to keep terms and decisions aligned
-  - [Issue tracker](agents/issue-tracker.md) — GitHub issue commands and repository conventions
-  - [Triage labels](agents/triage-labels.md) — Maps triage skill labels to this repository's GitHub labels
-
 - [Plugin API](plugin-api/index.md) — Standalone API setup, lifecycle, host interfaces, ABI support and migration
   - [Plugin API: ABI and runtime support](plugin-api/abi-and-runtime.md) — Match the Pumpkin server to the plugin ABI and check engine support
   - [Plugin API: evolution and migration](plugin-api/api-evolution-and-migration.md) — Compatibility decisions, migration and SemVer policy

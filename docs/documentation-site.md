@@ -18,7 +18,8 @@ Direct children of `docs/` are guides and appear under `/guides/`. Put reference
 such as `docs/plugin-api/setup-and-build.md`, and they appear under `/docs/` with their folder
 structure. A nested `index.md` is the landing page for its folder. The repository home and Team page
 are exceptions: `docs/index.md` renders at `/`, and `docs/team.md` renders at `/team`. Neither is
-listed in the Guides or Docs catalog.
+listed in the Guides or Docs catalog. Instructions for coding agents in `docs/agents/` stay in the
+repository and are not published.
 
 For a plugin, put component-specific pages in `packages/<plugin>/docs/`; tools and actions use the
 same layout in their own folders. The site adds those pages to the component sidebar. If you create
