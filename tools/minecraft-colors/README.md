@@ -23,6 +23,7 @@ console.log(minecraftColorTable()); // Legacy codes for Minecraft text.
 `ansi` returns ANSI terminal codes for console output. Both formatters use Minecraft's 16 legacy
 colors and share the same named roles. `color.hex()` emits the `§x` RGB format; `ansi.hex()` emits
 ANSI true color. Modifiers are `bold`, `italic`, `underline`, `strikethrough` and `obfuscated`.
+Terminals have no obfuscated style, so `ansi.obfuscated` adds no code and leaves the text readable.
 Styled strings end with the appropriate reset code for their output format. A styled string can be
 nested inside another, as in ``color.red(`Failed for ${color.gold(name)}`)``; the outer style
 resumes after the nested part ends.

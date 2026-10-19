@@ -67,6 +67,12 @@ describe('Minecraft string formatting', () => {
         expect(ansi('Plain')).toBe('Plain');
     });
 
+    it('keeps obfuscated text visible in terminal output', () => {
+        expect(ansi.obfuscated('token')).toBe('token');
+        expect(ansi.red.obfuscated('token')).toBe('\u001b[91mtoken\u001b[0m');
+        expect(color.obfuscated('token')).toBe('§ktoken§r');
+    });
+
     it('returns a Minecraft table with each color shown normally and in bold', () => {
         const colors = [
             ['black', '0'],
