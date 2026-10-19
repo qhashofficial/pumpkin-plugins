@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -224,5 +225,32 @@ describe('Codex hook adapter', () => {
             null,
         );
         assert.deepEqual(scope.files('session-1', 'turn-1'), ['packages/p/src/plugin.ts']);
+    });
+
+    it('still guards shell calls before `pnpm install`, and asks for it when a guard needs it', () => {
+        // A fresh clone has no node_modules, so workspace packages don't resolve yet.
+        // The entry point compares its own resolved path, so resolve the macOS /var symlink.
+        const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'pumpkin-codex-fresh-clone-')));
+        temporaryDirectories.push(repo);
+        fs.cpSync(import.meta.dirname, path.join(repo, '.agents/hooks'), { recursive: true });
+        fs.writeFileSync(path.join(repo, 'README.md'), '# Readme\n');
+        const run = (request) => {
+            const result = spawnSync(process.execPath, [path.join(repo, '.agents/hooks/codex.mjs')], {
+                cwd: repo,
+                input: JSON.stringify({ hook_event_name: 'PreToolUse', cwd: repo, ...request }),
+                encoding: 'utf8',
+            });
+            assert.equal(result.status, 0, result.stderr);
+            return JSON.parse(result.stdout).hookSpecificOutput;
+        };
+
+        const shell = run({ tool_name: 'Bash', tool_input: { command: 'pnpm test' } });
+        assert.equal(shell.permissionDecision, 'allow');
+        const patch = run({
+            tool_name: 'apply_patch',
+            tool_input: { command: '*** Begin Patch\n*** Update File: README.md\n*** End Patch\n' },
+        });
+        assert.equal(patch.permissionDecision, 'deny');
+        assert.match(patch.permissionDecisionReason, /pnpm install/);
     });
 });

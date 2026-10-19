@@ -141,6 +141,8 @@ blocks in READMEs and custom guides. It doesn't parse shell commands or provide 
 shell matching is a heuristic, and shell-based file writes bypass the edit guard. Patches to a Markdown
 file containing generated blocks are refused as a whole because the guard can't reconstruct their
 hunks. Use a precise edit outside the generated block, or edit its source and regenerate the document.
+Before `pnpm install`, the shell and path guards still work, but an edit to an existing Markdown file
+is refused with a request to run `pnpm install`, since the block check needs workspace packages.
 
 Plain Turbo runs receive `--output-logs=errors-only` unless they choose a log level or use shell
 syntax. Git authorization remains in `AGENTS.md`; the guard can't infer what the user authorized.
