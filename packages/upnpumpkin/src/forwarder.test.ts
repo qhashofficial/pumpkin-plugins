@@ -477,16 +477,17 @@ describe('PortForwarder with a blocked router', () => {
     };
     const telekom = () => new FakeIgd({ upnp: false, natPmp: false, webPages: speedport });
 
-    it('warns once when it starts, opens nothing and sends the router nothing', () => {
+    it('warns once when it starts, opens nothing and stops asking the router', () => {
         const { log, net, forwarder, settle } = setup(undefined, telekom());
         forwarder.start();
         settle(() => forwarder.refusal !== undefined);
+        const sent = net.sent.length;
         settle(() => false, 60 * 60_000);
 
         expect(log.of('warn')).toHaveLength(1);
         expect(log.of('warn')[0]).toContain('UPnPumpkin is disabled: Telekom Speedport');
         expect(forwarder.refusal?.identity).toMatchObject({ manufacturer: 'Telekom' });
-        expect(net.sent).toHaveLength(0);
+        expect(net.sent).toHaveLength(sent);
         expect(forwarder.snapshot.mappings.every((m) => m.state.kind === 'failed')).toBe(true);
     });
 

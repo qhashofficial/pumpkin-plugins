@@ -17,9 +17,10 @@ export interface DiscoveryOptions {
     /** The NAT-PMP gateway to use. Without it the usual router addresses of the local network are tried. */
     natPmpGateway?: Endpoint;
     /**
-     * Turns routers down by what they are. It sees every router that gives away its make and model,
-     * before anything is asked of it, and a router it gives a reason for is not used: when that
-     * leaves no router, discovery throws a `RouterRefusedError`. Without it routers are not identified.
+     * Turns routers down by what they are. It sees every UPnP router that gives away its make and
+     * model before anything is asked of it, and a router it gives a reason for is not used. When that
+     * leaves no router, or no router answers and a web interface is recognized, discovery throws a
+     * `RouterRefusedError`. Without it routers are not identified.
      */
     screen?: Screen;
     /** How long a UPnP search waits for answers, in milliseconds. */
@@ -60,21 +61,14 @@ const MAX_DATAGRAMS_PER_POLL = 16;
  * reads finish before NAT-PMP starts. Their protocol requests then run together, with UPnP preferred
  * when both answer.
  *
- * With a `screen`, the web probe runs first, followed by UPnP search and description screening when
- * UPnP is enabled. A rejected router receives no protocol requests; when UPnP is enabled, NAT-PMP
- * waits for that discovery pass to finish.
+ * With a `screen`, UPnP descriptions are screened before any protocol request, and a rejected
+ * router receives none. When no router answers either protocol, the web interface at the usual
+ * router addresses is probed, so that a recognized router can be named as the reason.
  * @throws {RouterRefusedError} When the only routers found are turned down by the `screen`.
  * @throws {Error} Saying why each protocol found nothing.
  */
 export function* discover(net: Network, options: DiscoveryOptions): Steps<Discovered> {
     if (!options.upnp && !options.natPmp) throw new Error('UPnP and NAT-PMP are both turned off');
-
-    let identity: RouterIdentity | undefined;
-    if (options.screen) {
-        identity = yield* probeWeb(net, gatewayAddresses(net, options));
-        const reason = identity && options.screen(identity);
-        if (identity && reason) throw new RouterRefusedError(reason, identity);
-    }
 
     const jobs: { name: string; steps: Steps<Discovered> }[] = [];
     if (options.upnp) {
@@ -86,11 +80,18 @@ export function* discover(net: Network, options: DiscoveryOptions): Steps<Discov
             jobs.push({ name: 'UPnP', steps: failWith(err) });
         }
     }
-    if (options.natPmp) jobs.push({ name: 'NAT-PMP', steps: discoverNatPmp(net, options, identity) });
+    if (options.natPmp) jobs.push({ name: 'NAT-PMP', steps: discoverNatPmp(net, options) });
 
     const results = yield* parallel(jobs.map((j) => j.steps));
     const found = results.find((r) => r.ok);
     if (found?.ok) return found.value;
+
+    // Only now, so that a device at a usual router address cannot hide the router that answers.
+    if (options.screen) {
+        const identity = yield* probeWeb(net, gatewayAddresses(net, options));
+        const reason = identity && options.screen(identity);
+        if (identity && reason) throw new RouterRefusedError(reason, identity);
+    }
     const reasons = results.map((r, i) => `${jobs[i]?.name}: ${r.ok ? '' : r.error.message}`);
     throw new Error(reasons.join('; '));
 }
@@ -197,18 +198,14 @@ function parseUpnpResponse(datagram: Datagram): UpnpResponse | undefined {
     return location ? { location, responder: datagram.from.address } : undefined;
 }
 
-function* discoverNatPmp(
-    net: Network,
-    options: DiscoveryOptions,
-    identity: RouterIdentity | undefined,
-): Steps<Discovered> {
+function* discoverNatPmp(net: Network, options: DiscoveryOptions): Steps<Discovered> {
     const candidates = natPmpCandidates(net, options);
     if (candidates.length === 0) throw new Error('this machine has no route to a local network');
 
     const results = yield* parallel(
         candidates.map(function* (to): Steps<Discovered> {
             const gateway = new NatPmpGateway(net, to.address, to.port);
-            return { gateway, externalAddress: yield* gateway.externalAddress(), identity };
+            return { gateway, externalAddress: yield* gateway.externalAddress() };
         }),
     );
     const found = results.find((r) => r.ok);

@@ -221,7 +221,7 @@ describe('discover', () => {
             identity.manufacturer?.includes('Telekom') ? 'no UPnP on Telekom' : undefined;
         const speedport = { '/html/login/index.html': { body: '<title>Speedport Konfigurationsprogramm</title>' } };
 
-        it('refuses a router recognized by its web interface before sending it anything', () => {
+        it('names a router recognized by its web interface when no protocol finds a router', () => {
             const net = new FakeNetwork([new FakeIgd({ upnp: false, natPmp: false, webPages: speedport })]);
             let refusal: unknown;
             try {
@@ -231,7 +231,6 @@ describe('discover', () => {
             }
             expect(refusal).toBeInstanceOf(RouterRefusedError);
             expect(refusal).toMatchObject({ reason: 'no UPnP on Telekom', identity: { manufacturer: 'Telekom' } });
-            expect(net.sent).toHaveLength(0);
             expect(net.leaks).toBe(0);
         });
 
@@ -244,6 +243,20 @@ describe('discover', () => {
             expect(net.leaks).toBe(0);
         });
 
+        it('does not let a recognized web page hide a router that answers', () => {
+            const accessPoint = new FakeIgd({
+                address: [192, 168, 1, 254],
+                upnp: false,
+                natPmp: false,
+                webPages: speedport,
+            });
+            const net = new FakeNetwork([new FakeIgd(), accessPoint]);
+            const found = runSteps(net, discover(net, { ...both, screen: refuseTelekom }));
+            expect(found.gateway.kind).toBe('upnp');
+            expect(found.gateway.address).toEqual([192, 168, 1, 1]);
+            expect(net.leaks).toBe(0);
+        });
+
         it('passes the identity of the router it lets through on', () => {
             const net = new FakeNetwork([
                 new FakeIgd({ device: { manufacturer: 'AVM', modelName: 'FRITZ!Box 7590' } }),
@@ -252,16 +265,11 @@ describe('discover', () => {
             expect(found.identity).toMatchObject({ manufacturer: 'AVM', model: 'FRITZ!Box 7590', source: 'upnp' });
         });
 
-        it('gives NAT-PMP routers the identity from the web interface', () => {
-            const net = new FakeNetwork([
-                new FakeIgd({
-                    upnp: false,
-                    webPages: { '/html/login/index.html': { body: '<title>Speedport X</title>' } },
-                }),
-            ]);
-            const found = runSteps(net, discover(net, { ...both, screen: () => undefined }));
+        it('uses a NAT-PMP router that answers, whatever its web interface says', () => {
+            const net = new FakeNetwork([new FakeIgd({ upnp: false, webPages: speedport })]);
+            const found = runSteps(net, discover(net, { ...both, screen: refuseTelekom }));
             expect(found.gateway.kind).toBe('nat-pmp');
-            expect(found.identity).toMatchObject({ manufacturer: 'Telekom' });
+            expect(found.identity).toBeUndefined();
         });
 
         it('leaves routers alone that say nothing about themselves, and does not probe without a screen', () => {
