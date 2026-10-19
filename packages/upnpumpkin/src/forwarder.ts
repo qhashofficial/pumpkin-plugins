@@ -60,6 +60,7 @@ export class PortForwarder {
     private retiring: { task: Task<void>; deadline: number } | undefined;
     private readonly requests = new Map<string, PluginRequest>();
     private lastPrune = 0;
+    private readonly warnedSenders = new Set<string>();
 
     /** Creates a forwarder. Call `start` to begin. */
     constructor(
@@ -163,6 +164,18 @@ export class PortForwarder {
                     return {
                         ok: false,
                         error: 'requests from other plugins are turned off in the UPnPumpkin config (plugins.allow_requests)',
+                    };
+                }
+                if (!this.settings.plugins.allowed.includes(sender)) {
+                    if (!this.warnedSenders.has(sender)) {
+                        this.warnedSenders.add(sender);
+                        this.log.warn(
+                            `${ansi.named.name(sender)} asked for ${request.protocol.toUpperCase()} port ${ansi.named.port(request.port)} to be opened, but it is not in plugins.allowed in the UPnPumpkin config.`,
+                        );
+                    }
+                    return {
+                        ok: false,
+                        error: `${sender} may not ask for ports: add it to plugins.allowed in the UPnPumpkin config`,
                     };
                 }
                 const known = this.requests.has(key);
