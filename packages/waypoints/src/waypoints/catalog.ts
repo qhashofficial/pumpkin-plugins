@@ -23,10 +23,7 @@ export type WaypointMetadataPatch = Partial<Pick<Waypoint, WaypointMetadataKey |
 
 /** Owns name lookup and persisted mutations while keeping waypoint identity stable. */
 export class WaypointCatalog {
-    constructor(
-        private readonly store: WaypointStore,
-        private readonly onChange?: (waypointId: string) => void,
-    ) {}
+    constructor(private readonly store: WaypointStore) {}
 
     /** Whether the canonical waypoint store can be read and written. */
     get isAvailable(): boolean {
@@ -76,7 +73,6 @@ export class WaypointCatalog {
         } catch {
             return { status: 'unavailable' };
         }
-        this.onChange?.(waypoint.id);
         return { status: 'created', waypoint };
     }
 
@@ -112,7 +108,6 @@ export class WaypointCatalog {
         } catch {
             return { status: 'unavailable' };
         }
-        this.onChange?.(current.id);
         return { status: 'updated', waypoint: changed };
     }
 
@@ -134,7 +129,6 @@ export class WaypointCatalog {
         } catch {
             return { status: 'unavailable' };
         }
-        this.onChange?.(waypoint.id);
         return { status: 'removed', waypoint };
     }
 }
