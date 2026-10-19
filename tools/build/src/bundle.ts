@@ -117,7 +117,13 @@ export async function bundlePlugin(options: BundleOptions): Promise<number> {
             fs.writeFileSync(bundle, unwrapStaticHermesExports(source));
             const generatedTypes = path.join(temporaryDir, 'wit-types');
             generateTypes(options.witDir, generatedTypes);
-            const usedWitMethods = findUsedWitMethods(options.entry, generatedTypes);
+            const usedWitMethods = buildResult.metafile
+                ? findUsedWitMethods({
+                      entry: options.entry,
+                      inputs: bundledFiles(buildResult.metafile),
+                      typesDir: generatedTypes,
+                  })
+                : undefined;
             options.onOutput?.({
                 type: 'componentize',
                 engine,
@@ -256,6 +262,13 @@ function isProcessRunning(pid: number): boolean {
     } catch (error) {
         return typeof error === 'object' && error !== null && 'code' in error && error.code === 'EPERM';
     }
+}
+
+function bundledFiles(metafile: esbuild.Metafile): string[] {
+    // The Static Hermes facades for pumpkin: and wasi: imports are generated from WIT, not plugin code.
+    return Object.keys(metafile.inputs)
+        .filter((input) => !/^pumpkin-static-hermes-[\w-]+:/.test(input))
+        .map((input) => path.resolve(input));
 }
 
 function staticHermesWasiImports(metafile: esbuild.Metafile | undefined): string[] {

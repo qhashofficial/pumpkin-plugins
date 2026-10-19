@@ -117,7 +117,7 @@ describe('bundlePlugin', () => {
                 buildOptions.outfile,
                 'var __pumpkinPlugin=(()=>{var exports={};return wrap(exports);})();',
             );
-            return { metafile: { outputs: { [buildOptions.outfile]: { imports: [] } } } } as never;
+            return { metafile: { inputs: {}, outputs: { [buildOptions.outfile]: { imports: [] } } } } as never;
         });
         vi.mocked(findUsedWitMethods).mockReturnValue({
             pumpkinMethods: ['player.player.get-position'],
@@ -202,7 +202,7 @@ describe('bundlePlugin', () => {
         );
     });
 
-    it('generates isolated WIT declarations before selecting Static Hermes adapters', async () => {
+    it('selects Static Hermes adapters from the bundled plugin files and isolated WIT declarations', async () => {
         const { output } = buildAt();
         esbuild.mockImplementationOnce((buildOptions) => {
             if (!buildOptions.outfile) throw new Error('missing JavaScript bundle output');
@@ -210,7 +210,16 @@ describe('bundlePlugin', () => {
                 buildOptions.outfile,
                 'var __pumpkinPlugin=(()=>{var exports={};return wrap(exports);})();',
             );
-            return {} as never;
+            return {
+                metafile: {
+                    inputs: {
+                        'src/plugin.ts': {},
+                        'node_modules/helper/index.js': {},
+                        'pumpkin-static-hermes-api:pumpkin:plugin/player@0.1.0': {},
+                    },
+                    outputs: {},
+                },
+            } as never;
         });
 
         await bundlePlugin({
@@ -225,7 +234,11 @@ describe('bundlePlugin', () => {
         if (!generatedTypesDir) throw new Error('missing generated WIT declarations directory');
         expect(generateTypes).toHaveBeenCalledWith(apiWitDir, generatedTypesDir);
         expect(generatedTypesDir).toMatch(/\.pumpkin-build-[^/\\]+[\\/]wit-types$/);
-        expect(findUsedWitMethods).toHaveBeenCalledWith('src/plugin.ts', generatedTypesDir);
+        expect(findUsedWitMethods).toHaveBeenCalledWith({
+            entry: 'src/plugin.ts',
+            inputs: [path.resolve('src/plugin.ts'), path.resolve('node_modules/helper/index.js')],
+            typesDir: generatedTypesDir,
+        });
         expect(fs.existsSync(path.dirname(generatedTypesDir))).toBe(false);
     });
 
@@ -317,6 +330,7 @@ describe('bundlePlugin', () => {
             );
             return {
                 metafile: {
+                    inputs: {},
                     outputs: { [options.outfile]: { imports: [] } },
                 },
             } as never;

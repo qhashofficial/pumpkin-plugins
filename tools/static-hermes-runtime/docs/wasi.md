@@ -75,8 +75,8 @@ last step leaves those imports for the Pumpkin runtime to resolve.
    Static Hermes, an esbuild plugin checks that each imported interface is present in the prepared
    WIT world and generates an ES module facade from its declarations. TypeScript call analysis
    identifies which declared operations the plugin uses.
-6. **The native adapters and component are built.** The build analyzes the plugin's typed source
-   graph to identify called WIT methods. `wit-bindgen c` generates C bindings for the plugin world;
+6. **The native adapters and component are built.** The build analyzes the source files esbuild
+   bundled to identify called WIT methods. `wit-bindgen c` generates C bindings for the plugin world;
    the runtime generator emits JSI host functions and WASI adapters for selected operations.
    If source analysis cannot provide Pumpkin API selections, the runtime keeps every operation in
    the imported Pumpkin API interfaces because esbuild has already inlined their facades into the
