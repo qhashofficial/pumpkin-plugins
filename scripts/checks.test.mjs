@@ -382,6 +382,17 @@ describe('check-docs', () => {
             }),
         );
         assert.match(result.out, /the script "deploy"/);
+
+        const prefixOnly = run(
+            'check-docs.mjs',
+            repoWithCurrentDocsIndex({
+                ...good,
+                'package.json': { name: 'root', scripts: { test: 'x', readme: 'x', lint: 'x', 'lint:fix': 'x' } },
+                'README.md': `${good['README.md']}\nRun \`pnpm lint:fix\`.\n`,
+            }),
+        );
+        assert.match(prefixOnly.out, /the script "lint"/);
+        assert.doesNotMatch(prefixOnly.out, /the script "lint:fix"/);
     });
 
     it('fails for a doc page the index does not list', () => {
