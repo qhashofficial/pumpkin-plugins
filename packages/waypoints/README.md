@@ -56,9 +56,9 @@ Pumpkin asks you to approve these on the server console when it loads the plugin
 | `/wp relocate <name> <x> <y> <z>` | Move a waypoint to your position or explicit coordinates | `Waypoints:command.admin` | operators (level 3) |
 | `/wp list` | List enabled waypoints you can access | `Waypoints:command.use` | everyone |
 | `/wp info <name>` | Show details for an enabled waypoint you can access | `Waypoints:command.use` | everyone |
-| `/wp teleport` | Teleport to a waypoint or, as an operator, teleport selected players | `Waypoints:command.use` | everyone |
-| `/wp teleport <name>` | Teleport to a waypoint or, as an operator, teleport selected players | `Waypoints:command.use` | everyone |
-| `/wp teleport <name> <targets>` | Teleport to a waypoint or, as an operator, teleport selected players | `Waypoints:command.use` | everyone |
+| `/wp teleport` | Teleport to a waypoint or, as an admin, teleport selected players | `Waypoints:command.use` | everyone |
+| `/wp teleport <name>` | Teleport to a waypoint or, as an admin, teleport selected players | `Waypoints:command.use` | everyone |
+| `/wp teleport <name> <targets>` | Teleport to a waypoint or, as an admin, teleport selected players | `Waypoints:command.use` | everyone |
 | `/wp tp` | Alias for teleport | `Waypoints:command.use` | everyone |
 | `/wp tp <name>` | Alias for teleport | `Waypoints:command.use` | everyone |
 | `/wp tp <name> <targets>` | Alias for teleport | `Waypoints:command.use` | everyone |

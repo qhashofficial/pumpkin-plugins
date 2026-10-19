@@ -11,11 +11,12 @@ import {
     resetPropertySuggestions,
     waypointNameSuggestions,
 } from './handlers.ts';
+import { ADMIN_PERMISSION } from './spec.ts';
 
 const playerId = '22222222-2222-4222-8222-222222222222';
 const waypointId = '11111111-1111-4111-8111-111111111111';
 
-function setup(isOperator = false, pendingItemIconInput?: string) {
+function setup(isOperator = false, pendingItemIconInput?: string, isAdmin = isOperator) {
     const files = new MemoryFiles();
     const catalog = new WaypointCatalog(new WaypointStore(files, new MemoryLogger()));
     const world = { getName: () => 'world', getMinY: () => -64, [Symbol.dispose]: vi.fn() };
@@ -38,7 +39,18 @@ function setup(isOperator = false, pendingItemIconInput?: string) {
         getAllPlayers,
         getPlayerByName: vi.fn(),
     } as unknown as Server;
-    const sender = { asPlayer: () => player, hasPermission: vi.fn(() => true) } as unknown as CommandSender;
+    const sender = {
+        asPlayer: () => player,
+        isPlayer: () => true,
+        isConsole: () => false,
+        hasPermission: vi.fn((_server: Server, node: string) => node !== ADMIN_PERMISSION || isAdmin),
+    } as unknown as CommandSender;
+    const consoleSender = {
+        asPlayer: () => undefined,
+        isPlayer: () => false,
+        isConsole: () => true,
+        hasPermission: () => true,
+    } as unknown as CommandSender;
     const runtime = {
         server,
         catalog,
@@ -49,7 +61,19 @@ function setup(isOperator = false, pendingItemIconInput?: string) {
         validateItemIcon: () => true,
     };
     const handlers = commandHandlers(runtime);
-    return { catalog, files, getAllPlayers, handlers, opManager, player, runtime, sender, server, world };
+    return {
+        catalog,
+        consoleSender,
+        files,
+        getAllPlayers,
+        handlers,
+        opManager,
+        player,
+        runtime,
+        sender,
+        server,
+        world,
+    };
 }
 
 describe('/wp handlers', () => {
@@ -135,15 +159,60 @@ describe('/wp handlers', () => {
         expect(alice[Symbol.dispose]).toHaveBeenCalledOnce();
     });
 
-    it('uses Pumpkin operator status instead of a grantable command permission', () => {
-        const { catalog, handlers, opManager, player, sender } = setup(false);
+    it('refuses waypoint management without the admin permission, even for operators', () => {
+        const { catalog, handlers, sender } = setup(true, undefined, false);
 
         expect(handlers['wp create <name>'](sender, { name: 'Spawn' })).toEqual([
-            { text: 'Only server operators can manage waypoints.', tone: 'error' },
+            { text: 'You do not have permission to manage waypoints.', tone: 'error' },
         ]);
-        expect(opManager.isOp).toHaveBeenCalledWith(player.getId());
-        expect(player.hasPermission).not.toHaveBeenCalled();
         expect(catalog.list()).toEqual([]);
+    });
+
+    it('lets a player with the admin permission manage waypoints without operator status', () => {
+        const { catalog, handlers, sender } = setup(false, undefined, true);
+
+        expect(handlers['wp create <name>'](sender, { name: 'Spawn' })).toEqual(['Created waypoint Spawn.']);
+        expect(catalog.getByName('Spawn')).toBeDefined();
+    });
+
+    it('lets the console manage waypoints with commands that need no position', () => {
+        const { catalog, consoleSender, handlers } = setup();
+        catalog.create({ id: waypointId, name: 'Spawn', dimension: 'world', position: { x: 0, y: 64, z: 0 } });
+
+        expect(handlers['wp set label <name> <label>'](consoleSender, { name: 'Spawn', label: 'Hub' })).toEqual([
+            'Updated label for Spawn.',
+        ]);
+        expect(handlers['wp access public <name>'](consoleSender, { name: 'Spawn' })).toEqual(['Waypoint is public.']);
+        expect(handlers['wp disable <name>'](consoleSender, { name: 'Spawn' })).toEqual(['Disabled waypoint Spawn.']);
+        expect(handlers['wp get <name>'](consoleSender, { name: 'Spawn' })).toEqual([
+            expect.stringContaining('Enabled: false; access: public'),
+        ]);
+        expect(handlers['wp rename <name> <newName>'](consoleSender, { name: 'Spawn', newName: 'Hub' })).toEqual([
+            'Renamed waypoint Spawn to Hub.',
+        ]);
+        expect(handlers['wp delete <name>'](consoleSender, { name: 'Hub' })).toEqual(['Deleted waypoint Hub.']);
+        expect(catalog.list()).toEqual([]);
+    });
+
+    it('still needs a player for commands that use the sender position or world', () => {
+        const { catalog, consoleSender, handlers } = setup();
+        const playerOnly = [{ text: 'This command can only be used by a player.', tone: 'error' }];
+
+        expect(handlers['wp create <name>'](consoleSender, { name: 'Spawn' })).toEqual(playerOnly);
+        expect(handlers['wp create <name> <x> <y> <z>'](consoleSender, { name: 'Spawn', x: 0, y: 64, z: 0 })).toEqual(
+            playerOnly,
+        );
+        expect(catalog.list()).toEqual([]);
+    });
+
+    it('sets an icon from the console using the raw console command input', () => {
+        const { catalog, consoleSender, handlers } = setup(false, 'pumpkin_pie');
+        catalog.create({ id: waypointId, name: 'Pumpkin', dimension: 'world', position: { x: 0, y: 64, z: 0 } });
+
+        expect(handlers['wp set icon <name> <item>'](consoleSender, { name: 'Pumpkin', item: '' })).toEqual([
+            'Updated icon for Pumpkin.',
+        ]);
+        expect(catalog.getByName('Pumpkin')?.icon).toBe('minecraft:pumpkin_pie');
     });
 
     it('reloads waypoint records from disk for server operators', () => {

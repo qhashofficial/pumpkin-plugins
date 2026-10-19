@@ -206,8 +206,10 @@ describe('Waypoints plugin lifecycle', () => {
         expect(consume(playerSender)).toBe('minecraft:pumpkin_pie');
         expect(consume(playerSender)).toBeUndefined();
 
-        const consoleSender = { isPlayer: () => false, getName: () => 'Server' } as never;
+        const consoleSender = { isPlayer: () => false, isConsole: () => true, getName: () => 'Server' } as never;
+        const rconSender = { isPlayer: () => false, isConsole: () => false, getName: () => 'Rcon' } as never;
         state.events.get('server-command-event')?.(server, { command: 'wp set icon Pumpkin pumpkin_pie' });
+        expect(consume(rconSender)).toBeUndefined();
         expect(consume(consoleSender)).toBe('pumpkin_pie');
         expect(consume(consoleSender)).toBeUndefined();
     });
