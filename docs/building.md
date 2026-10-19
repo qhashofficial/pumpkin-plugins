@@ -231,14 +231,14 @@ These are the tasks and outputs Turbo caches:
 | `transit` | Does no work itself; carries the hashes of a package's dependencies so their changes invalidate dependent tasks. |
 | `build` | Caches `build/**` except `build/types/**`, plus package `dist/**` output. |
 | `benchmark:build` | Caches the engine-comparison components and stack-guard fixtures, with a separate output path for each configuration. |
-| `typecheck` | Caches generated `build/types/**` declarations and restores them on a cache hit. |
+| `typecheck` | Caches the `build/types/**` declarations of packages whose typecheck generates them; other packages' typechecks produce no outputs. |
 | `test` | Caches `dist/**` for the `static-hermes-runtime` package's test build. |
 | `test:integration` | Depends on `build` and is never cached because it starts a real server. |
 | `readme`, `readme:check` | Never cached because they write or inspect files. |
 
-The build tool, signing tool, plugin creator, and test harness `typecheck` tasks run `tsc --noEmit`,
-so their package-level Turbo configurations declare no outputs. Plugin typechecks keep the root
-`build/types/**` outputs because they generate the guest declarations that builds and editors need.
+Most tool packages typecheck with plain `tsc --noEmit` and write nothing. Plugins, and tools such as
+`plugin-kit` and `pumpkin-api` that generate declarations before running `tsc`, write the guest
+declarations that builds and editors need, so their `build/types/**` output is cached.
 
 The `@pumpkin-plugins/build` build and test tasks also build `@pumpkin-plugins/static-hermes-runtime`
 and `@pumpkin-plugins/wasi-capabilities` first. The build tool imports their compiled package
