@@ -11,7 +11,9 @@ const { selectWasmToolsAsset } = toolchainEnvironment;
 const readJson = (file) => JSON.parse(fs.readFileSync(new URL(file, import.meta.url), 'utf8'));
 const wasiSdkLock = readJson('../wasi-sdk.lock.json');
 const wasmToolsLock = readJson('../wasm-tools.lock.json');
-const toolchainVersions = readJson('../toolchain-versions.json');
+const { tools } = readJson('../toolchain-versions.json');
+const wasiSdkDirectory = `wasi-sdk-${wasiSdkLock.version}`;
+const witBindgenDirectory = `wit-bindgen-${tools['wit-bindgen']}`;
 
 const temporaryDirs = [];
 
@@ -19,13 +21,13 @@ afterEach(() => {
     for (const directory of temporaryDirs.splice(0)) fs.rmSync(directory, { recursive: true, force: true });
 });
 
-it('uses the installed QuickJS WASI SDK and wit-bindgen paths when provided', async () => {
+it('uses the configured WASI SDK and wit-bindgen paths when provided', async () => {
     const workspaceRoot = temporaryDirectory('static-hermes-existing-tools-');
     const wasiSdk = path.join(workspaceRoot, 'wasi-sdk');
     const witBindgen = path.join(workspaceRoot, 'bin', 'wit-bindgen');
     writeExecutable(path.join(wasiSdk, 'bin', 'wasm32-wasip2-clang'));
     writeExecutable(path.join(wasiSdk, 'bin', 'wasm32-wasip2-clang++'));
-    writeExecutable(witBindgen, '#!/bin/sh\necho "wit-bindgen-cli 0.62.0 (fixture)"\n');
+    writeExecutable(witBindgen, `#!/bin/sh\necho "wit-bindgen-cli ${tools['wit-bindgen']} (fixture)"\n`);
     const installWasiSdk = vi.fn();
     const installWitBindgen = vi.fn();
 
@@ -71,7 +73,7 @@ it('installs missing pinned toolchain dependencies under .cache/hermes', async (
         expect.objectContaining({
             platform: 'darwin',
             arch: 'arm64',
-            destination: path.join(workspaceRoot, '.cache', 'hermes', 'toolchain', 'wasi-sdk-34'),
+            destination: path.join(workspaceRoot, '.cache', 'hermes', 'toolchain', wasiSdkDirectory),
         }),
     );
     expect(installWitBindgen).toHaveBeenCalledWith(
@@ -81,23 +83,23 @@ it('installs missing pinned toolchain dependencies under .cache/hermes', async (
                 '.cache',
                 'hermes',
                 'toolchain',
-                'wit-bindgen-0.62.0',
+                witBindgenDirectory,
                 'bin',
                 'wit-bindgen',
             ),
         }),
     );
     expect(environment.STATIC_HERMES_WASI_SDK_PATH).toBe(
-        path.join(workspaceRoot, '.cache', 'hermes', 'toolchain', 'wasi-sdk-34'),
+        path.join(workspaceRoot, '.cache', 'hermes', 'toolchain', wasiSdkDirectory),
     );
     expect(environment.WIT_BINDGEN).toBe(
-        path.join(workspaceRoot, '.cache', 'hermes', 'toolchain', 'wit-bindgen-0.62.0', 'bin', 'wit-bindgen'),
+        path.join(workspaceRoot, '.cache', 'hermes', 'toolchain', witBindgenDirectory, 'bin', 'wit-bindgen'),
     );
 });
 
 it('keeps an installed SDK when a later installer publishes to the same cache path', () => {
     const workspaceRoot = temporaryDirectory('static-hermes-sdk-publish-');
-    const destination = path.join(workspaceRoot, '.cache', 'hermes', 'toolchain', 'wasi-sdk-34');
+    const destination = path.join(workspaceRoot, '.cache', 'hermes', 'toolchain', wasiSdkDirectory);
     const firstExtraction = path.join(workspaceRoot, 'first-install');
     const laterExtraction = path.join(workspaceRoot, 'later-install');
     const compilerPath = path.join(destination, 'bin', 'wasm32-wasip2-clang');
@@ -204,54 +206,20 @@ it('loads SDK assets from the configured GitHub release metadata endpoint', asyn
 });
 
 it.each([
-    [
-        'darwin',
-        'arm64',
-        'wasi-sdk-34.0-arm64-macos.tar.gz',
-        '9c59398106b417f8f14913380fdf0097a8cc0ff4af9eb3ce0065a859e88d49e9',
-    ],
-    [
-        'darwin',
-        'x64',
-        'wasi-sdk-34.0-x86_64-macos.tar.gz',
-        '87d27fa8adc68dee59bfbf2e22a6d34ef717c34d6bf1d8af2a56fc929d9ce0eb',
-    ],
-    [
-        'linux',
-        'arm64',
-        'wasi-sdk-34.0-arm64-linux.tar.gz',
-        'f7e243dff54d60bcc576e94d6166b69f410f2500ae4a9ceef34315be10e77971',
-    ],
-    [
-        'linux',
-        'riscv64',
-        'wasi-sdk-34.0-riscv64-linux.tar.gz',
-        '71417f267b3a2015780b10045707eecec9fef6d064d2f79e82ad0618f9e4eac5',
-    ],
-    [
-        'linux',
-        'x64',
-        'wasi-sdk-34.0-x86_64-linux.tar.gz',
-        'b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4',
-    ],
-    [
-        'win32',
-        'arm64',
-        'wasi-sdk-34.0-arm64-windows.tar.gz',
-        '45e1c71f3e965621e7b98ebe1d37b0e4b1f77f3e8072113ffb4534e67b1a4b7c',
-    ],
-    [
-        'win32',
-        'x64',
-        'wasi-sdk-34.0-x86_64-windows.tar.gz',
-        'cccb5c323a9b34f0349a9b09e8804a0a7632c68c3310f4b5f437ed57d7e71d8f',
-    ],
-])('selects the pinned WASI SDK archive and checksum for %s/%s', (platform, arch, name, digest) => {
-    const pinnedDigest = wasiSdkLock.checksums[`${platform}/${arch}`];
-    expect(pinnedDigest).toBe(digest);
+    ['darwin', 'arm64', 'arm64-macos'],
+    ['darwin', 'x64', 'x86_64-macos'],
+    ['linux', 'arm64', 'arm64-linux'],
+    ['linux', 'riscv64', 'riscv64-linux'],
+    ['linux', 'x64', 'x86_64-linux'],
+    ['win32', 'arm64', 'arm64-windows'],
+    ['win32', 'x64', 'x86_64-windows'],
+])('selects the pinned WASI SDK archive and checksum for %s/%s', (platform, arch, target) => {
+    const { version } = wasiSdkLock;
+    const name = `wasi-sdk-${version}.0-${target}.tar.gz`;
+    const digest = wasiSdkLock.checksums[`${platform}/${arch}`];
     const release = {
         assets: [
-            { name: 'wasi-sdk-34.0-x86_64-linux.deb', browser_download_url: 'https://example.invalid/deb' },
+            { name: `wasi-sdk-${version}.0-x86_64-linux.deb`, browser_download_url: 'https://example.invalid/deb' },
             {
                 name,
                 browser_download_url: `https://example.invalid/${name}`,
@@ -260,9 +228,9 @@ it.each([
         ],
     };
 
-    expect(
-        selectWasiSdkAsset(release, { version: wasiSdkLock.version, platform, arch, expectedSha256: pinnedDigest }),
-    ).toEqual(expect.objectContaining({ name, digest: `sha256:${digest}` }));
+    expect(selectWasiSdkAsset(release, { version, platform, arch, expectedSha256: digest })).toEqual(
+        expect.objectContaining({ name, digest: `sha256:${digest}` }),
+    );
 });
 
 it('requires a checksum and a matching archive for the pinned WASI SDK release', () => {
@@ -326,7 +294,7 @@ it.each([
     ['win32', 'arm64', 'aarch64-windows.zip'],
     ['win32', 'x64', 'x86_64-windows.zip'],
 ])('pins the wasm-tools archive and checksum for %s/%s', (platform, arch, suffix) => {
-    const version = toolchainVersions.tools['wasm-tools'];
+    const version = tools['wasm-tools'];
     const name = `wasm-tools-${version}-${suffix}`;
     expect(selectWasmToolsAsset(wasmToolsLock, { version, platform, arch })).toEqual({
         name,
@@ -336,7 +304,7 @@ it.each([
 });
 
 it('fails clearly for a platform without a pinned wasm-tools binary', () => {
-    const version = toolchainVersions.tools['wasm-tools'];
+    const version = tools['wasm-tools'];
     expect(() => selectWasmToolsAsset(wasmToolsLock, { version, platform: 'freebsd', arch: 'x64' })).toThrow(
         `no pinned wasm-tools ${version} binary for freebsd/x64`,
     );
@@ -356,7 +324,7 @@ it('downloads the wasm-tools archive that the lock file pins for the configured 
             includeWasiSdk: false,
             includeWitBindgen: false,
             includeWasmTools: true,
-            toolchainConfig: { tools: { 'wasm-tools': '1.262.0', 'wit-bindgen': '0.62.0', rust: '1.99.0' } },
+            toolchainConfig: { tools: { ...tools, 'wasm-tools': '1.262.0' } },
             wasmToolsLock: {
                 repository: 'https://github.com/bytecodealliance/wasm-tools',
                 assets: { 'linux/x64': { name, sha256: 'c'.repeat(64) } },
@@ -382,7 +350,7 @@ it('rejects a wasm-tools lock file whose assets belong to another version', asyn
             includeWasiSdk: false,
             includeWitBindgen: false,
             includeWasmTools: true,
-            toolchainConfig: { tools: { 'wasm-tools': '1.262.0', 'wit-bindgen': '0.62.0', rust: '1.99.0' } },
+            toolchainConfig: { tools: { ...tools, 'wasm-tools': '1.262.0' } },
             fetchImpl,
         }),
     ).rejects.toThrow(/wasm-tools\.lock\.json must pin wasm-tools 1\.262\.0/);
@@ -392,7 +360,7 @@ it('rejects a wasm-tools lock file whose assets belong to another version', asyn
 it('rejects a configured wasm-tools executable with the wrong pinned version', async () => {
     const workspaceRoot = temporaryDirectory('static-hermes-wasm-tools-version-');
     const executable = path.join(workspaceRoot, 'wasm-tools');
-    writeExecutable(executable, '#!/bin/sh\necho "wasm-tools 1.260.0 (fixture)"\n');
+    writeExecutable(executable, '#!/bin/sh\necho "wasm-tools 1.0.0 (fixture)"\n');
 
     await expect(
         setupHermesToolchainEnvironment({
@@ -402,7 +370,7 @@ it('rejects a configured wasm-tools executable with the wrong pinned version', a
             includeWitBindgen: false,
             includeWasmTools: true,
         }),
-    ).rejects.toThrow('configured wasm-tools must be wasm-tools 1.261.0: wasm-tools 1.260.0 (fixture)');
+    ).rejects.toThrow(`configured wasm-tools must be wasm-tools ${tools['wasm-tools']}: wasm-tools 1.0.0 (fixture)`);
 });
 
 it('does not install a wasm-tools archive whose digest differs from the pinned release', async () => {
@@ -436,12 +404,12 @@ it('installs and exposes the pinned wasm-tools binary in the shared cache', asyn
         '.cache',
         'hermes',
         'toolchain',
-        'wasm-tools-1.261.0',
+        `wasm-tools-${tools['wasm-tools']}`,
         'bin',
         'wasm-tools',
     );
     const installWasmTools = vi.fn(({ destination: executable }) => {
-        writeExecutable(executable, '#!/bin/sh\necho "wasm-tools 1.261.0 (fixture)"\n');
+        writeExecutable(executable, `#!/bin/sh\necho "wasm-tools ${tools['wasm-tools']} (fixture)"\n`);
         return executable;
     });
 
@@ -457,7 +425,7 @@ it('installs and exposes the pinned wasm-tools binary in the shared cache', asyn
     });
 
     expect(installWasmTools).toHaveBeenCalledWith(
-        expect.objectContaining({ version: '1.261.0', platform: 'darwin', arch: 'arm64', destination }),
+        expect.objectContaining({ version: tools['wasm-tools'], platform: 'darwin', arch: 'arm64', destination }),
     );
     expect(environment.WASM_TOOLS).toBe(destination);
 });
