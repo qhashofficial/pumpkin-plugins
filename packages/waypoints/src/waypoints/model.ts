@@ -286,7 +286,8 @@ function isAccessGrant(value: unknown): value is AccessGrant {
     );
 }
 
-function grantKey(grant: AccessGrant): string {
+/** Identifies a grant for deduplication; player UUIDs compare case-insensitively. */
+export function grantKey(grant: AccessGrant): string {
     switch (grant.type) {
         case 'player':
             return `player:${grant.playerId.toLowerCase()}`;
