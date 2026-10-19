@@ -50,11 +50,12 @@ reused. With no `WIT_BINDGEN` override and no cached or user-installed executabl
 `wit-bindgen` and needs Rust/Cargo (using the pinned Rust toolchain through `rustup` when
 available). An executable that reports the wrong pinned version fails setup.
 
-The pin files follow the [WASI SDK release pin schema](schemas/wasi-sdk-release-pin.schema.json),
-[upstream Git pin schema](schemas/upstream-git-pin.schema.json), and
-[toolchain versions schema](schemas/toolchain-versions.schema.json). The package also carries
-the WASI Preview 2 CMake toolchain adjustment required by Hermes. Optional paths and build settings
-are listed under [Build flags](#build-flags).
+The pin files follow the
+[WASI SDK release pin schema](https://raw.githubusercontent.com/filiphsps/pumpkin-plugins/master/schemas/wasi-sdk-release-pin.schema.json),
+[upstream Git pin schema](https://raw.githubusercontent.com/filiphsps/pumpkin-plugins/master/schemas/upstream-git-pin.schema.json), and
+[toolchain versions schema](https://raw.githubusercontent.com/filiphsps/pumpkin-plugins/master/schemas/toolchain-versions.schema.json).
+The package also carries the WASI Preview 2 CMake toolchain adjustment required by Hermes. Optional
+paths and build settings are listed under [Build flags](#build-flags).
 
 The external-consumer CI check uses these tool versions:
 
