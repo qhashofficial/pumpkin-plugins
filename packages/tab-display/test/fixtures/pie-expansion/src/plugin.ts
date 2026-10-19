@@ -18,7 +18,7 @@ class PieExpansionFixture extends Plugin {
             name: fixtureName,
             version: __PLUGIN_VERSION__,
             authors: [],
-            description: 'Plan 016 PumpkinPIE integration fixture',
+            description: 'TabDisplay PumpkinPIE expansion integration fixture',
             dependencies: [],
             permissions: [],
         };
