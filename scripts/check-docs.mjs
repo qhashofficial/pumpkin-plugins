@@ -1,7 +1,7 @@
 // Fails when the hand-written docs no longer match the repo: a package without a README, a link or a
 // path that doesn't exist, a `pnpm` command that isn't a script, a doc page missing from the index,
 // a root script nobody documents, or a CI job the CI doc doesn't list. The generated parts of the
-// READMEs are checked by `pnpm readme:check`. See "Docs match the code" in docs/code-style.md.
+// READMEs are checked by `pnpm readme:check`. See "Keep docs in sync with code" in docs/code-style.md.
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
