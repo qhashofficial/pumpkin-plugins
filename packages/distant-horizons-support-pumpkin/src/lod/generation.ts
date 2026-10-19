@@ -1,3 +1,4 @@
+import type { TerrainRegion } from '@pumpkin-plugins/terrain';
 import { SECTION_SIZE_BLOCKS } from '../protocol/constants.ts';
 
 /** Radius used when a forced LOD capture does not specify one. */
@@ -60,6 +61,18 @@ export function* iterateLodSectionsWithin(
     };
     if (clipped.minX > clipped.maxX || clipped.minZ > clipped.maxZ) return;
     yield* iterateRings(centerX, centerZ, radius, clipped);
+}
+
+/** Block region of one LOD section over the full world height. */
+export function sectionRegion(section: LodSectionCoordinate, world: { minY: number; height: number }): TerrainRegion {
+    return {
+        originX: section.x * SECTION_SIZE_BLOCKS,
+        originZ: section.z * SECTION_SIZE_BLOCKS,
+        width: SECTION_SIZE_BLOCKS,
+        depth: SECTION_SIZE_BLOCKS,
+        minY: world.minY,
+        height: world.height,
+    };
 }
 
 /** Stable cache key scoped to the world name and signed section coordinates. */

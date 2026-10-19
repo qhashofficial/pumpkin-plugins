@@ -5,9 +5,10 @@
  */
 import { TerrainCapture, type TerrainSource } from '@pumpkin-plugins/terrain';
 import { Writer } from '../protocol/bytes.ts';
-import { SECTION_AREA, SECTION_DETAIL, SECTION_SIZE_BLOCKS } from '../protocol/constants.ts';
+import { SECTION_AREA, SECTION_DETAIL } from '../protocol/constants.ts';
 import type { Section } from '../protocol/messages.ts';
 import { MAX_POINTS_PER_SECTION } from './constants.ts';
+import { sectionRegion } from './generation.ts';
 
 const EMPTY_DH_MATERIAL = /_DH-BSW_minecraft:(?:air|void_air)$/;
 
@@ -42,25 +43,20 @@ export class LodBuilder {
         if (section.detail !== SECTION_DETAIL || height < 1 || height > 4095) {
             throw new RangeError('Unsupported LOD dimensions');
         }
-        this.capture = new TerrainCapture(
-            {
-                originX: section.x * SECTION_SIZE_BLOCKS,
-                originZ: section.z * SECTION_SIZE_BLOCKS,
-                width: SECTION_SIZE_BLOCKS,
-                depth: SECTION_SIZE_BLOCKS,
-                minY,
-                height,
-            },
-            {
-                isEmpty: (material) => EMPTY_DH_MATERIAL.test(material),
-                maxSegments: MAX_POINTS_PER_SECTION,
-            },
-        );
+        this.capture = new TerrainCapture(sectionRegion(section, { minY, height }), {
+            isEmpty: (material) => EMPTY_DH_MATERIAL.test(material),
+            maxSegments: MAX_POINTS_PER_SECTION,
+        });
     }
 
     /** Samples up to budget blocks; returns true once all columns have been built. */
     step(terrain: TerrainSource, budget: number): boolean {
         return this.capture.step(terrain, budget);
+    }
+
+    /** Blocks sampled by all steps so far. */
+    samples(): number {
+        return this.capture.samples();
     }
 
     /** Fraction of the section covered, including collapsed spans. */
