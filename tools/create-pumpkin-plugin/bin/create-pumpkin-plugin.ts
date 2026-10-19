@@ -132,7 +132,7 @@ async function createProject(directory: string, options: CreatorOptions): Promis
     // Fails with EEXIST if something claimed the path since the check above.
     fs.mkdirSync(destination);
     try {
-        copyTemplate(templateRoot, destination, projectName);
+        copyTemplate(templateRoot, destination, projectName, packageManager ?? 'pnpm');
         pinPnpmVersion(destination, packageManager, process.env);
     } catch (error) {
         // The directory was created exclusively above, so everything in it is ours.
@@ -216,23 +216,28 @@ function rejectExistingDestination(destination: string): void {
     }
 }
 
-/** Copy a starter tree, replace plugin-name markers, restore `.gitignore`, and remove workspace-only TypeScript config inheritance.
+/** Copy a starter tree, replace its markers, restore `.gitignore`, and remove workspace-only TypeScript config inheritance.
  *
  * @param source - Template directory to copy.
  * @param destination - New project directory to populate.
  * @param projectName - Name substituted for `__PLUGIN_NAME__` markers.
+ * @param packageManager - Name substituted for `__PACKAGE_MANAGER__` markers; `pnpm-workspace.yaml` is copied only for pnpm.
  * @throws {Error} If a template entry is not a regular file or directory.
  */
-function copyTemplate(source: string, destination: string, projectName: string): void {
+function copyTemplate(source: string, destination: string, projectName: string, packageManager: PackageManager): void {
     for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
+        if (entry.name === 'pnpm-workspace.yaml' && packageManager !== 'pnpm') continue;
         const sourcePath = path.join(source, entry.name);
         const destinationName = entry.isFile() && entry.name === 'gitignore' ? '.gitignore' : entry.name;
         const destinationPath = path.join(destination, destinationName);
         if (entry.isDirectory()) {
             fs.mkdirSync(destinationPath);
-            copyTemplate(sourcePath, destinationPath, projectName);
+            copyTemplate(sourcePath, destinationPath, projectName, packageManager);
         } else if (entry.isFile()) {
-            let contents = fs.readFileSync(sourcePath, 'utf8').replaceAll('__PLUGIN_NAME__', projectName);
+            let contents = fs
+                .readFileSync(sourcePath, 'utf8')
+                .replaceAll('__PLUGIN_NAME__', projectName)
+                .replaceAll('__PACKAGE_MANAGER__', packageManager);
             if (entry.name === 'tsconfig.json') {
                 const config = JSON.parse(contents) as { extends?: unknown };
                 if (config.extends === '../../tsconfig.templates.json') {
