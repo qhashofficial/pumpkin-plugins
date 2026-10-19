@@ -73,7 +73,6 @@ export async function run(args: string[], pluginDir: string): Promise<void> {
                 });
             }
             generateTypes(witDir, path.join(buildDir, 'types', 'bindings'));
-            fs.rmSync(path.join(buildDir, 'types', 'wit'), { recursive: true, force: true });
         } finally {
             if (temporaryWitRoot !== undefined) fs.rmSync(temporaryWitRoot, { recursive: true, force: true });
         }
