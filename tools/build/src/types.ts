@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
+import { BuildError } from './errors.ts';
 
 const require = createRequire(import.meta.url);
 
@@ -9,6 +10,7 @@ const require = createRequire(import.meta.url);
  * Generates TypeScript declarations for the Pumpkin (and WASI) modules a plugin imports.
  * @param witDir - The WIT to generate from.
  * @param outDir - Where to write the declarations.
+ * @throws {BuildError} If jco is not installed or cannot generate declarations from the WIT.
  */
 export function generateTypes(witDir: string, outDir: string): void {
     const jco = resolveJcoCli();
@@ -20,13 +22,19 @@ export function generateTypes(witDir: string, outDir: string): void {
     let preserveTemporary = false;
     try {
         fs.mkdirSync(generated);
-        execFileSync(
-            process.execPath,
-            [jco, 'guest-types', witDir, '-n', 'plugin', '-o', generated, '--name', 'index', '--quiet'],
-            {
-                stdio: 'inherit',
-            },
-        );
+        try {
+            execFileSync(
+                process.execPath,
+                [jco, 'guest-types', witDir, '-n', 'plugin', '-o', generated, '--name', 'index', '--quiet'],
+                { stdio: 'inherit' },
+            );
+        } catch (error) {
+            // jco has already written its diagnostics to the inherited stderr.
+            const status = typeof error === 'object' && error !== null && 'status' in error ? error.status : undefined;
+            throw new BuildError(
+                `jco could not generate guest types from ${witDir}${typeof status === 'number' ? ` (exit ${status})` : ''}`,
+            );
+        }
         publishTypes(generated, output, temporary, () => {
             preserveTemporary = true;
         });
@@ -45,7 +53,9 @@ function resolveJcoCli(): string {
     try {
         entry = require.resolve('@bytecodealliance/jco');
     } catch {
-        throw new Error('@bytecodealliance/jco is missing from @pumpkin-plugins/build dependencies');
+        throw new BuildError(
+            '@bytecodealliance/jco is missing from @pumpkin-plugins/build dependencies; reinstall the project dependencies',
+        );
     }
 
     for (let directory = path.dirname(entry); ; directory = path.dirname(directory)) {

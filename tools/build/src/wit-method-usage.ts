@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as ts from 'typescript';
+import { BuildError } from './errors.ts';
 
 /** WIT operations and event variants referenced by the plugin implementation. */
 export interface UsedWitMethods {
@@ -56,16 +57,12 @@ export function findUsedWitMethods(entry: string, additionalTypesDir?: string): 
     let parsed: ts.ParsedCommandLine;
     if (configPath) {
         const config = ts.readConfigFile(configPath, ts.sys.readFile);
-        if (config.error) throw new Error(ts.flattenDiagnosticMessageText(config.error.messageText, '\n'));
+        if (config.error) throw tsconfigError(configPath, [config.error]);
         parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, path.dirname(configPath));
     } else {
         parsed = ts.parseJsonConfigFileContent({}, ts.sys, path.dirname(absoluteEntry));
     }
-    if (parsed.errors.length) {
-        throw new Error(
-            parsed.errors.map((error) => ts.flattenDiagnosticMessageText(error.messageText, '\n')).join('\n'),
-        );
-    }
+    if (parsed.errors.length) throw tsconfigError(configPath ?? absoluteEntry, parsed.errors);
 
     const additionalTypeFiles = additionalTypesDir
         ? ts.sys.readDirectory(additionalTypesDir, ['.d.ts'], undefined, ['**/*.d.ts'])
@@ -642,6 +639,11 @@ export function findUsedWitMethods(entry: string, additionalTypesDir?: string): 
         if (!resource.name) return;
         wasiMethods.add(`${specifier}#${toWitName(resource.name.text)}.${toWitName(memberName.text)}`);
     }
+}
+
+function tsconfigError(configPath: string, diagnostics: readonly ts.Diagnostic[]): BuildError {
+    const messages = diagnostics.map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'));
+    return new BuildError(`invalid TypeScript configuration ${configPath}:\n${messages.join('\n')}`);
 }
 
 function isPluginSource(source: ts.SourceFile): boolean {
