@@ -21,10 +21,10 @@ export function selectJobs(outputs, event) {
         outputs.generated_readmes === 'true';
     return {
         commits: event === 'pull_request' && touched,
-        lint: code,
+        // Biome covers actions/, so action code changes run lint; the coverage run tests them.
+        lint: code || actionCode,
         typecheck: code,
         test: (code || actionCode) && full,
-        'action-tests': actionCode,
         'extension-tests': extensionCode,
         // Docs-only pushes still run docs and config, so the release after it can refresh release PRs.
         docs: touched || (event === 'push' && outputs.config_only !== 'true'),

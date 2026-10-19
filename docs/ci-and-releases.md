@@ -14,8 +14,7 @@ external-consumer workflow at `.github/workflows/external-consumer.yml` to make 
 work outside this monorepo.
 
 After the `🛡️ CI result` check passes, `.github/workflows/release.yml` handles releases. The reusable
-`.github/workflows/actions.yml` tests action code, and `.github/workflows/extensions.yml` checks
-changed extensions. `.github/workflows/docs.yml` checks the documentation and publishes the
+`.github/workflows/extensions.yml` checks changed extensions. `.github/workflows/docs.yml` checks the documentation and publishes the
 VitePress site, then mirrors it to `gh-pages`. GitHub workflow validation runs separately in
 `.github/workflows/actionlint.yml`. `.github/workflows/issue-forms.yml` validates the chooser and
 required fields; `.github/workflows/issue-intake.yml` checks new and edited issue bodies and manages
@@ -45,11 +44,10 @@ pins.
 | 🔍 Changed files | CI-triggering changes | Classifies plugin and repository code, action and extension directories, documentation, and label configuration. It also selects integration suites and generator smoke checks, detects generated README refresh commits, and writes the list of jobs the change needs. |
 | 🔍 Lint GitHub workflows | Pull requests, default-branch pushes, and manual runs | `actionlint` checks the workflow files. It skips Release Please branches and changes limited to label configuration. |
 | 💬 Commit messages | Pull requests that change code, actions, extensions, or generated READMEs | Checks every commit with `commitlint.config.mjs`. |
-| 📋 Lint | Code changes | Runs `pnpm lint`, which runs Biome followed by the JSDoc check (see [Code style](code-style.md)). |
+| 📋 Lint | Code or action code changes | Runs `pnpm lint`, which runs Biome followed by the JSDoc check (see [Code style](code-style.md)). |
 | ✅ Typecheck | Code changes | Runs `pnpm typecheck`. |
 | 🧪 Test | Plugin, repository or action code changes | Runs workspace behavior suites and script, hook and action tests with `pnpm coverage`. Merges Node process coverage with package reports in Codecov and retains coverage evidence. Tooling coverage is gated with a 1 percentage-point tolerance; plugin guest coverage is informational until WASM execution can be measured. |
 | 📦 External consumer | Code changes | Packs public tools with their workspace dependencies, checks packed metadata and starter dependency ranges, then installs and builds the creator's TypeScript and JavaScript starters and runs `pumpkin-codemod list` outside the repository. The matrix covers Linux, macOS arm64 and Windows x64 with pinned Node and pnpm versions. |
-| 🧪 Action tests | Action or shared-helper code changes | The reusable workflow lints and tests each changed action. A shared-helper change tests the common package and all four public action consumers. It then uploads c8 coverage to Codecov. |
 | 🧪 Extension tests | Extension changes that need checks | The reusable workflow lints, typechecks, tests and packages each changed extension. |
 | 📝 Docs and config | Code, action, extension, generated README, or docs-only `master` pushes | Checks that generated READMEs are current and runs `pnpm check` for release configuration, package metadata and docs-to-code links. |
 | 🔨 Build | Code changes, after change classification | Prepares Static Hermes while lint and typecheck run, then builds each production plugin with its configured engine (Static Hermes by default). It runs integration checks and rebuilds release artifacts with the same runtime before signing and verification. |
@@ -118,13 +116,13 @@ The classifier scopes checks this way:
   run after CI result passes. That release run catches up pending merged releases and updates and
   prepares every open release PR. Mixed changes run checks for their code or action changes as well.
 - Changes under `actions/{name}/` and `extensions/{name}/` are selected separately from plugin and
-  repository code. Both skip the plugin build and integration suites; CI calls the matching reusable
-  workflow for each changed component. Action code changes also run the full coverage job so the
-  tooling gate receives a complete report; extension-only changes skip that job. Changes to a shared
-  action helper test `actions/common/` and all four public consumers.
-  Action tests live beside the implementation in `actions/{name}/src/*.test.mjs`, and shared-helper
-  tests live in `actions/common/src/*.test.mjs`. The `common` helper isn't a release component.
-  README, changelog and version-file-only changes skip action tests.
+  repository code. Both skip the plugin build and integration suites. Action code changes run Lint
+  and the coverage job, which runs every action's tests, so the tooling gate receives a complete
+  report. CI calls the reusable extension workflow for each changed extension; extension-only
+  changes skip the coverage job. Action tests live beside the implementation in
+  `actions/{name}/src/*.test.mjs`, and shared-helper tests live in `actions/common/src/*.test.mjs`.
+  The `common` helper isn't a release component. README, changelog and version-file-only changes
+  skip action tests.
 - Everything else is plugin or repository code, including changes under `tools/`, `scripts/` and
   `.github/`, as well as deletions. `.github/labels.yml` and `.coderabbit.yaml` are exceptions:
   changes limited to those two files still start CI and Actionlint so they can report successful
