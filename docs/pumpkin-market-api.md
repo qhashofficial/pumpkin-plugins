@@ -1,6 +1,6 @@
 ---
 navigation:
-    category: Server operations
+    category: Repository maintenance
 title: "Pumpkin Market API"
 description: "Market listing lookup, metadata updates, current publisher behavior and API findings"
 ---
