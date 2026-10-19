@@ -114,8 +114,9 @@ locally; the docs workflow supplies a read-only token. With a token, each contri
 make at most one GraphQL request to look up public profile names. Without a token, or if name lookup
 fails, cards show GitHub usernames. The token and data loader aren't published with the cards.
 
-`filiphsps` is marked as the owner and sorted first; other contributors are sorted by contribution
-count. GitHub may take time to refresh those counts.
+The repository owner, taken from the repository URL in the root `package.json`, gets an Owner label
+and is sorted first; other contributors are sorted by contribution count. GitHub may take time to
+refresh those counts.
 
 Plugin and action landing pages, READMEs, and API overview pages show native VitePress version
 badges. A badge reads its version from the package manifest or action version file. It links to a

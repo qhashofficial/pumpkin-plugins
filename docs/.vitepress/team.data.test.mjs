@@ -124,4 +124,22 @@ describe('Team data loader', () => {
 
         assert.equal(members[0].name, 'alice');
     });
+
+    it('lists the repository owner first and labels them', async () => {
+        delete process.env.GITHUB_TOKEN;
+        globalThis.fetch = async () =>
+            response([
+                contributor('busy', 'NODE_busy', { contributions: 90 }),
+                contributor('filiphsps', 'NODE_owner', { contributions: 3 }),
+            ]);
+
+        const members = await loadTeamMembers();
+
+        assert.deepEqual(
+            members.map(({ login }) => login),
+            ['filiphsps', 'busy'],
+        );
+        assert.match(members[0].desc, /Owner/);
+        assert.doesNotMatch(members[1].desc, /Owner/);
+    });
 });
