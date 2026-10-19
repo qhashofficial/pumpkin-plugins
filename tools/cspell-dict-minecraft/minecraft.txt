@@ -45,8 +45,10 @@ chest
 chiseled
 chorus
 clay
+clientbound
 coal
 cobblestone
+compostable
 copper
 creaking
 creeper
@@ -55,6 +57,10 @@ cryingobsidian
 crystal
 daylightdetector
 deepslate
+despawn
+despawned
+despawning
+despawns
 diamond
 diorite
 dirt
@@ -62,6 +68,7 @@ dripstone
 drowned
 elytra
 emerald
+enchantable
 enchanted
 enchanting
 endcity
@@ -74,6 +81,7 @@ endermite
 endermites
 endportal
 endstone
+equippable
 experience
 fletching
 furnace
@@ -90,6 +98,8 @@ goldenapple
 granite
 grindstone
 guardian
+heightmap
+heightmaps
 hoglin
 hoglins
 honeyblock
@@ -159,6 +169,7 @@ respawns
 rooted
 scaffolding
 sculk
+serverbound
 shroomlight
 shulker
 shulkers
