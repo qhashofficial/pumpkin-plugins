@@ -14,14 +14,14 @@ package version and generated TypeScript declarations cannot answer both questio
 ## Match the WIT ABI to the Pumpkin server
 
 The npm version identifies the TypeScript facade release; the WIT version identifies the host ABI.
-They are separate pins. The current alignment is:
+They are separate pins, and each file below holds the current value:
 
-| Pin | Current value | Source of truth |
-| --- | --- | --- |
-| API package | `@pumpkin-plugins/pumpkin-api` `0.1.0` | [`package.json`](../../tools/pumpkin-api/package.json) |
-| Pumpkin plugin ABI | `pumpkin:plugin@0.1.0` from WIT subdirectory `v0.1` | [`wit.lock.json`](../../tools/pumpkin-api/wit.lock.json) |
-| Pumpkin server | `0.2.0+26.3-26.51` | [`pumpkin-version.ts`](../../tools/test-harness/src/pumpkin-version.ts) |
-| Upstream WIT source | Commit `4d7a501943bb99f0f02a339128833f58ed37d0cc` | [`wit.lock.json`](../../tools/pumpkin-api/wit.lock.json) |
+| Pin | Source of truth |
+| --- | --- |
+| API package version | [`package.json`](../../tools/pumpkin-api/package.json) |
+| Pumpkin plugin ABI (WIT subdirectory) | [`wit.lock.json`](../../tools/pumpkin-api/wit.lock.json) |
+| Upstream WIT commit | [`wit.lock.json`](../../tools/pumpkin-api/wit.lock.json) |
+| Pumpkin server release | [`pumpkin-version.ts`](../../tools/test-harness/src/pumpkin-version.ts) |
 
 The API package's `wit.lock.json` pins the upstream repository, commit, and WIT subdirectory. The
 build tool fetches that exact commit on first use and when the lock changes, then stores it in the

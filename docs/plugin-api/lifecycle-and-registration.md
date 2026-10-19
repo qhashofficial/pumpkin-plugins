@@ -65,8 +65,8 @@ The server, entity, and chunk resources passed to these callbacks are disposed w
 returns, so do not keep them for later use. If an AI-goal callback throws, `canStart` and
 `shouldContinue` return `false`; errors from void callbacks are logged.
 
-The pinned Pumpkin host `0.2.0+26.3-26.51` does not start custom WASM AI goals because its
-eligibility methods return `false`. This host limitation is separate from Static Hermes' callback
+The pinned Pumpkin host does not start custom WASM AI goals because its eligibility methods return
+`false`. This host limitation is separate from Static Hermes' callback
 dispatch; see the [Static Hermes Runtime guide](../../tools/static-hermes-runtime/docs/index.md).
 
 ## IPC messages
