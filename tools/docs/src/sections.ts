@@ -36,7 +36,6 @@ export function renderBlocks(info: PluginInfo): Record<string, string> {
 
 function renderPermissions(info: PluginInfo): string {
     const permissions = pluginPermissions(info);
-    if (permissions.length === 0) return 'This plugin requests no permissions.';
     return [
         'Pumpkin asks for these on the server console the first time the plugin loads.',
         '',
