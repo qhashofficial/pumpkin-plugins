@@ -5,7 +5,7 @@ import { createTcpSocket } from 'wasi:sockets/tcp-create-socket@0.2.3';
 import type { Logger } from '@pumpkin-plugins/plugin-kit/logger';
 import { wasiErrorCode } from '@pumpkin-plugins/plugin-kit/wasi-error';
 import { disposeWasiResource } from '@pumpkin-plugins/plugin-kit/wasi-resource';
-import { parseIpv4 } from './ipv4.ts';
+import { parseIpv4 } from '@pumpkin-plugins/port-mapping/ipv4';
 import type { WebServer, WebServerSettings } from './server.ts';
 import { HttpSession, type PackLookup, type SessionOptions, type TickQuota } from './session.ts';
 import { TcpTransport } from './tcp-transport.ts';
@@ -64,7 +64,7 @@ export class TcpWebServer implements WebServer {
 
         const socket = createTcpSocket('ipv4');
         try {
-            socket.startBind(instanceNetwork(), { tag: 'ipv4', val: { port: settings.port, address } });
+            socket.startBind(instanceNetwork(), { tag: 'ipv4', val: { port: settings.port, address: [...address] } });
             settle(() => socket.finishBind());
             socket.setListenBacklogSize(128n);
             socket.startListen();
