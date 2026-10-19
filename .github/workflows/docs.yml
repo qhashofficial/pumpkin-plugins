@@ -96,10 +96,6 @@ jobs:
               id: test-documentation-helpers
               run: node scripts/ci-run.mjs "Documentation helper tests" -- node --test docs/.vitepress/team.data.test.mjs docs/.vitepress/doc-links.test.mjs
 
-            - name: 🔨 Build the plugin builder CLI
-              id: build-the-plugin-builder-cli
-              run: pnpm turbo run build --filter=@pumpkin-plugins/build
-
             - name: 🏗️ Build the documentation site
               id: build-the-documentation-site
               run: node scripts/ci-run.mjs "Build API references and documentation site" -- pnpm run docs
