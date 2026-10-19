@@ -85,6 +85,30 @@ describe('plugin README', { timeout: 15000 }, () => {
         expect(generatedReadme).not.toContain('unused');
     });
 
+    it('tells readers how to get the plugin while it is paused and after it is released', () => {
+        const p = path.join(dir, 'p');
+        put(
+            'p/package.json',
+            '{"name":"@x/p","version":"1.0.0","type":"module","pumpkinPlugin":{"output":"build/demo.wasm"}}',
+        );
+        put('p/README.md', `${README}\n<!-- docs:begin installation -->\n<!-- docs:end installation -->\n`);
+        put('release-please-paused.json', '{"p":"Players can not see its output yet."}');
+
+        expect(run(p).status).toBe(0);
+        const paused = read('p/README.md');
+        expect(paused).toContain("hasn't been released");
+        expect(paused).toContain('Players can not see its output yet.');
+        expect(paused).toContain('`pnpm build --filter @x/p`');
+        expect(paused).not.toContain('GitHub release');
+
+        put('release-please-paused.json', '{}');
+        expect(run(p, '--check').status).toBe(1);
+        expect(run(p).status).toBe(0);
+        const released = read('p/README.md');
+        expect(released).toContain("Download `demo.wasm` from the plugin's GitHub release");
+        expect(released).not.toContain("hasn't been released");
+    });
+
     it('accepts the explicit plugin command', () => {
         const result = run(path.join(dir, 'p'), 'plugin');
 
@@ -185,6 +209,14 @@ describe('root README', { timeout: 15000 }, () => {
         const unchanged = run(dir, 'root', '--check');
         expect(unchanged.status).toBe(0);
         expect(read('README.md')).toBe(removedReadme);
+    });
+
+    it('marks paused plugins as unreleased', () => {
+        put('release-please-paused.json', '{"packages/alpha":"Not verified on a client yet."}');
+        expect(run(dir, 'root').status).toBe(0);
+        const generated = read('README.md');
+        expect(generated).toContain('| [Alpha](packages/alpha) (unreleased) | Alpha plugin. | MIT |');
+        expect(generated).toContain('| [@x/beta](packages/beta) | Beta from package.json | MIT |');
     });
 
     it('lists action metadata and detects changes without writing in check mode', () => {
