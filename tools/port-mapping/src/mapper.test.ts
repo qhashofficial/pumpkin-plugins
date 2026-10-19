@@ -551,6 +551,27 @@ describe('PortMapper', () => {
         expect(net.leaks).toBe(0);
     });
 
+    it('closes applied mappings at once when release all starts during a rediscovery', () => {
+        const { igd, mapper, settle, net } = setup(new FakeIgd({ natPmp: false }), { leaseSeconds: 100 });
+        mapper.request('web', spec);
+        mapper.request('other', { ...spec, port: 8124 });
+        settle(() => open(mapper.state('web')) && open(mapper.state('other')));
+        // A failed renewal drops the router, so it is searched for again; meanwhile it ignores searches.
+        if (igd) {
+            igd.options.failMappingWith = 501;
+            const answer = igd.handleDatagram.bind(igd);
+            igd.handleDatagram = (to, data) => (to.port === 1900 ? [] : answer(to, data));
+        }
+        const searches = () => net.sent.filter(({ to }) => to.port === 1900).length;
+        const before = searches();
+        settle(() => searches() > before, 120_000);
+        if (igd) igd.options.failMappingWith = undefined;
+
+        runSteps(net, mapper.releaseAll(), 10, 1000);
+        expect(igd?.mappings.size).toBe(0);
+        expect(net.leaks).toBe(0);
+    });
+
     it('releasing before the router was found costs nothing', () => {
         const { net, mapper } = setup(null);
         mapper.request('web', spec);
