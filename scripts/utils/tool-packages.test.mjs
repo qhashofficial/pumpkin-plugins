@@ -4,7 +4,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
-import { packAndInspect } from './tool-packages.mjs';
+import { packAndInspect, sourcePrerequisitePaths } from './tool-packages.mjs';
 
 const temporaryDirectories = [];
 
@@ -56,5 +56,27 @@ describe('packAndInspect', () => {
         ]);
         const digest = createHash('sha512').update(fs.readFileSync(packed.tarballPath)).digest('base64');
         assert.equal(packed.integrity, `sha512-${digest}`);
+    });
+});
+
+describe('sourcePrerequisitePaths', () => {
+    it('follows npm files globs where ** matches zero directories', () => {
+        const root = temporaryDirectory();
+        writeJson(path.join(root, 'tools/starter/package.json'), {
+            name: '@example/starter',
+            files: ['templates/**/package.json', '!templates/ignored/**'],
+        });
+        writeJson(path.join(root, 'tools/starter/templates/package.json'), {
+            dependencies: { '@example/build': '^1.0.0' },
+        });
+        writeJson(path.join(root, 'tools/starter/templates/ignored/package.json'), {
+            dependencies: { '@example/docs': '^1.0.0' },
+        });
+        const pathsByName = new Map([
+            ['@example/build', 'tools/build'],
+            ['@example/docs', 'tools/docs'],
+        ]);
+
+        assert.deepEqual(sourcePrerequisitePaths(root, 'tools/starter', pathsByName), new Set(['tools/build']));
     });
 });
