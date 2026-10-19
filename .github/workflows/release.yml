@@ -656,6 +656,7 @@ jobs:
                   WASM_FILE: ${{ steps.market.outputs.wasm_file }}
                   PLUGIN_NAME: ${{ steps.market.outputs.plugin_name }}
                   PLUGIN_VERSION: ${{ steps.market.outputs.version }}
+                  PLUGIN_SIGNING_KEY: ${{ secrets.PLUGIN_SIGNING_KEY }}
               run: node scripts/prepare-market-plugin.mjs "$WASM_FILE" "$PLUGIN_NAME" "$PLUGIN_VERSION"
 
             # Missing credentials or a not-yet-published listing produce a warning and leave the

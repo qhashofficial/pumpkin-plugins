@@ -381,8 +381,8 @@ tests; the ephemeral key is only for checks and is never available to release jo
 workflow signs each published asset with the repository key. Before signing a release artifact,
 the release job confirms its tag points to the commit that produced the build. It uploads the signed
 `.wasm` and refreshed `.sha256` to the GitHub release. Before uploading to Pumpkin Market, CI
-verifies the artifact's expected plugin name and version and removes the publisher's signing
-sections. Market signs each public download itself.
+checks that the repository key signed the artifact, verifies its expected plugin name and version,
+and removes the publisher's signing sections. Market signs each public download itself.
 
 | Situation | Result |
 | --- | --- |
