@@ -21,7 +21,8 @@ Download `apple-skin-pumpkin.wasm` from the plugin's GitHub release, put it in y
 Vanilla tells a client about saturation only when it reaches zero, and never sends exhaustion at
 all, which leaves the food tooltips AppleSkin draws behind by a tick. So the plugin reads every
 online player once per tick and sends the two values, plus whether the world heals players by food.
-It sends only what moved since the last packet, so a still player costs nothing.
+It reads that game rule once per world rather than once per player, and sends only what moved since
+the last packet, so it sends nothing for a still player.
 
 AppleSkin is a Java Edition mod, so Bedrock players are skipped.
 
