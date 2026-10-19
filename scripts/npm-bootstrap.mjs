@@ -1,5 +1,4 @@
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -8,9 +7,9 @@ import {
     assertPublicToolPackage,
     assertPublicToolPackageContents,
     discoverPublicToolPackages,
-    embeddedPackageManifestEntries,
     getPublicToolReleasePrerequisites,
     orderPublicToolReleasePaths,
+    packAndInspect,
     parseTarEntries,
     publicToolPackageVersions,
 } from './utils/tool-packages.mjs';
@@ -144,10 +143,9 @@ export async function bootstrapPublicTool(options, injected = {}) {
         await archive.install(sourceRoot);
         const packDirectory = path.join(temporaryDirectory, 'packed');
         fs.mkdirSync(packDirectory, { recursive: true });
-        const tarball = await archive.pack(packageDirectory, packDirectory);
+        const packed = await archive.pack(packageDirectory, packDirectory);
+        const { tarballPath: tarball, integrity } = packed;
         assertPathWithin(tarball, temporaryDirectory, 'packed tarball');
-        const integrity = readTarballIntegrity(tarball);
-        const packed = await archive.inspectPackage(tarball);
 
         if (
             packed.packageJson?.name !== sourceManifest.name ||
@@ -161,7 +159,7 @@ export async function bootstrapPublicTool(options, injected = {}) {
         if (packed.packageJson.version !== FIRST_RELEASE_VERSION) {
             throw new Error(`${packageName} packed version must be ${FIRST_RELEASE_VERSION}`);
         }
-        assertPublicToolPackageContents(normalizeTarEntries(packed.entries), selectedPath, packed.packageJson);
+        assertPublicToolPackageContents(packed.entries, selectedPath, packed.packageJson);
 
         const prerequisites = getPrerequisites(selectedPath, packed, taggedPrerequisiteVersions, sourceRoot);
         for (const prerequisite of prerequisites) {
@@ -324,16 +322,6 @@ function readJson(file, description) {
     }
 }
 
-function readTarballIntegrity(tarball) {
-    let contents;
-    try {
-        contents = fs.readFileSync(tarball);
-    } catch (error) {
-        throw new Error(`packed tarball is missing or unreadable: ${safeCause(error)}`);
-    }
-    return `sha512-${createHash('sha512').update(contents).digest('base64')}`;
-}
-
 async function readRegistryPackage(registry, packageName, version) {
     let result;
     try {
@@ -398,34 +386,9 @@ function createArchiveAdapter(run) {
             assertCommandSucceeded(result, 'pnpm install --frozen-lockfile');
         },
         async pack(packageDirectory, destination) {
-            const result = run('pnpm', ['pack', '--pack-destination', destination], { cwd: packageDirectory });
-            assertCommandSucceeded(result, `pnpm pack for ${path.basename(packageDirectory)}`);
-            const tarballs = fs.readdirSync(destination).filter((entry) => entry.endsWith('.tgz'));
-            if (tarballs.length !== 1)
-                throw new Error('pnpm pack did not produce exactly one selected-package tarball');
-            return path.join(destination, tarballs[0]);
-        },
-        async inspectPackage(tarball) {
-            const listing = run('tar', ['-tzf', tarball]);
-            assertCommandSucceeded(listing, `tar listing for ${path.basename(tarball)}`);
-            const entries = parseTarEntries(listing.stdout);
-            const packageJson = readTarJson(run, tarball, 'package/package.json');
-            const embeddedPackageJsons = embeddedPackageManifestEntries(entries).map((entry) =>
-                readTarJson(run, tarball, entry),
-            );
-            return { entries, packageJson, embeddedPackageJsons };
+            return packAndInspect(packageDirectory, destination);
         },
     };
-}
-
-function readTarJson(run, tarball, member) {
-    const result = run('tar', ['-xOf', tarball, member]);
-    assertCommandSucceeded(result, `read ${member} from packed tarball`);
-    try {
-        return JSON.parse(result.stdout);
-    } catch (error) {
-        throw new Error(`packed tarball member ${member} is malformed: ${safeCause(error)}`);
-    }
 }
 
 function createRegistryAdapter(run) {
