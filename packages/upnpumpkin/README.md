@@ -135,7 +135,7 @@ Settings live in `plugins/data/UPnPumpkin/config.toml`. The plugin creates the f
 | `router.nat_pmp_gateway` | string | `""` | The router to use for NAT-PMP, as "address:5351". Empty means the first and last address of the local network are tried. |
 | `java.enabled` | boolean | `true` | Open the Java Edition port. |
 | `java.port` | integer | `25565` | Port of the Java Edition listener. |
-| `bedrock.enabled` | boolean | `true` | Open the Bedrock Edition port. |
+| `bedrock.enabled` | boolean | `true` | Open the Bedrock Edition port for UDP and TCP. |
 | `bedrock.port` | integer | `19132` | Port of the Bedrock Edition listener. |
 | `plugins.allow_requests` | boolean | `true` | Let other plugins ask for ports to be opened, for example BedrockAddonManager for its pack downloads. They are closed again when the plugin stops asking. |
 | `plugins.max_requests_per_plugin` | integer | `16` | How many ports each plugin may keep open at once. Every plugin has its own limit. |
@@ -180,10 +180,11 @@ enabled = true
 # Port of the Java Edition listener.
 port = 25565
 
-# The Bedrock Edition port (UDP).
+# The Bedrock Edition port. It is opened for UDP and TCP: Bedrock players connect over UDP, and the
+# connection is set up over TCP on the same port.
 [bedrock]
 
-# Open the Bedrock Edition port.
+# Open the Bedrock Edition port for UDP and TCP.
 enabled = true
 
 # Port of the Bedrock Edition listener.

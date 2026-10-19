@@ -54,9 +54,10 @@ export const configSchema = defineConfig(PLUGIN_NAME, {
         },
     }),
     bedrock: section({
-        description: 'The Bedrock Edition port (UDP).',
+        description:
+            'The Bedrock Edition port. It is opened for UDP and TCP: Bedrock players connect over UDP, and the connection is set up over TCP on the same port.',
         fields: {
-            enabled: bool({ description: 'Open the Bedrock Edition port.', default: true }),
+            enabled: bool({ description: 'Open the Bedrock Edition port for UDP and TCP.', default: true }),
             port: int({ description: 'Port of the Bedrock Edition listener.', default: 19132, min: 1, max: 65535 }),
         },
     }),
