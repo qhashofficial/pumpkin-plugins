@@ -25,6 +25,15 @@
             "description": "Pinned Node.js ambient types; update intentionally with the Node baseline"
         },
         {
+            // Release Please only releases feat, fix and perf commits. Runtime dependencies and
+            // catalog entries can end up in published packages, so their updates are fixes. The
+            // release scripts attach a catalog update only to the packages whose shipped source
+            // uses that entry.
+            "matchDepTypes": ["dependencies", "pnpm.catalog.default"],
+            "semanticCommitType": "fix",
+            "description": "Release shipped dependency updates"
+        },
+        {
             // The catalog entry in pnpm-workspace.yaml is a tarball URL for one plugin ABI, and it
             // has to change together with PUMPKIN_RELEASE in
             // tools/test-harness/src/pumpkin-version.ts. Renovate can't see that link, so it leaves
