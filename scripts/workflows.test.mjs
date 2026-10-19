@@ -160,13 +160,39 @@ describe('upstream pin workflow', () => {
     );
     const releaseWorkflow = parse(fs.readFileSync(path.join(scripts, '../.github/workflows/release.yml'), 'utf8'));
 
-    it('bootstraps dependencies before discovering upstream updates', () => {
+    it('installs only the root dependencies before discovering upstream updates', () => {
         const steps = workflow.jobs.discover.steps;
-        const bootstrapIndex = steps.findIndex((step) => step.uses === './.github/common/bootstrap');
+        const installIndex = steps.findIndex((step) =>
+            /pnpm install .*--filter pumpkin-plugins\b/.test(step.run ?? ''),
+        );
         const discoverIndex = steps.findIndex((step) => step.id === 'pins');
 
-        assert.ok(bootstrapIndex > 0, 'discover job must install repository dependencies');
-        assert.ok(discoverIndex > bootstrapIndex, 'discovery must run after the dependency install');
+        assert.ok(installIndex > 0, 'discover job must install the root dependencies its script imports');
+        assert.ok(discoverIndex > installIndex, 'discovery must run after the dependency install');
+        assert.equal(
+            steps.some((step) => step.uses === './.github/common/bootstrap'),
+            false,
+            'discovery needs no workspace install or Turborepo cache',
+        );
+    });
+
+    it('validates updates with the pinned Static Hermes toolchain that CI uses', () => {
+        const steps = workflow.jobs.update.steps;
+        const index = (predicate) => steps.findIndex(predicate);
+        const bootstrapIndex = index((step) => step.uses === './.github/common/bootstrap');
+        const toolchainIndex = index((step) => step.uses === './.github/common/setup-static-hermes');
+        const applyIndex = index((step) => step.run?.includes('upstream-pins.mjs apply'));
+        const validateIndex = index((step) => step.run?.includes('upstream-pins.mjs validate'));
+
+        assert.ok(bootstrapIndex >= 0, 'the update job installs dependencies through the shared bootstrap');
+        assert.ok(
+            toolchainIndex > applyIndex,
+            'key the Static Hermes cache to the updated pin, as its pull request does',
+        );
+        assert.ok(validateIndex > toolchainIndex, 'validation must use the pinned CMake and Ninja');
+        for (const step of [steps[bootstrapIndex], steps[toolchainIndex]]) {
+            assert.match(step.if, /NEEDS_UPDATE == 'true'/, 'set up the toolchain only when a pin changes');
+        }
     });
 
     it('fails discovery when the Node command fails', () => {
