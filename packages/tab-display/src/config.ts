@@ -65,7 +65,7 @@ export const configSchema = defineConfig(PLUGIN_NAME, {
             provider: str({ description: 'Pumpkin plugin that supplies placeholder values.', default: 'PumpkinPIE' }),
             missing_provider: str({
                 description:
-                    'Text to show when PumpkinPIE is unavailable: `literal` keeps tokens, `empty` removes them.',
+                    'Text to show for tokens other than `%player_name%` and `%server_online%` when PumpkinPIE is unavailable: `literal` keeps them, `empty` removes them.',
                 default: 'literal',
             }),
             unresolved: str({

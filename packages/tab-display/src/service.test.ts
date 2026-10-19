@@ -90,6 +90,29 @@ describe('TabDisplayService', () => {
         });
     });
 
+    it('fills the default templates without PumpkinPIE instead of showing raw tokens', () => {
+        const host = new FakeHost(viewers);
+        const resolveBatch = vi.fn(() => []);
+        const service = new TabDisplayService({
+            host,
+            resolver: { state: { kind: 'unavailable' }, resolveBatch },
+            now: () => 0,
+            config: validConfig(structuredClone(defaultValues(configSchema))),
+        });
+
+        service.tick();
+
+        expect(host.names).toEqual(
+            new Map([
+                ['uuid-a', 'Alex'],
+                ['uuid-b', 'Bea'],
+            ]),
+        );
+        expect(host.headers.get('uuid-a')?.header[0]?.text).toBe('Welcome Alex');
+        expect(host.headers.get('uuid-b')?.footer[0]?.text).toBe('2 players online');
+        expect(resolveBatch).not.toHaveBeenCalled();
+    });
+
     it('does not call Java row setters for Bedrock players', () => {
         const host = new FakeHost([
             { uuid: 'bedrock', name: 'Bedrock', edition: 'bedrock' },
@@ -209,11 +232,10 @@ describe('TabDisplayService', () => {
         service.tick();
         expect(host.names).toEqual(
             new Map([
-                ['uuid-a', '%player_name%'],
-                ['uuid-b', '%player_name%'],
+                ['uuid-a', 'Alex'],
+                ['uuid-b', 'Bea'],
             ]),
         );
-        expect([...host.names.values()]).not.toContain('wrong');
         expect(service.status().lastFailure).toMatch(/batch/i);
     });
 
@@ -328,7 +350,7 @@ describe('TabDisplayService', () => {
             resolveBatch: (requests) => {
                 if (!available) throw new Error('provider unavailable');
                 return requests.map(({ text, viewer }) => ({
-                    text: text.replace('%player_name%', viewer ?? 'server'),
+                    text: text.replace('%player_name%', `${viewer} from PIE`),
                     unresolved: [],
                 }));
             },
@@ -336,13 +358,13 @@ describe('TabDisplayService', () => {
         let time = 0;
         const service = new TabDisplayService({ host, resolver, now: () => time, config: validConfig(baseConfig()) });
         service.tick();
-        expect(host.names.get('uuid-a')).toBe('Alex');
+        expect(host.names.get('uuid-a')).toBe('Alex from PIE');
         available = false;
         service.tick();
-        expect(host.names.get('uuid-a')).toBe('Alex');
+        expect(host.names.get('uuid-a')).toBe('Alex from PIE');
         time = 30_001;
         service.tick();
-        expect(host.names.get('uuid-a')).toBe('%player_name%');
+        expect(host.names.get('uuid-a')).toBe('Alex');
     });
 
     it('restores plugin-owned fields when disabled and clears disconnected snapshots', () => {

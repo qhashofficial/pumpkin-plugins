@@ -283,6 +283,7 @@ export class TabDisplayService {
         try {
             const unresolved = new Set<string>();
             const rendered = generation.players.map((player) => {
+                const builtins = builtinValues(player.snapshot, generation.players.length);
                 const render = (target: RenderTarget): RenderedLine => {
                     const resolution = target.template.hasPlaceholders
                         ? generation.results.get(jobKey(player.snapshot, target.template.source))
@@ -292,7 +293,7 @@ export class TabDisplayService {
                         ? fallback(this.config.placeholders.unresolved)
                         : fallback(this.config.placeholders.missing_provider);
                     return {
-                        text: renderTemplate(target.template, resolution, policy, providerAvailable),
+                        text: renderTemplate(target.template, resolution, policy, providerAvailable, builtins),
                         ...target.style,
                     };
                 };
@@ -324,12 +325,16 @@ export class TabDisplayService {
         if (this.lastSuccessfulAt !== undefined && now - this.lastSuccessfulAt < STALE_FRAME_MS) return;
 
         try {
-            const rendered = generation.players.map((player) => ({
-                snapshot: player.snapshot,
-                entry: player.entry === undefined ? undefined : renderTemplateFallback(player.entry, this.config),
-                header: player.header.map((target) => renderTemplateFallback(target, this.config)),
-                footer: player.footer.map((target) => renderTemplateFallback(target, this.config)),
-            }));
+            const rendered = generation.players.map((player) => {
+                const builtins = builtinValues(player.snapshot, generation.players.length);
+                const render = (target: RenderTarget) => renderTemplateFallback(target, this.config, builtins);
+                return {
+                    snapshot: player.snapshot,
+                    entry: player.entry === undefined ? undefined : render(player.entry),
+                    header: player.header.map(render),
+                    footer: player.footer.map(render),
+                };
+            });
             this.applyGeneration(rendered);
         } catch {
             this.lastFailure = 'Literal fallback exceeded the configured output limits';
@@ -499,9 +504,21 @@ function fitBatch(jobs: readonly PlaceholderJob[], offset: number, countLimit: n
     return result;
 }
 
-function renderTemplateFallback(target: RenderTarget, config: TabDisplayConfig): RenderedLine {
+function renderTemplateFallback(
+    target: RenderTarget,
+    config: TabDisplayConfig,
+    builtins: ReadonlyMap<string, string>,
+): RenderedLine {
     const policy = fallback(config.placeholders.missing_provider);
-    return { text: renderTemplate(target.template, undefined, policy, false), ...target.style };
+    return { text: renderTemplate(target.template, undefined, policy, false, builtins), ...target.style };
+}
+
+// ponytail: only the tokens the default config uses; anything else needs PumpkinPIE.
+function builtinValues(player: PlayerSnapshot, online: number): ReadonlyMap<string, string> {
+    return new Map([
+        ['player_name', player.name],
+        ['server_online', String(online)],
+    ]);
 }
 
 function fallback(value: string): 'literal' | 'empty' {
