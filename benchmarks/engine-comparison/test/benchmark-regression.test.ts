@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import type { BenchmarkWorkload } from '../src/benchmark-workloads.ts';
 import { compareBenchmarkResults, formatBenchmarkChangeSvgs, formatBenchmarkComment } from './benchmark-regression.ts';
-import type { EngineResult } from './engine-comparison-report.ts';
+import type { EngineResult } from './benchmark-results.ts';
 
 it('flags workload changes only when they exceed the jitter threshold', () => {
     const baseline = [engine('quickjs', [workload('stable', [100]), workload('slower', [100])])];
@@ -22,6 +22,15 @@ it('celebrates meaningful improvements and ignores zero-millisecond baselines', 
     expect(comparison.improvements.map(({ workload: name }) => name)).toEqual(['faster']);
     expect(comparison.skippedWorkloads).toHaveLength(1);
     expect(comparison.skippedWorkloads[0]).toContain('quickjs/unresolved');
+});
+
+it('reports component sizes without skipped rows when there is no baseline run', () => {
+    const comparison = compareBenchmarkResults([engine('quickjs', [workload('stable', [100])])], []);
+
+    expect(comparison.status).toBe('regular');
+    expect(comparison.changes).toEqual([]);
+    expect(comparison.skippedWorkloads).toEqual([]);
+    expect(comparison.engineSizes).toEqual([{ binarySizeBytes: 1_000, engineId: 'quickjs', engineLabel: 'quickjs' }]);
 });
 
 it('shows warning, celebration, and regular outcomes in the PR comment', () => {
