@@ -1652,6 +1652,10 @@ bool exports_plugin_handle_ipc_message(plugin_plugin_id_t *sender,
                                        plugin_string_t *error) {
     std::memset(ret, 0, sizeof(*ret));
     std::memset(error, 0, sizeof(*error));
+    WitScopeGuard argumentCleanup([&] {
+        plugin_plugin_id_free(sender);
+        plugin_ipc_message_free(message);
+    });
     try {
         initializeRuntime();
 

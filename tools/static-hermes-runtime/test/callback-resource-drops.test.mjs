@@ -84,4 +84,11 @@ describe('callback dispatch and resource ownership', () => {
             '/* GENERATED_PLUGIN_ON_UNLOAD */': templateFunction(shim, 'bool exports_plugin_on_unload('),
         });
     });
+
+    it('frees the sender and message an IPC callback receives', () => {
+        const shim = fs.readFileSync(runtimeShim, 'utf8');
+        compileFixture('ipc-message.cpp', {
+            '/* GENERATED_HANDLE_IPC_MESSAGE */': templateFunction(shim, 'bool exports_plugin_handle_ipc_message('),
+        });
+    });
 });
