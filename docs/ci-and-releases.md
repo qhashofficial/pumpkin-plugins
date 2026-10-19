@@ -408,8 +408,10 @@ key remain valid because each file carries its signing key; only the published p
 
 A plugin is tracked for releases only when it appears in **both** Release Please files.
 `pnpm gen` adds it to both. If a package isn't ready to release, leave it out of those files and add
-its path and a reason to `release-please-paused.json`. The release-config check verifies that each
-paused path exists and isn't tracked. To resume a package, remove it from the paused file and add it
+its path and a reason to `release-please-paused.json`. Write the reason as a full sentence that
+names what blocks the release: the plugin's README shows it in place of the download link, and the
+root README marks the plugin as unreleased. The release-config check verifies that each paused path
+exists and isn't tracked. To resume a package, remove it from the paused file and add it
 to both Release Please files.
 
 A first release has no previous tag to mark the history boundary, so the release helper scans the

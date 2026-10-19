@@ -50,6 +50,19 @@ export async function loadInfo(pluginDir: string): Promise<PluginInfo> {
     return info;
 }
 
+/** The reason given in the nearest `release-please-paused.json` for holding back a component's releases. */
+function pausedReason(directory: string): string | undefined {
+    const component = path.resolve(directory);
+    for (let root = component; ; root = path.dirname(root)) {
+        const file = path.join(root, 'release-please-paused.json');
+        if (fs.existsSync(file)) {
+            const reason = readJson(file)[path.relative(root, component).split(path.sep).join('/') || '.'];
+            return typeof reason === 'string' ? reason : undefined;
+        }
+        if (path.dirname(root) === root) return undefined;
+    }
+}
+
 function routeUrl(siteUrl: URL, route: string): string {
     return new URL(encodeURI(route), siteUrl).href;
 }
@@ -137,8 +150,14 @@ async function prepareComponentReferenceUpdates(root: string, siteUrl: URL): Pro
  */
 export async function generatePluginReadme(pluginDir: string, check = false): Promise<Status> {
     const info = await loadInfo(pluginDir);
+    const pkg = readJson(path.join(pluginDir, 'package.json'));
+    const output = pkg.pumpkinPlugin?.output;
+    const release =
+        typeof output === 'string'
+            ? { output, packageName: pkg.name, unreleasedReason: pausedReason(pluginDir) }
+            : undefined;
     return generateDocuments(
-        [{ file: 'README.md', blocks: renderBlocks(info), required: false, note: GENERATED_NOTE }],
+        [{ file: 'README.md', blocks: renderBlocks(info, release), required: false, note: GENERATED_NOTE }],
         pluginDir,
         check,
     );
@@ -158,6 +177,7 @@ async function rows(root: string, group: 'packages' | 'tools' | 'extensions'): P
             description: info?.description ?? pkg.description ?? '',
             license: pkg.license ?? '',
             licenseFile: licenseFile ? path.relative(root, licenseFile).split(path.sep).join('/') : undefined,
+            unreleased: group === 'packages' && pausedReason(dir) !== undefined,
         });
     }
     return out;

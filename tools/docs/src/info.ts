@@ -76,7 +76,7 @@ export interface PluginInfo<Name extends string = string> {
      * More generated README blocks, by name: the markdown goes between `<!-- docs:begin NAME -->` and
      * `<!-- docs:end NAME -->`. For content that comes from the plugin's code, such as a list of
      * routers it refuses. A name the README doesn't have markers for is skipped, and the built-in
-     * names (`summary`, `permissions`, `commands`, `config`) are taken.
+     * names (`summary`, `permissions`, `commands`, `config`, `installation`) are taken.
      */
     blocks?: Readonly<Record<string, string>>;
     /** The commands, normally `commandInfos(commands)` of the tree that registers them. */

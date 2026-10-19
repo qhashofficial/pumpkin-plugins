@@ -70,7 +70,7 @@ prefix when it loads the plugin.
 
 You can use `blocks` for additional README content that comes from the plugin's code. UPnPumpkin,
 for example, renders its blocked-router table into a `routers` block. The names `summary`,
-`permissions`, `commands` and `config` are reserved. If the README has no markers for one of your
+`permissions`, `commands`, `config` and `installation` are reserved. If the README has no markers for one of your
 custom blocks, the generator skips it.
 
 Build `config` from the plugin's configuration schema with `describeConfig(schema, file)` from
@@ -202,6 +202,7 @@ in a plugin's `README.md`:
 | `permissions` | `info.permissions` plus the automatic updater permission |
 | `commands` | `info.commands` |
 | `config` | `info.config`: the options table and default file contents |
+| `installation` | `pumpkinPlugin.output` in `package.json`; a plugin listed in `release-please-paused.json` gets build steps and the reason instead of a download link |
 | Any other name | Markdown in `info.blocks` under that name |
 
 Write your plugin overview, examples and installation guidance outside these blocks. The generator
