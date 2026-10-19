@@ -214,7 +214,7 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | medium | Toolchain versions hardcoded in YAML instead of read from their source of truth | Partly fixed in [#50](https://github.com/qhashofficial/pumpkin-plugins/pull/50) |
 | medium | Full-history clones of a 500 MB repo on the critical path and in jobs that do not need history | Fixed in [#59](https://github.com/qhashofficial/pumpkin-plugins/pull/59) |
 | medium | Docs workflow repeats CI's docs checks and uploads two site artifacts on PRs that publish nothing | Partly fixed in [#60](https://github.com/qhashofficial/pumpkin-plugins/pull/60) |
-| medium | Recover workflow re-implements the release asset and Market pipeline, and tag verification is copied four times | Fixed on `ci/reusable-plugin-publish` (not merged yet) |
+| medium | Recover workflow re-implements the release asset and Market pipeline, and tag verification is copied four times | Fixed in [#66](https://github.com/qhashofficial/pumpkin-plugins/pull/66) |
 | medium | CI build exports the release signing key to the job environment although release.yml re-signs every asset | Partly fixed in [#19](https://github.com/qhashofficial/pumpkin-plugins/pull/19) |
 | low | Benchmark comment never posts on fork PRs because workflow_run.pull_requests is empty for forks | Fixed in [#59](https://github.com/qhashofficial/pumpkin-plugins/pull/59) |
 | medium | Market listing lookup duplicated across the publish and update actions with divergent behaviour | Fixed in [#33](https://github.com/qhashofficial/pumpkin-plugins/pull/33) |
@@ -417,7 +417,7 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | medium | Building the docs from a fresh clone fails because the builder CLI isn't built yet | Fixed in [#60](https://github.com/qhashofficial/pumpkin-plugins/pull/60) |
 | low | Plugin API index says the packages aren't published yet, but they are | Fixed in [#26](https://github.com/qhashofficial/pumpkin-plugins/pull/26) |
 | low | The ABI page repeats pin values that already live in source files | Fixed in [#26](https://github.com/qhashofficial/pumpkin-plugins/pull/26) |
-| low | The trusted-publishing guide describes a Node check the workflow doesn't do | Fixed on `ci/reusable-plugin-publish` (not merged yet) |
+| low | The trusted-publishing guide describes a Node check the workflow doesn't do | Fixed in [#66](https://github.com/qhashofficial/pumpkin-plugins/pull/66) |
 | low | Agent-facing pages are published in the public site's Docs menu | Fixed in [#6](https://github.com/qhashofficial/pumpkin-plugins/pull/6) |
 | low | Guide categories are missing or misplaced | Fixed in [#63](https://github.com/qhashofficial/pumpkin-plugins/pull/63) |
 | low | Handwritten docs hardcode counts and duplicate setup steps | Partly fixed in [#63](https://github.com/qhashofficial/pumpkin-plugins/pull/63) |
@@ -492,6 +492,6 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | low | A published static-analysis package serves one consumer, while tools/build keeps its own separate TypeScript source analysis | Deferred |
 | medium | PumpkinPIE integration tests deep-import other packages' internals and assert hard-coded pins | Partly fixed in [#16](https://github.com/qhashofficial/pumpkin-plugins/pull/16) |
 | low | GITHUB_OUTPUT writing and the GitHub API helpers are reimplemented across scripts in three styles | Fixed in [#56](https://github.com/qhashofficial/pumpkin-plugins/pull/56) |
-| low | Workflows inline the bootstrap steps and one hard-codes the Node pin and an older setup-node version | Partly fixed on `ci/reusable-plugin-publish` (not merged yet) |
+| low | Workflows inline the bootstrap steps and one hard-codes the Node pin and an older setup-node version | Partly fixed in [#66](https://github.com/qhashofficial/pumpkin-plugins/pull/66) |
 | low | The Minecraft spelling dictionary and its VS Code extension aren't used by the repo itself | Partly fixed in [#52](https://github.com/qhashofficial/pumpkin-plugins/pull/52) |
 | low | Plugin test helpers redeclare the plugin name and the data-folder layout | Deferred |

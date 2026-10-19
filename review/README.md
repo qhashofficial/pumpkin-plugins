@@ -79,6 +79,7 @@ Fixes were grouped into topic branches. Each branch was tested on its own, then 
 | [#41](https://github.com/qhashofficial/pumpkin-plugins/pull/41) | `fix/create-pumpkin-plugin-scaffold` | fix(create-pumpkin-plugin): simplify project creation and use the detected package manager |
 | [#51](https://github.com/qhashofficial/pumpkin-plugins/pull/51) | `perf/waypoints-hud-access` | perf(waypoints): cache permission checks in the HUD tick and share distance formatting |
 | [#53](https://github.com/qhashofficial/pumpkin-plugins/pull/53) | `fix/update-check-dev-mode` | fix(update-check): skip checks in dev builds and test the scheduled path |
+| [#66](https://github.com/qhashofficial/pumpkin-plugins/pull/66) | `ci/reusable-plugin-publish` | ci(release): share the plugin publish workflow between release and recovery |
 | [#44](https://github.com/qhashofficial/pumpkin-plugins/pull/44) | `fix/config-toml-del` | fix(config): escape DEL in TOML strings and table headers |
 | [#52](https://github.com/qhashofficial/pumpkin-plugins/pull/52) | `fix/cspell-minecraft-words` | fix(cspell-dict-minecraft): add common Minecraft terms and test the packaged dictionary |
 | [#54](https://github.com/qhashofficial/pumpkin-plugins/pull/54) | `perf/apple-skin-tick` | perf(apple-skin): read the regeneration game rule once per world per tick |
