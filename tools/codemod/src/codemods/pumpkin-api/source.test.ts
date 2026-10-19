@@ -29,6 +29,32 @@ describe('source migration', () => {
         );
     });
 
+    it('flags the legacy package name left in strings it does not rewrite, such as test mocks', async () => {
+        const migrate = (source: string) =>
+            migratePumpkinApiTs.transform({
+                absolutePath: '/project/test/plugin.test.ts',
+                projectRoot: '/project',
+                relativePath: 'test/plugin.test.ts',
+                source,
+            });
+        const legacyNotes = (messages: readonly string[] = []) =>
+            messages.filter((message) => message.includes('@pumpkinmc/pumpkin-api-ts'));
+
+        const mocked = await migrate(
+            [
+                "import { Plugin } from '@pumpkinmc/pumpkin-api-ts';",
+                "vi.mock('@pumpkinmc/pumpkin-api-ts');",
+                'jest.mock(`@pumpkinmc/pumpkin-api-ts`);',
+            ].join('\n'),
+        );
+        const imported = await migrate("import { Plugin } from '@pumpkinmc/pumpkin-api-ts';");
+
+        expect(mocked.source).toContain("import { Plugin } from '@pumpkin-plugins/pumpkin-api';");
+        expect(mocked.source).toContain("vi.mock('@pumpkinmc/pumpkin-api-ts');");
+        expect(legacyNotes(mocked.messages)).toHaveLength(1);
+        expect(legacyNotes(imported.messages)).toEqual([]);
+    });
+
     it('leaves TypeScript with syntax errors unchanged and reports the parse failure', async () => {
         const source = ["import { Plugin } from '@pumpkinmc/pumpkin-api-ts';", 'const broken = ;'].join('\n');
 

@@ -124,7 +124,8 @@ The codemod reads `package.json` as strict JSON, as npm and pnpm do. A manifest 
 trailing commas is left unchanged with a review note.
 
 The source transform changes parsed module specifiers only; it leaves comments, examples and other
-string values alone. Existing custom build and typecheck commands are kept and reported for manual
+string values alone. If another string still names the old package, such as a `vi.mock()` or
+`jest.mock()` argument, the preview adds a review note so you can update it by hand. Existing custom build and typecheck commands are kept and reported for manual
 review. The build command is recognized only as `pumpkin-plugin-build <entry> <output>` or
 `pnpm exec pumpkin-plugin-build <entry> <output>`, with optional simple quotes around either path.
 Flags, extra arguments, command chaining, shell variable expansions and other launchers are left for
