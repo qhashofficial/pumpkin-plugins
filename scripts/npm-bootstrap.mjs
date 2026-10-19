@@ -448,9 +448,9 @@ function createNpmAdapter(run) {
                 throw new Error(`authenticated npm account ${username} does not match expected owner ${expectedOwner}`);
             }
 
-            const profile = runNpmCommand(run, ['profile', 'get', `--registry=${REGISTRY_URL}`]);
+            const profile = runNpmCommand(run, ['profile', 'get', '--json', `--registry=${REGISTRY_URL}`]);
             assertCommandSucceeded(profile, 'npm profile get');
-            if (!/two-factor auth:\s*auth-(?:only|and-writes)\b/i.test(profile.stdout)) {
+            if (!hasAccountTwoFactor(profile.stdout)) {
                 throw new Error('npm account must have account-level 2FA enabled');
             }
 
@@ -519,6 +519,15 @@ function parseNpmOwnerNames(output) {
         return entry[1];
     });
     return [...new Set(names)];
+}
+
+function hasAccountTwoFactor(output) {
+    try {
+        const { tfa } = JSON.parse(output);
+        return Boolean(tfa) && !tfa.pending && ['auth-only', 'auth-and-writes'].includes(tfa.mode);
+    } catch {
+        return false;
+    }
 }
 
 function hasOrganizationMembership(output, username) {
