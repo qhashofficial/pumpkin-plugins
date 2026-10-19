@@ -6,8 +6,8 @@ automatic mapping, you don't have to add those router rules by hand.
 
 Install `upnpumpkin.wasm` in the Pumpkin server's `plugins/` folder, then restart the server. The
 [configuration reference](../README.md#configuration) lists the default ports and other settings.
-The router keeps each mapping for a limited lease; UPnPumpkin renews it halfway through that time
-and closes it when the server stops.
+The router keeps each mapping for a limited lease; UPnPumpkin renews it halfway through that time,
+or after five minutes if that comes first, and closes it when the server stops.
 
 ## Check the mapping
 

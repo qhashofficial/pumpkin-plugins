@@ -25,7 +25,8 @@ in to it:
 - It opens the Java Edition port (TCP 25565) and the Bedrock Edition port (UDP 19132). Change them in
   `config.toml` if your server listens elsewhere.
 - Ports are leased: the router forgets them if the server dies, they are renewed at half the lease
-  time, and they are closed again when the server stops.
+  time or every five minutes, whichever comes first, and they are closed again when the server
+  stops.
 - When this machine already has a public address (a VPS or dedicated server) there is nothing to
   open, and `/upnp status` says so.
 - `/upnp status` shows the router that was found, its public address and every port.
@@ -132,7 +133,7 @@ Settings live in `plugins/data/UPnPumpkin/config.toml`. The plugin creates the f
 | --- | --- | --- | --- |
 | `router.upnp` | boolean | `true` | Look for routers that speak UPnP. |
 | `router.nat_pmp` | boolean | `true` | Look for routers that speak NAT-PMP. |
-| `router.lease_seconds` | integer | `3600` | How long the router keeps a port open without hearing from the plugin. It is renewed at half this time and closed again when the server stops. |
+| `router.lease_seconds` | integer | `3600` | How long the router keeps a port open without hearing from the plugin. It is renewed at half this time, or after five minutes if that comes first, and closed again when the server stops. |
 | `router.upnp_search` | string | `"239.255.255.250:1900"` | Where UPnP searches are sent. The default is the multicast address every router listens on. Set the router's own address (for example "192.168.1.1:1900") when multicast is blocked on your network. |
 | `router.nat_pmp_gateway` | string | `""` | The router to use for NAT-PMP, as "address:5351". Empty means the first and last address of the local network are tried. |
 | `java.enabled` | boolean | `true` | Open the Java Edition port. |
@@ -162,7 +163,7 @@ upnp = true
 nat_pmp = true
 
 # How long the router keeps a port open without hearing from the plugin. It is renewed at half this
-# time and closed again when the server stops.
+# time, or after five minutes if that comes first, and closed again when the server stops.
 lease_seconds = 3600
 
 # Where UPnP searches are sent. The default is the multicast address every router listens on. Set

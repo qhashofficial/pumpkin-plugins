@@ -357,14 +357,18 @@ describe('PortMapper', () => {
         },
     );
 
-    it('renews the lease at half its length', () => {
-        const { igd, mapper, settle, net } = setup(new FakeIgd(), { leaseSeconds: 100 });
+    it.each([
+        { leaseSeconds: 100, renewMs: 50_000 },
+        // A long lease is renewed sooner, so a router reboot or new WAN address is noticed in minutes.
+        { leaseSeconds: 3600, renewMs: 5 * 60_000 },
+    ])('renews a $leaseSeconds s lease after $renewMs ms', ({ leaseSeconds, renewMs }) => {
+        const { igd, mapper, settle, net } = setup(new FakeIgd(), { leaseSeconds });
         mapper.request('web', spec);
         settle(() => open(mapper.state('web')));
         const adds = () => igd?.actions.filter((a) => a === 'AddPortMapping').length;
         expect(adds()).toBe(1);
 
-        settle(() => false, 49_000);
+        settle(() => false, renewMs - 1000);
         expect(adds()).toBe(1);
         settle(() => (adds() ?? 0) > 1, 5000);
         expect(adds()).toBe(2);

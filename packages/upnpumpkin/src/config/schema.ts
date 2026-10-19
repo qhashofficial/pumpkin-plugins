@@ -28,7 +28,7 @@ export const configSchema = defineConfig(PLUGIN_NAME, {
             nat_pmp: bool({ description: 'Look for routers that speak NAT-PMP.', default: true }),
             lease_seconds: int({
                 description:
-                    'How long the router keeps a port open without hearing from the plugin. It is renewed at half this time and closed again when the server stops.',
+                    'How long the router keeps a port open without hearing from the plugin. It is renewed at half this time, or after five minutes if that comes first, and closed again when the server stops.',
                 default: 3600,
                 min: 120,
                 max: 86400,
