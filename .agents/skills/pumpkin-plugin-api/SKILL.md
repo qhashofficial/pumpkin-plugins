@@ -82,9 +82,12 @@ tested without a server.
 
 ## Permissions
 
-A plugin that asks for permissions is prompted for them on the server console the first time it loads, and a
-hot reload denies them, so test with a restart. Command permissions are declared with the command, and their
-names are typed against the ones Pumpkin knows ([Plugin info and READMEs](../../../docs/plugin-info-and-readmes.md)).
+Pumpkin asks the operator to approve a plugin's permissions on the server console unless its plugin config
+pre-allows them or turns `ask_permission_confirmation` off. It remembers the answer for that plugin file and
+permission list, so a rebuilt `.wasm` or a changed list asks again. A hot reload can't show the prompt, so a
+plugin that would need one is denied and skipped; test with a restart. Names in `info.permissions` are typed
+against `PUMPKIN_PERMISSIONS`. Command permission nodes are declared with the command and must start with
+`<PluginName>:` ([Plugin info and READMEs](../../../docs/plugin-info-and-readmes.md)).
 
 ## When the API doesn't have what you need
 
