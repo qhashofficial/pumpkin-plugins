@@ -16,7 +16,8 @@ Both formatters support Minecraft's 16 legacy colors and the same modifiers: bol
 underline, strikethrough, and obfuscated. Chain a color and any modifiers in either order, then call
 the result with the text to format. Modifiers accumulate; if you chain more than one color, the last
 one takes effect. Formatted strings end with the reset code for their output format, so following
-text won't inherit the style.
+text won't inherit the style. You can nest one formatted string inside another; the outer style
+resumes after the nested part ends.
 
 The `named` helpers apply consistent colors to common values such as names, versions, numbers,
 permissions, ports, UUIDs, identifiers, and errors. For a custom RGB color, pass six hexadecimal
