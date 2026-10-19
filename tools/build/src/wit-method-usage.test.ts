@@ -170,7 +170,7 @@ function pluginKitFixture(): { entry: string; generatedTypes: string } {
 }
 
 /** Bundles a fixture as the plugin build does and analyzes the files esbuild included. */
-async function analyze(entry: string, typesDir?: string): Promise<UsedWitMethods | undefined> {
+async function analyze(entry: string, typesDir?: string, witDir?: string): Promise<UsedWitMethods | undefined> {
     const result = await esbuild.build({
         entryPoints: [entry],
         bundle: true,
@@ -190,7 +190,12 @@ async function analyze(entry: string, typesDir?: string): Promise<UsedWitMethods
         ],
     });
     const inputs = Object.keys(result.metafile.inputs).map((input) => path.resolve(input));
-    return findUsedWitMethods({ entry, inputs, ...(typesDir === undefined ? {} : { typesDir }) });
+    return findUsedWitMethods({
+        entry,
+        inputs,
+        ...(typesDir === undefined ? {} : { typesDir }),
+        ...(witDir === undefined ? {} : { witDir }),
+    });
 }
 
 afterEach(() => {
@@ -317,6 +322,30 @@ class RuntimePlugin extends Plugin {
             'world.world.get-name',
         ]);
     }, 30_000);
+
+    it('maps jco names with single-letter segments back to their WIT names', async () => {
+        const entry = fixture();
+        const root = path.dirname(entry);
+        fs.writeFileSync(
+            path.join(root, 'build/types/bindings/interfaces/pumpkin-plugin-world.d.ts'),
+            'export class World { getXY(): number; }\nexport function getABC(): number;\n',
+        );
+        const witDir = path.join(root, 'wit');
+        fs.mkdirSync(witDir);
+        fs.writeFileSync(
+            path.join(witDir, 'world.wit'),
+            'package pumpkin:plugin@0.1.0;\n\ninterface %world {\n    resource %world {\n        get-x-y: func() -> f64;\n    }\n    get-a-b-c: func() -> u32;\n}\n',
+        );
+        fs.writeFileSync(
+            entry,
+            'import { type World, getABC } from "./build/types/bindings/interfaces/pumpkin-plugin-world"; declare const world: World; world.getXY(); getABC();',
+        );
+
+        expect((await analyze(entry, undefined, witDir))?.pumpkinMethods).toEqual([
+            'world.get-a-b-c',
+            'world.world.get-x-y',
+        ]);
+    });
 
     it.each([
         'player["getPosition"]();',

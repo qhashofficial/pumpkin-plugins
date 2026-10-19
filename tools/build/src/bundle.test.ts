@@ -238,6 +238,7 @@ describe('bundlePlugin', () => {
             entry: 'src/plugin.ts',
             inputs: [path.resolve('src/plugin.ts'), path.resolve('node_modules/helper/index.js')],
             typesDir: generatedTypesDir,
+            witDir: apiWitDir,
         });
         expect(fs.existsSync(path.dirname(generatedTypesDir))).toBe(false);
     });

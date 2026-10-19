@@ -21,6 +21,8 @@ export interface WitMethodUsageOptions {
     inputs: readonly string[];
     /** Directory of generated declaration files for the plugin's WIT imports. */
     typesDir?: string;
+    /** WIT the declarations were generated from, used to map jco's camelCase names back to WIT names. */
+    witDir?: string;
 }
 
 /**
@@ -33,7 +35,12 @@ export interface WitMethodUsageOptions {
  *
  * @throws {BuildError} If the entry's `tsconfig.json` cannot be read or parsed.
  */
-export function findUsedWitMethods({ entry, inputs, typesDir }: WitMethodUsageOptions): UsedWitMethods | undefined {
+export function findUsedWitMethods({
+    entry,
+    inputs,
+    typesDir,
+    witDir,
+}: WitMethodUsageOptions): UsedWitMethods | undefined {
     if (!fs.existsSync(entry)) return undefined;
     // esbuild reports real paths, so resolve symlinks before comparing them with TypeScript's files.
     const absoluteEntry = fs.realpathSync(path.resolve(entry));
@@ -72,6 +79,8 @@ export function findUsedWitMethods({ entry, inputs, typesDir }: WitMethodUsageOp
         maxNodeModuleJsDepth: 100,
     };
     let incomplete = false;
+    const declaredWitNames = witDir === undefined ? new Map<string, string>() : readWitNames(witDir);
+    const toWitName = (name: string): string => declaredWitNames.get(name) || guessWitName(name);
     const program = ts.createProgram(
         [
             ...new Set([
@@ -600,7 +609,29 @@ function wasiModuleSpecifier(source: ts.SourceFile): string | undefined {
     return undefined;
 }
 
-function toWitName(name: string): string {
+/**
+ * Maps the camelCase and PascalCase names jco generates to the kebab-case names declared in WIT.
+ * `guessWitName` cannot recover `get-x-y` from jco's `getXY`, so the declared names decide. A jco
+ * name that two WIT identifiers share maps to an empty string, which falls back to the guess.
+ */
+function readWitNames(witDir: string): Map<string, string> {
+    const names = new Map<string, string>();
+    for (const file of fs.readdirSync(witDir, { recursive: true, encoding: 'utf8' })) {
+        if (!file.endsWith('.wit')) continue;
+        const source = fs.readFileSync(path.join(witDir, file), 'utf8').replace(/\/\/.*$/gm, '');
+        for (const [witName] of source.matchAll(/[a-zA-Z][a-zA-Z0-9]*(?:-[a-zA-Z0-9]+)+/g)) {
+            const words = witName.split('-').map((word) => word.toLowerCase());
+            const pascalCase = words.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join('');
+            for (const jcoName of [pascalCase.charAt(0).toLowerCase() + pascalCase.slice(1), pascalCase]) {
+                const known = names.get(jcoName);
+                names.set(jcoName, known === undefined || known === witName ? witName : '');
+            }
+        }
+    }
+    return names;
+}
+
+function guessWitName(name: string): string {
     return name
         .replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2')
         .replace(/([a-z\d])([A-Z])/g, '$1-$2')

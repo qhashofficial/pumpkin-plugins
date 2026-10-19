@@ -122,6 +122,7 @@ export async function bundlePlugin(options: BundleOptions): Promise<number> {
                       entry: options.entry,
                       inputs: bundledFiles(buildResult.metafile),
                       typesDir: generatedTypes,
+                      witDir: options.witDir,
                   })
                 : undefined;
             options.onOutput?.({
