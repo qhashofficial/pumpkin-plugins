@@ -322,9 +322,11 @@ jobs:
               id: prepare-hermes
               run: pnpm --filter @pumpkin-plugins/static-hermes-runtime prepare-hermes
 
+            # Integration and Generator restore this build later in the same run, so a pull request
+            # that changes the toolchain saves it too. An exact hit has nothing new to save.
             - name: 💾 Save Static Hermes build cache
               id: save-static-hermes-build-cache
-              if: steps.prepare-hermes.outcome == 'success'
+              if: steps.prepare-hermes.outcome == 'success' && steps.setup-hermes.outputs.hermes-cache-hit != 'true'
               uses: actions/cache/save@v6.1.0
               with:
                   path: ${{ github.workspace }}/.cache/hermes

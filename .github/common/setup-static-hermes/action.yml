@@ -11,6 +11,9 @@ outputs:
     hermes-cache-key:
         description: Cache key to use when saving the prepared Static Hermes build
         value: ${{ steps.hermes-workspace-cache.outputs.cache-primary-key }}
+    hermes-cache-hit:
+        description: Whether the prepared Static Hermes build was restored from an exact cache key match
+        value: ${{ steps.hermes-workspace-cache.outputs.cache-hit }}
     cmake-version:
         description: Pinned CMake version for Static Hermes builds
         value: ${{ steps.versions.outputs.cmake-version }}

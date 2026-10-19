@@ -32,6 +32,10 @@ build comes from cache. Malloc variants keep their WASI archives and prepared-bu
 a separate cache keyed to the pinned Static Hermes toolchain. This keeps those files separate from
 the shared Hades snapshot.
 
+Build saves the prepared Static Hermes build only when no cache matched its key exactly, so
+Integration and Generator can restore it later in the same run. External consumer saves its pnpm
+store and Static Hermes build only on `master` pushes, once per key; pull requests only restore them.
+
 Release Please branches (`release-please--branches--...`) skip the CI, Docs, Actionlint and benchmark
 comment jobs. The commits being released have already passed validation. Release PR updates add the
 generated version and changelog, and the release workflow prepares generated READMEs and first-release

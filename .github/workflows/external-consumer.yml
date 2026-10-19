@@ -49,9 +49,7 @@ jobs:
               uses: actions/cache/restore@v6.1.0
               with:
                   path: .cache/external-consumer/pnpm-store
-                  key: external-consumer-pnpm-store-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml', 'package.json') }}-${{ github.sha }}
-                  restore-keys: |
-                      external-consumer-pnpm-store-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml', 'package.json') }}-
+                  key: external-consumer-pnpm-store-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml', 'package.json') }}
 
             - name: 🔧 Setup Static Hermes cache
               id: setup-static-hermes
@@ -115,15 +113,25 @@ jobs:
 
             - name: 💾 Save external consumer pnpm store
               id: save-external-consumer-pnpm-store
-              if: steps.external-consumer.outcome == 'success' && steps.external-consumer-pnpm-cache.outputs.cache-hit != 'true'
+              if: >-
+                  ${{
+                    github.event_name == 'push' &&
+                    steps.external-consumer.outcome == 'success' &&
+                    steps.external-consumer-pnpm-cache.outputs.cache-hit != 'true'
+                  }}
               uses: actions/cache/save@v6.1.0
               with:
                   path: .cache/external-consumer/pnpm-store
-                  key: external-consumer-pnpm-store-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml', 'package.json') }}-${{ github.sha }}
+                  key: external-consumer-pnpm-store-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml', 'package.json') }}
 
             - name: 💾 Save Static Hermes cache
               id: save-static-hermes-cache
-              if: steps.external-consumer.outcome == 'success'
+              if: >-
+                  ${{
+                    github.event_name == 'push' &&
+                    steps.external-consumer.outcome == 'success' &&
+                    steps.setup-static-hermes.outputs.hermes-cache-hit != 'true'
+                  }}
               uses: actions/cache/save@v6.1.0
               with:
                   path: ${{ github.workspace }}/.cache/hermes
