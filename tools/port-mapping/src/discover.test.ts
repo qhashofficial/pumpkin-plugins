@@ -172,6 +172,18 @@ describe('discover', () => {
         expect(runSteps(net, discover(net, { upnp: true, natPmp: false })).gateway.kind).toBe('upnp');
     });
 
+    it('reads device descriptions side by side, so silent devices do not add up', () => {
+        const silent = [2, 3, 4, 5].map((last) => new FakeIgd({ address: [192, 168, 1, last], natPmp: false }));
+        const net = new FakeNetwork([...silent, new FakeIgd({ natPmp: false })]);
+        const dial = net.dial.bind(net);
+        net.dial = (to) => (to.address[3] === 1 ? dial(to) : { poll: () => undefined, abort: () => {} });
+
+        const found = runSteps(net, discover(net, { upnp: true, natPmp: false }));
+        expect(found.gateway.address).toEqual([192, 168, 1, 1]);
+        // One HTTP timeout is 5 s; reading the four silent devices one after another took 20 s.
+        expect(net.time).toBeLessThan(10_000);
+    });
+
     it('does not fetch a LOCATION hosted by a different device than the SSDP responder', () => {
         const responder = new FakeIgd({ natPmp: false });
         Object.defineProperty(responder, 'location', {
