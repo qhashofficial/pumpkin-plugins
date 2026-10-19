@@ -26,6 +26,8 @@ Asynchronous requests time out after 15 seconds. Response bodies larger than 64 
 
 A failed update request is logged and does not interrupt plugin loading. `checkMarketUpdate` remains available for direct
 checks with an injected synchronous JSON request function, which is useful for deterministic tests.
+The `request` registration option takes the same kind of function in place of the scheduled request.
+It runs synchronously inside `onLoad` and blocks plugin loading, so use it only in tests.
 `requestMarketJsonAsync` exposes the same non-blocking transport for direct use. The synchronous
 `requestMarketJson` transport blocks and must not be called during plugin loading or server ticks.
 `marketplaceUrl` overrides the Market base URL for registration and direct version checks.
