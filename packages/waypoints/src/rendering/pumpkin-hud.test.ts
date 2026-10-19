@@ -135,6 +135,36 @@ describe('WaypointHudService', () => {
         expect(generatedEntityUuid).toEqual({ high: 3n, low: 4n });
     });
 
+    it('checks each permission node once per viewer per tick', () => {
+        const client = makePlayer(viewerId, 'v-26-3');
+        const hasPermission = vi.fn(() => true);
+        client.player.hasPermission = hasPermission;
+        const server = {
+            getAllPlayers: () => [client.player],
+            getOpManager: () => ({ isOp: () => false, [Symbol.dispose]: vi.fn() }),
+        } as unknown as Server;
+        const catalog = new WaypointCatalog(new WaypointStore(new MemoryFiles(), new MemoryLogger()));
+        for (const [id, z] of [
+            ['88888888-8888-4888-8888-888888888888', 10],
+            ['99999999-9999-4999-8999-999999999999', 20],
+        ] as const) {
+            catalog.create({
+                id,
+                name: `Builders ${z}`,
+                dimension: 'overworld',
+                position: { x: 0, y: 64, z },
+                access: { mode: 'restricted', grants: [{ type: 'permission', node: 'Waypoints:build' }] },
+            });
+        }
+        const service = createService(server, catalog);
+
+        service.tick();
+        expect(hasPermission).toHaveBeenCalledOnce();
+        service.tick();
+        expect(hasPermission).toHaveBeenCalledTimes(2);
+        expect(client.packets.filter(({ tag }) => tag === 'c-spawn-entity')).toHaveLength(2);
+    });
+
     it('releases online displays and ignores a per-viewer send failure during unload', () => {
         const failing = makePlayer(viewerId, 'v-26-3', true);
         const staying = makePlayer(restrictedId, 'v-26-3');

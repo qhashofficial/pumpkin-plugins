@@ -153,6 +153,16 @@ export class WaypointHudService {
             const [x, y, z] = player.getPosition();
             const [eyeX, eyeY, eyeZ] = entity.getEyePosition();
             const uuidValue = player.getId();
+            // Restricted waypoints often share a grant, and each check is a host call.
+            const permissions = new Map<string, boolean>();
+            const hasPermission = (node: string): boolean => {
+                let allowed = permissions.get(node);
+                if (allowed === undefined) {
+                    allowed = player.hasPermission(node);
+                    permissions.set(node, allowed);
+                }
+                return allowed;
+            };
             let isOperator = false;
             try {
                 isOperator = opManager?.isOp(uuidValue) ?? false;
@@ -168,7 +178,7 @@ export class WaypointHudService {
                     yaw: player.getYaw(),
                     pitch: player.getPitch(),
                     isOperator,
-                    hasPermission: (node) => player.hasPermission(node),
+                    hasPermission,
                     createEntityUuid: uuid.generate,
                     encodeTextComponent,
                     sendPacket: (packet) => java?.sendPacket(packet),
