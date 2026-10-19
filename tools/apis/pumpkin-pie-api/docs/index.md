@@ -195,6 +195,9 @@ Successful sessions ping and renew desired registrations every
 30000 ms by default (`pingIntervalMs`: 1000–30000 ms).
 <!-- docs:end scheduling -->
 
+The package exports these intervals as `SESSION_TIMING`, so consumer docs can quote them without
+copying the numbers.
+
 Periodic registration detects identical-version provider replacement and restores namespaces; the
 wire has no restart epoch. Renewal can invalidate the provider's expansion cache. `onTransition`
 fires only when availability changes, suitable for transition warnings without repeated logs.
