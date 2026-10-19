@@ -117,7 +117,7 @@ export async function buildHermesWithLockHeld(options: HermesBuildOptions): Prom
 }
 
 /**
- * Build a SHA-256 fingerprint from the source checkout, patches, toolchain, build configuration, and artifacts.
+ * Build a SHA-256 fingerprint from the source checkout, patches, toolchain, CMake commands, and artifacts.
  *
  * @param options - Source, build paths, pin, patches, and injected dependencies.
  * @param requiredArtifacts - Files whose sizes and modification times participate in cache validation.
@@ -144,16 +144,6 @@ export function hermesBuildFingerprint(
         .split('\0')
         .filter(Boolean)
         .map((filename) => [filename, fileDigest(path.join(options.source, filename), filesystem)]);
-    const moduleFiles = [
-        ...filesystem
-            .readdirSync(path.join(options.packageRoot, 'src/hermes'))
-            .filter(
-                (filename) =>
-                    filename.endsWith('.ts') && !filename.endsWith('.test.ts') && !filename.endsWith('.spec.ts'),
-            )
-            .map((filename) => path.join(options.packageRoot, 'src/hermes', filename)),
-        path.join(options.packageRoot, 'src/cli.ts'),
-    ].filter((filename) => filesystem.existsSync(filename));
     const cmakeVersion = runner.output('cmake', ['--version']);
     const inputs = {
         platform,
@@ -168,10 +158,6 @@ export function hermesBuildFingerprint(
         },
         pin: fileDigest(options.pinFile, filesystem),
         patches: options.patches.map((patch) => [patch.name, fileDigest(patch.filename, filesystem)]),
-        buildModules: moduleFiles.map((filename) => [
-            path.relative(options.packageRoot, filename),
-            fileDigest(filename, filesystem),
-        ]),
         toolchainFiles: [
             options.toolchainFile,
             path.join(options.packageRoot, 'toolchain-versions.json'),
@@ -237,17 +223,8 @@ export function hermesBuildFingerprint(
                 .filter((name) => environment[name] !== undefined)
                 .map((name) => [name, environment[name]]),
         ),
-        options: {
-            platform,
-            arch: process.arch,
-            source: options.source,
-            hostBuild: options.hostBuild,
-            wasiBuild: options.wasiBuild,
-            gcVariant: options.gcVariant ?? 'hades',
-            enableJsiExtensions: environment.STATIC_HERMES_ENABLE_JSI_EXTENSIONS === '1',
-            enableUnicodeRegexpPropertyEscapes:
-                environment.STATIC_HERMES_ENABLE_UNICODE_REGEXP_PROPERTY_ESCAPES !== '0',
-        },
+        arch: process.arch,
+        cmakeCommands: hermesCMakeCommands(options, environment),
         cmakeCaches: [options.hostBuild, options.wasiBuild].map((buildDirectory) => {
             const filename = path.join(buildDirectory, 'CMakeCache.txt');
             return filesystem.existsSync(filename) ? fileDigest(filename, filesystem) : null;
@@ -671,79 +648,87 @@ export function requiredHermesArtifacts(
     ];
 }
 
+/**
+ * Return the CMake argument lists that configure and build the host compiler and the WASI archives, in run order.
+ *
+ * @remarks
+ * The build fingerprint hashes these lists, so every build setting that reaches CMake invalidates the cache.
+ *
+ * @param options - Source, build directories, toolchain, platform, and garbage collector for the build.
+ * @param environment - Environment flags that select optional Hermes features.
+ * @returns Argument lists for `cmake`: host configure, host build, WASI configure, WASI build.
+ */
+export function hermesCMakeCommands(options: HermesBuildOptions, environment: NodeJS.ProcessEnv): string[][] {
+    const hostPlatform = options.platform ?? process.platform;
+    const hostCxxReleaseFlags = hostPlatform === 'win32' ? '-Os -DNDEBUG' : '-Os -DNDEBUG -Wno-unused-template';
+    const jsiExtensions = environment.STATIC_HERMES_ENABLE_JSI_EXTENSIONS === '1' ? 'ON' : 'OFF';
+    return [
+        [
+            '-S',
+            options.source,
+            '-B',
+            options.hostBuild,
+            '-G',
+            'Ninja',
+            '-DCMAKE_BUILD_TYPE=Release',
+            '-DHERMES_ENABLE_TOOLS=ON',
+            '-DHERMES_ENABLE_NAPI=OFF',
+            '-DHERMES_ENABLE_TEST_SUITE=OFF',
+            '-DHERMES_BUILD_SHARED_JSI=OFF',
+            '-DHERMESVM_ALLOW_JIT=0',
+            '-DHERMES_UNICODE_LITE=ON',
+            '-DHERMES_ALLOW_BOOST_CONTEXT=0',
+            '-DCMAKE_C_FLAGS_RELEASE=-Os -DNDEBUG',
+            `-DCMAKE_CXX_FLAGS_RELEASE=${hostCxxReleaseFlags}`,
+        ],
+        ['--build', options.hostBuild, '--target', 'shermes', 'hermesc', '--parallel'],
+        [
+            '-S',
+            options.source,
+            '-B',
+            options.wasiBuild,
+            '-G',
+            'Ninja',
+            '-DCMAKE_BUILD_TYPE=MinSizeRel',
+            `-DCMAKE_TOOLCHAIN_FILE=${options.toolchainFile}`,
+            `-DWASI_SDK_PREFIX=${options.wasiSdk}`,
+            `-DIMPORT_HOST_COMPILERS=${path.join(options.hostBuild, 'ImportHostCompilers.cmake')}`,
+            '-DCMAKE_C_FLAGS_MINSIZEREL=-Oz -DNDEBUG -ffunction-sections -fdata-sections',
+            '-DCMAKE_CXX_FLAGS_MINSIZEREL=-Oz -DNDEBUG -ffunction-sections -fdata-sections -Wno-unused-template',
+            '-DCMAKE_C_FLAGS=-mllvm -wasm-enable-sjlj -mllvm -wasm-use-legacy-eh=false',
+            '-DCMAKE_CXX_FLAGS=-mllvm -wasm-enable-sjlj -mllvm -wasm-use-legacy-eh=false -D_WASI_EMULATED_MMAN -D_WASI_EMULATED_PROCESS_CLOCKS',
+            '-DHERMES_ENABLE_TOOLS=OFF',
+            '-DHERMES_ENABLE_TEST_SUITE=OFF',
+            '-DHERMES_ENABLE_NAPI=OFF',
+            '-DHERMES_ENABLE_DEBUGGER=OFF',
+            '-DHERMES_ENABLE_INTL=OFF',
+            `-DHERMES_ENABLE_CORE_EXTENSIONS=${jsiExtensions}`,
+            `-DHERMES_ENABLE_CONTRIB_EXTENSIONS=${jsiExtensions}`,
+            `-DHERMES_ENABLE_UNICODE_REGEXP_PROPERTY_ESCAPES=${environment.STATIC_HERMES_ENABLE_UNICODE_REGEXP_PROPERTY_ESCAPES === '0' ? 'OFF' : 'ON'}`,
+            '-DHERMES_BUILD_SHARED_JSI=OFF',
+            '-DHERMES_CHECK_NATIVE_STACK=ON',
+            '-DHERMESVM_ALLOW_JIT=0',
+            '-DHERMES_UNICODE_LITE=ON',
+            '-DHERMES_ALLOW_BOOST_CONTEXT=0',
+            `-DHERMESVM_GCKIND=${(options.gcVariant ?? 'hades').toUpperCase()}`,
+        ],
+        ['--build', options.wasiBuild, '--target', 'hermesvm_a', 'hermesvmlean_a', 'jsi', '--parallel'],
+    ];
+}
+
 function configureAndBuildHermes(
     options: HermesBuildOptions,
     environment: NodeJS.ProcessEnv,
     filesystem: HermesFileSystem,
     runner: HermesProcessRunner,
 ): void {
-    const hostPlatform = options.platform ?? process.platform;
-    const hostCxxReleaseFlags = hostPlatform === 'win32' ? '-Os -DNDEBUG' : '-Os -DNDEBUG -Wno-unused-template';
     filesystem.mkdirSync(path.join(options.wasiSdk, 'share/wasi-sysroot/include/c++/v1'), { recursive: true });
     filesystem.mkdirSync(options.hostBuild, { recursive: true });
     filesystem.mkdirSync(options.wasiBuild, { recursive: true });
     if (!filesystem.existsSync(options.toolchainFile)) {
         throw new Error(`WASI 2 Hermes toolchain file not found: ${options.toolchainFile}`);
     }
-
-    runner.run('cmake', [
-        '-S',
-        options.source,
-        '-B',
-        options.hostBuild,
-        '-G',
-        'Ninja',
-        '-DCMAKE_BUILD_TYPE=Release',
-        '-DHERMES_ENABLE_TOOLS=ON',
-        '-DHERMES_ENABLE_NAPI=OFF',
-        '-DHERMES_ENABLE_TEST_SUITE=OFF',
-        '-DHERMES_BUILD_SHARED_JSI=OFF',
-        '-DHERMESVM_ALLOW_JIT=0',
-        '-DHERMES_UNICODE_LITE=ON',
-        '-DHERMES_ALLOW_BOOST_CONTEXT=0',
-        '-DCMAKE_C_FLAGS_RELEASE=-Os -DNDEBUG',
-        `-DCMAKE_CXX_FLAGS_RELEASE=${hostCxxReleaseFlags}`,
-    ]);
-    runner.run('cmake', ['--build', options.hostBuild, '--target', 'shermes', 'hermesc', '--parallel']);
-    runner.run('cmake', [
-        '-S',
-        options.source,
-        '-B',
-        options.wasiBuild,
-        '-G',
-        'Ninja',
-        '-DCMAKE_BUILD_TYPE=MinSizeRel',
-        `-DCMAKE_TOOLCHAIN_FILE=${options.toolchainFile}`,
-        `-DWASI_SDK_PREFIX=${options.wasiSdk}`,
-        `-DIMPORT_HOST_COMPILERS=${path.join(options.hostBuild, 'ImportHostCompilers.cmake')}`,
-        '-DCMAKE_C_FLAGS_MINSIZEREL=-Oz -DNDEBUG -ffunction-sections -fdata-sections',
-        '-DCMAKE_CXX_FLAGS_MINSIZEREL=-Oz -DNDEBUG -ffunction-sections -fdata-sections -Wno-unused-template',
-        '-DCMAKE_C_FLAGS=-mllvm -wasm-enable-sjlj -mllvm -wasm-use-legacy-eh=false',
-        '-DCMAKE_CXX_FLAGS=-mllvm -wasm-enable-sjlj -mllvm -wasm-use-legacy-eh=false -D_WASI_EMULATED_MMAN -D_WASI_EMULATED_PROCESS_CLOCKS',
-        '-DHERMES_ENABLE_TOOLS=OFF',
-        '-DHERMES_ENABLE_TEST_SUITE=OFF',
-        '-DHERMES_ENABLE_NAPI=OFF',
-        '-DHERMES_ENABLE_DEBUGGER=OFF',
-        '-DHERMES_ENABLE_INTL=OFF',
-        `-DHERMES_ENABLE_CORE_EXTENSIONS=${environment.STATIC_HERMES_ENABLE_JSI_EXTENSIONS === '1' ? 'ON' : 'OFF'}`,
-        `-DHERMES_ENABLE_CONTRIB_EXTENSIONS=${environment.STATIC_HERMES_ENABLE_JSI_EXTENSIONS === '1' ? 'ON' : 'OFF'}`,
-        `-DHERMES_ENABLE_UNICODE_REGEXP_PROPERTY_ESCAPES=${environment.STATIC_HERMES_ENABLE_UNICODE_REGEXP_PROPERTY_ESCAPES === '0' ? 'OFF' : 'ON'}`,
-        '-DHERMES_BUILD_SHARED_JSI=OFF',
-        '-DHERMES_CHECK_NATIVE_STACK=ON',
-        '-DHERMESVM_ALLOW_JIT=0',
-        '-DHERMES_UNICODE_LITE=ON',
-        '-DHERMES_ALLOW_BOOST_CONTEXT=0',
-        `-DHERMESVM_GCKIND=${(options.gcVariant ?? 'hades').toUpperCase()}`,
-    ]);
-    runner.run('cmake', [
-        '--build',
-        options.wasiBuild,
-        '--target',
-        'hermesvm_a',
-        'hermesvmlean_a',
-        'jsi',
-        '--parallel',
-    ]);
+    for (const args of hermesCMakeCommands(options, environment)) runner.run('cmake', args);
 }
 
 /** Determine the configured compiler command and a stable identity for cache keys.
