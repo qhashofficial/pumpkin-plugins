@@ -24,9 +24,12 @@ Most jobs use the shared setup in `.github/common/bootstrap` for pnpm, Node, dep
 Turborepo cache. Most CI jobs run on `ubuntu-26.04`; external-consumer checks also run on `macos-15`
 and `windows-2025`.
 
-Cache keys separate runner OS, architecture and job. Engine comparison adds its matrix variant as a
-`cache-suffix`, so parallel variants do not reuse each other's build outputs. Restores first look for
-the same job and variant from an earlier commit, then fall back to shared task caches. Turbo still
+Only default-branch pushes save the pnpm store and Turborepo caches; pull requests and other runs
+restore those entries without saving their own, because a pull request's cache is visible only to
+that pull request. Cache keys separate runner OS, architecture and job. Engine comparison adds its
+matrix variant as a `cache-suffix`, so parallel variants do not reuse each other's build outputs.
+Restores first look for the same job and variant from an earlier commit, then fall back to shared
+task caches. Turbo still
 checks each task's inputs before reusing outputs. The benchmark's real-server tests run even when a
 build comes from cache. Malloc variants keep their WASI archives and prepared-build fingerprint in
 a separate cache keyed to the pinned Static Hermes toolchain. This keeps those files separate from
