@@ -42,7 +42,7 @@ if (lightChartPath || darkChartPath) {
     if (!lightChartPath || !darkChartPath) {
         throw new Error('Set both BENCHMARK_CHANGE_SVG_LIGHT and BENCHMARK_CHANGE_SVG_DARK');
     }
-    const charts = await formatBenchmarkChangeSvgs(comparison ?? emptyComparison(jitterThreshold, headResults));
+    const charts = formatBenchmarkChangeSvgs(comparison ?? emptyComparison(jitterThreshold, headResults));
     fs.writeFileSync(lightChartPath, charts.light);
     fs.writeFileSync(darkChartPath, charts.dark);
     process.stdout.write(`Benchmark light and dark charts written to ${lightChartPath} and ${darkChartPath}\n`);

@@ -41,7 +41,6 @@ export interface BenchmarkComparison {
 /** Inputs used to write a repeatable pull request comment for one benchmark run. */
 export interface BenchmarkCommentDetails {
     baselineSha?: string;
-    chartUrl?: string;
     chartUrls?: { dark: string; light: string };
     comparison?: BenchmarkComparison;
     currentSha: string;
@@ -202,8 +201,8 @@ export function formatBenchmarkComment(details: BenchmarkCommentDetails): string
 
     lines.push(`[Full benchmark matrix report](${details.reportRunUrl}).`);
     if (details.chartUrls) {
-        const lightUrl = escapeHtmlAttribute(details.chartUrls.light);
-        const darkUrl = escapeHtmlAttribute(details.chartUrls.dark);
+        const lightUrl = escapeXml(details.chartUrls.light);
+        const darkUrl = escapeXml(details.chartUrls.dark);
         lines.push(
             '',
             '<picture>',
@@ -213,13 +212,6 @@ export function formatBenchmarkComment(details: BenchmarkCommentDetails): string
             '</picture>',
             '',
             `[Download light SVG](${details.chartUrls.light}) · [Download dark SVG](${details.chartUrls.dark})`,
-        );
-    } else if (details.chartUrl) {
-        lines.push(
-            '',
-            `![Benchmark timing changes](${details.chartUrl})`,
-            '',
-            `[Download the SVG comparison chart](${details.chartUrl}).`,
         );
     }
     return lines.join('\n');
@@ -259,20 +251,8 @@ const SVG_THEMES = {
 type SvgThemeName = keyof typeof SVG_THEMES;
 type SvgFont = 'ui' | 'mono';
 
-/**
- * Renders the light-theme benchmark chart for the PR comment.
- *
- * @param comparison - Timing changes and jitter classification from a matrix comparison.
- * @returns Standalone light-theme SVG source for GitHub's image attachment upload.
- */
-export async function formatBenchmarkChangeSvg(comparison: BenchmarkComparison): Promise<string> {
-    return (await formatBenchmarkChangeSvgs(comparison)).light;
-}
-
 /** Renders light- and dark-theme SVG charts from the same benchmark comparison. */
-export async function formatBenchmarkChangeSvgs(
-    comparison: BenchmarkComparison,
-): Promise<{ dark: string; light: string }> {
+export function formatBenchmarkChangeSvgs(comparison: BenchmarkComparison): { dark: string; light: string } {
     return {
         dark: renderBenchmarkSvg(comparison, 'dark'),
         light: renderBenchmarkSvg(comparison, 'light'),
@@ -632,10 +612,6 @@ function escapeXml(value: string): string {
         .replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&apos;');
-}
-
-function escapeHtmlAttribute(value: string): string {
-    return escapeXml(value);
 }
 
 function appendChangeTable(lines: string[], heading: string, changes: BenchmarkChange[]): void {
