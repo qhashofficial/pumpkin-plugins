@@ -110,7 +110,7 @@ class DistantHorizonsSupportPumpkin extends PluginBase {
             invalidateBlockSpread(sessions, event);
         });
         hostLogger.info(
-            `${PLUGIN_NAME}: serving DH protocol ${PROTOCOL} from loaded chunks and cached terrain. This plugin cannot load saved chunks or request normal terrain generation; see the README's Terrain access limits section.`,
+            `${PLUGIN_NAME}: serving DH protocol ${PROTOCOL} from loaded chunks and cached terrain. This plugin cannot load saved chunks or request normal terrain generation; see the README's Compatibility and terrain section.`,
         );
     }
 
