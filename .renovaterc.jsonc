@@ -35,15 +35,6 @@
             "matchDepTypes": ["dependencies", "pnpm.catalog.default"],
             "semanticCommitType": "fix",
             "description": "Release shipped dependency updates"
-        },
-        {
-            // The catalog entry in pnpm-workspace.yaml is a tarball URL for one plugin ABI, and it
-            // has to change together with PUMPKIN_RELEASE in
-            // tools/test-harness/src/pumpkin-version.ts. Renovate can't see that link, so it leaves
-            // this package alone.
-            "matchPackageNames": ["@pumpkinmc/pumpkin-api-ts"],
-            "enabled": false,
-            "description": "Pinned to the Pumpkin release the integration tests run against"
         }
     ]
 }
