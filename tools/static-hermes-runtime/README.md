@@ -10,9 +10,9 @@ marks that parser partial and unstable. The compiler links the bytecode with Her
 and generated Pumpkin/WASI bindings into a WebAssembly component. Static Hermes is the default
 engine, with QuickJS available as an alternative.
 
-Start with the [runtime documentation](docs/index.md). It links to the
-[benchmarking guide](../../docs/benchmarking.md); this README covers toolchain setup, build profiles,
-compiler and linker flags, and API coverage.
+Start with the [runtime documentation](docs/index.md). This README covers toolchain setup, build
+profiles, compiler and linker flags, and API coverage. The
+[benchmarking guide](../../docs/benchmarking.md) compares the engines.
 
 ## Prepare Hermes
 
@@ -43,18 +43,18 @@ workspaces that share any of those directories serialize.
 Plugin builds prepare Hermes automatically when `engine` is omitted or set to `"static-hermes"`.
 Run the command above to prewarm Hermes or prepare it explicitly before a build. A full component
 build also resolves the pinned `wit-bindgen` and `wasm-tools` versions from
-`toolchain-versions.json`; it sets them up automatically. If `WASM_TOOLS` is unset and no valid cached
-binary is available, setup downloads the pinned `wasm-tools` release and replaces an invalid cache entry.
-A valid `WIT_BINDGEN` override,
-shared-cache binary, or `~/.cargo/bin/wit-bindgen` is reused. With no `WIT_BINDGEN` override and no
-cached or user-installed executable, setup installs `wit-bindgen` and needs Rust/Cargo (using the
-pinned Rust toolchain through `rustup` when available). An executable that reports the wrong pinned
-version fails setup. The files follow the
-[WASI SDK release pin schema](schemas/wasi-sdk-release-pin.schema.json),
+`toolchain-versions.json` and sets them up automatically. If `WASM_TOOLS` is unset and no valid
+cached binary is available, setup downloads the pinned `wasm-tools` release and replaces an invalid
+cache entry. A valid `WIT_BINDGEN` override, shared-cache binary, or `~/.cargo/bin/wit-bindgen` is
+reused. With no `WIT_BINDGEN` override and no cached or user-installed executable, setup installs
+`wit-bindgen` and needs Rust/Cargo (using the pinned Rust toolchain through `rustup` when
+available). An executable that reports the wrong pinned version fails setup.
+
+The pin files follow the [WASI SDK release pin schema](schemas/wasi-sdk-release-pin.schema.json),
 [upstream Git pin schema](schemas/upstream-git-pin.schema.json), and
 [toolchain versions schema](schemas/toolchain-versions.schema.json). The package also carries
-the WASI Preview 2 CMake toolchain adjustment required by Hermes. Optional paths and build settings are
-listed under [Build flags](#build-flags).
+the WASI Preview 2 CMake toolchain adjustment required by Hermes. Optional paths and build settings
+are listed under [Build flags](#build-flags).
 
 The external-consumer CI check uses these tool versions:
 
@@ -177,6 +177,7 @@ compilation, and WASI C/C++ compilation and linking.
 | `HERMES_ALLOW_BOOST_CONTEXT=0` | Avoids Boost.Context, which is unavailable on this WASI target. |
 | `HERMESVM_GCKIND=HADES` | Default collector. With threads disabled on this wasm32 WASI target, Hades uses incremental collection. |
 | `HERMESVM_GCKIND=MALLOC` | Selects malloc-managed GC for WASI. Set `pumpkinPlugin.staticHermesGc` to `"malloc"` to choose it. |
+| `STATIC_HERMES_ENABLE_LEAN_ARCHIVE=0` | Links the full runtime profile instead of lean. In plugin builds it overrides `pumpkinPlugin.staticHermesRuntime`; `buildStaticHermesComponent` uses it only when `runtimeVariant` is omitted. |
 
 ### JavaScript-to-C compiler
 
@@ -209,6 +210,7 @@ components retain those line tables; the linker does not use `--strip-debug` or 
 | `-ffunction-sections -fdata-sections` | Separates code and data so unused sections can be removed. |
 | `-DSTATIC_HERMES` | Selects the Static Hermes implementation in the native JSI shim. |
 | `-mllvm -wasm-enable-sjlj` with `-lsetjmp` | Provides the setjmp/longjmp lowering Hermes uses for JavaScript exceptions. |
+| `-mllvm -wasm-use-legacy-eh=false` | Emits standard WebAssembly exception-handling instructions instead of the legacy ones. Every native compile and link step passes it, including the Hermes WASI library build. |
 | `-D_WASI_EMULATED_MMAN`, `-D_WASI_EMULATED_PROCESS_CLOCKS` | Enables wasi-libc emulation for the POSIX calls Hermes needs. |
 | `-lwasi-emulated-mman`, `-lwasi-emulated-process-clocks` | Links those wasi-libc emulation implementations. |
 | `-fwasm-exceptions` | Keeps C++ exceptions for error handling in the JSI shim. |
