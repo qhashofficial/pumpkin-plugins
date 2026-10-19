@@ -256,7 +256,9 @@ describe('PortForwarder', () => {
         });
 
         it("keeps each plugin's keys apart", () => {
-            const { forwarder, settle, ask, keys } = setup('[java]\nenabled = false\n\n[bedrock]\nenabled = false\n');
+            const { forwarder, settle, ask, keys } = setup(
+                '[java]\nenabled = false\n\n[bedrock]\nenabled = false\n\n[plugins]\nallowed = ["A", "B"]\n',
+            );
             forwarder.start();
             ask('A', ensure({ ...web, port: 1111 }));
             ask('B', ensure({ ...web, port: 2222 }));
@@ -284,7 +286,7 @@ describe('PortForwarder', () => {
 
         it('reports a machine that is already public without opening anything', () => {
             const { forwarder, net, settle, ask } = setup(
-                '[java]\nenabled = false\n\n[bedrock]\nenabled = false\n',
+                '[java]\nenabled = false\n\n[bedrock]\nenabled = false\n\n[plugins]\nallowed = ["X"]\n',
                 null,
             );
             net.local = [93, 184, 216, 99];
@@ -314,22 +316,45 @@ describe('PortForwarder', () => {
         });
 
         it('refuses new ports when turned off in the config, but still gives open ones back', () => {
-            const { files, forwarder, settle, ask, keys } = setup('[plugins]\nallow_requests = false\n');
+            const { files, forwarder, settle, ask, keys } = setup(
+                '[plugins]\nallow_requests = false\nallowed = ["X"]\n',
+            );
             forwarder.start();
             expect(ask('X', ensure())).toEqual({ ok: false, error: expect.stringContaining('plugins.allow_requests') });
 
-            files.put(CONFIG_FILE, '[plugins]\nallow_requests = true\n');
+            files.put(CONFIG_FILE, '[plugins]\nallow_requests = true\nallowed = ["X"]\n');
             forwarder.reload();
             ask('X', ensure());
             settle(() => keys().includes('tcp:8123'));
 
-            files.put(CONFIG_FILE, '[plugins]\nallow_requests = false\n');
+            files.put(CONFIG_FILE, '[plugins]\nallow_requests = false\nallowed = ["X"]\n');
             forwarder.reload();
             expect(ask('X', { op: 'release', key: 'web' })).toEqual({ ok: true });
             settle(() => !keys().includes('tcp:8123'));
             expect(keys()).toEqual(['tcp:19132', 'tcp:25565', 'udp:19132']);
             expect(ask('X', { op: 'status', key: 'web' })).toEqual({ ok: true, status: { kind: 'unknown' } });
             expect(ask('X', { op: 'info' })).toMatchObject({ ok: true });
+        });
+
+        it('refuses ports to plugins missing from plugins.allowed and warns once about each', () => {
+            const { files, forwarder, ask, log } = setup('[java]\nenabled = false\n\n[bedrock]\nenabled = false\n');
+            forwarder.start();
+            expect(ask('Stranger', ensure({ ...web, port: 22 }))).toEqual({
+                ok: false,
+                error: expect.stringContaining('plugins.allowed'),
+            });
+            ask('Stranger', ensure({ ...web, port: 22 }));
+            expect(log.of('warn').filter((m) => m.includes('Stranger'))).toHaveLength(1);
+            expect(log.of('warn').find((m) => m.includes('Stranger'))).toContain('22');
+            expect(forwarder.snapshot.mappings).toEqual([]);
+            expect(ask('BedrockAddonManager', ensure())).toMatchObject({ ok: true });
+
+            files.put(
+                CONFIG_FILE,
+                '[java]\nenabled = false\n\n[bedrock]\nenabled = false\n\n[plugins]\nallowed = ["Stranger"]\n',
+            );
+            forwarder.reload();
+            expect(ask('Stranger', ensure({ ...web, port: 22 }))).toMatchObject({ ok: true });
         });
 
         it('refuses them before it has started', () => {
@@ -340,7 +365,7 @@ describe('PortForwarder', () => {
 
         it("limits each plugin without letting one plugin use another plugin's share", () => {
             const { forwarder, ask } = setup(
-                '[java]\nenabled = false\n\n[bedrock]\nenabled = false\n\n[plugins]\nmax_requests_per_plugin = 2\n',
+                '[java]\nenabled = false\n\n[bedrock]\nenabled = false\n\n[plugins]\nmax_requests_per_plugin = 2\nallowed = ["X", "Y"]\n',
             );
             forwarder.start();
             for (let i = 1; i <= 2; i++)
@@ -355,7 +380,7 @@ describe('PortForwarder', () => {
 
         it('closes ports nobody has asked about for a while, and keeps those that are re-asked', () => {
             const { forwarder, settle, ask, keys, net, log } = setup(
-                '[java]\nenabled = false\n\n[bedrock]\nenabled = false\n',
+                '[java]\nenabled = false\n\n[bedrock]\nenabled = false\n\n[plugins]\nallowed = ["Gone", "Alive"]\n',
             );
             forwarder.start();
             ask('Gone', ensure({ ...web, key: 'a', port: 1111 }));
@@ -374,7 +399,7 @@ describe('PortForwarder', () => {
     });
 
     it('closes every port on the router when stopped', () => {
-        const { forwarder, settle, keys, net, ask } = setup();
+        const { forwarder, settle, keys, net, ask } = setup('[plugins]\nallowed = ["X"]\n');
         forwarder.start();
         ask('X', ensure());
         settle(() => keys().length === 4);
@@ -471,7 +496,7 @@ describe('PortForwarder with a blocked router', () => {
     });
 
     it('tells other plugins why their port is not opened', () => {
-        const { forwarder, settle, ask } = setup(undefined, telekom());
+        const { forwarder, settle, ask } = setup('[plugins]\nallowed = ["Other"]\n', telekom());
         forwarder.start();
         settle(() => forwarder.refusal !== undefined);
         const reply = ask('Other', ensure());

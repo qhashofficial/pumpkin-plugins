@@ -9,7 +9,7 @@ import {
     section,
 } from '@pumpkin-plugins/config';
 import { PLUGIN_NAME } from '../name.ts';
-import { ipv4Endpoint } from './fields.ts';
+import { ipv4Endpoint, pluginNames } from './fields.ts';
 
 /** Name of the config file in the plugin's data folder. */
 export const CONFIG_FILE = 'config.toml';
@@ -68,6 +68,11 @@ export const configSchema = defineConfig(PLUGIN_NAME, {
                 description:
                     'Let other plugins ask for ports to be opened, for example BedrockAddonManager for its pack downloads. They are closed again when the plugin stops asking.',
                 default: true,
+            }),
+            allowed: pluginNames({
+                description:
+                    'The plugins that may ask for ports. Any port a plugin asks for is opened to the internet, so only list plugins you trust with that.',
+                default: ['BedrockAddonManager'],
             }),
             max_requests_per_plugin: int({
                 description: 'How many ports each plugin may keep open at once. Every plugin has its own limit.',
