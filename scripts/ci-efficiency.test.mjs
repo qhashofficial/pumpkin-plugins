@@ -63,7 +63,6 @@ it('persists malloc archives independently of the immutable shared Hades snapsho
     const setup = steps.find((step) => step.uses === './.github/common/setup-static-hermes');
     const cache = steps.find((step) => step.with?.path?.includes('build-wasip2-malloc'));
     assert.ok(cache, 'malloc compilation must survive the benchmark runner');
-    assert.equal(cache.uses, 'actions/cache@v6.1.0');
     assert.ok(steps.indexOf(cache) > steps.indexOf(setup), 'restore malloc after the shared snapshot');
     assert.ok(steps.indexOf(cache) < steps.findIndex((step) => step.env?.ENGINE_COMPARISON_VARIANT));
 

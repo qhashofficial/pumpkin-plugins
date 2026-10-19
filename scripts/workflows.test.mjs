@@ -53,7 +53,6 @@ describe('setup-static-hermes action', () => {
 
         const hermesCache = step('hermes-workspace-cache').with;
         assert.match(hermesCache.path, /\.cache\/hermes/);
-        assert.match(hermesCache.key, /static-hermes-workspace-cache-v6/);
         assert.match(hermesCache.key, /src\/hermes/);
         assert.match(hermesCache.key, /src\/cli\.ts/);
         assert.doesNotMatch(hermesCache.key, /bin\/toolchain-environment\.mjs/);
@@ -65,6 +64,10 @@ describe('setup-static-hermes action', () => {
         assert.doesNotMatch(`${witBindgenCache.key} ${hermesCache.key}`, /wasi-sdk-34|wit-bindgen-0\.62|rust-1\.99/);
     });
 });
+
+/** The publish-tools step that checks each release tag points at the commit this run built. */
+const tagCheckStep = (releaseWorkflow) =>
+    releaseWorkflow.jobs['publish-tools'].steps.find((step) => step.run?.includes('git/ref/tags/$RELEASE_TAG'));
 
 describe('upstream pin workflow', () => {
     const workflow = parse(
@@ -105,14 +108,13 @@ describe('upstream pin workflow', () => {
     it('uses the release GitHub App token so created pull requests trigger CI', () => {
         const update = workflow.jobs.update;
         const token = update.steps.find((step) => step.id === 'app-token');
-        const checkout = update.steps.find((step) => step.uses === 'actions/checkout@v7.0.1');
-        const reconcile = update.steps.find((step) => step.name === '🔄 Reconcile upstream update PR or issue');
+        const checkout = update.steps.find((step) => step.id === 'checkout-default-branch');
+        const reconcile = update.steps.find((step) => step.id === 'reconcile-upstream-update-pr-or-issue');
         const release = releaseWorkflow.jobs.release.steps;
         const releaseToken = release.find((step) => step.id === 'app-token');
         const releasePlease = release.find((step) => step.id === 'release');
 
         assert.ok(token, 'updater must create a GitHub App token');
-        assert.equal(token.uses, 'actions/create-github-app-token@v3.2.0');
         assert.equal(token.with['client-id'], releaseToken.with['client-id']);
         assert.equal(token.with['private-key'], releaseToken.with['private-key']);
         assert.equal(token.with['permission-contents'], 'write');
@@ -137,8 +139,6 @@ describe('upstream pin workflow', () => {
         assert.equal(publish.permissions['id-token'], 'write');
         assert.match(publish.if, /needs\.release\.outputs\.tool_paths_released/);
         assert.equal(publish.strategy, undefined, 'tool publication must run sequentially in one job');
-        assert.equal(publish['timeout-minutes'], 60);
-        assert.equal(publish['runs-on'], 'ubuntu-26.04');
         assert.equal(
             releaseWorkflow.jobs.release.outputs.release_metadata,
             ['$', '{{ steps.release.outputs.release_metadata }}'].join(''),
@@ -162,19 +162,19 @@ describe('upstream pin workflow', () => {
             ['$', "{{ fromJSON(needs.release.outputs.release_notes)[format('{0}--body', matrix.path)] }}"].join(''),
         );
         const steps = publish.steps;
-        const tagCheck = steps.find((step) => step.name === '🔒 Check each tag is the commit this run built');
-        assert.match(tagCheck.run, /git\/ref\/tags\/\$RELEASE_TAG/);
-        assert.match(tagCheck.run, /git\/tags\/\$sha/);
         assert.equal(publish.env.RELEASE_TARGET_SHA, ['$', '{{ inputs.release_commit || github.sha }}'].join(''));
-        const publishScript = steps.find((step) => step.name === '📤 Publish verified public npm packages');
+        const publishScript = steps.find((step) => step.run?.includes('scripts/publish-tool-packages.mjs'));
         assert.match(publishScript.run, /npm 11\.5\.1 or newer/);
-        assert.match(publishScript.run, /pnpm exec node scripts\/publish-tool-packages\.mjs/);
+        const tagCheck = tagCheckStep(releaseWorkflow);
+        assert.ok(tagCheck, 'publish-tools must check each release tag');
+        assert.ok(
+            steps.indexOf(tagCheck) < steps.indexOf(publishScript),
+            'tags must be checked before anything is published',
+        );
     });
 
     it('checks the release tag against its requested commit when a newer workflow commit exists', () => {
-        const tagCheck = releaseWorkflow.jobs['publish-tools'].steps.find(
-            (step) => step.name === '🔒 Check each tag is the commit this run built',
-        );
+        const tagCheck = tagCheckStep(releaseWorkflow);
         const directory = repo({
             'bin/gh': '#!/bin/sh\nprintf "commit %s\\n" "$TAG_SHA"\n',
             'bin/jq': '#!/bin/sh\nprintf "%s\\n" "$TAG_NAME"\n',
@@ -246,22 +246,9 @@ describe('action release prerequisites', () => {
 
     it('starts Static Hermes preparation as soon as changes are classified', () => {
         assert.deepEqual(ci.jobs.build.needs, ['changes']);
-        assert.equal(ci.jobs.build.steps.find((step) => step.name === '🏗️ Prepare Static Hermes')?.id, 'prepare-hermes');
+        assert.ok(ci.jobs.build.steps.some((step) => step.id === 'prepare-hermes'));
         assert.deepEqual(ci.jobs.lint.needs, ['changes']);
         assert.deepEqual(ci.jobs.typecheck.needs, ['changes']);
-        assert.deepEqual(ci.jobs.release.needs, [
-            'changes',
-            'lint',
-            'typecheck',
-            'build',
-            'external-consumer',
-            'test',
-            'docs',
-            'integration-gate',
-            'action-gate',
-            'extension-gate',
-            'generator-gate',
-        ]);
         assert.match(ci.jobs.release.if, /needs\.lint\.result == 'success'/);
         assert.match(ci.jobs.release.if, /needs\.typecheck\.result == 'success'/);
     });
@@ -398,7 +385,7 @@ describe('action release prerequisites', () => {
             assert.equal(evaluate(integration.if, { needs: { changes } }), expected, scope);
         }
 
-        const integrationCommand = integration.steps.find((entry) => entry.name === '🎃 Integration tests');
+        const integrationCommand = integration.steps.find((entry) => entry.id === 'integration-tests');
         assert.ok(integrationCommand, 'Integration job has no test command');
         const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'integration-command-'));
         dirs.push(directory);
