@@ -31,6 +31,7 @@ vi.mock('@pumpkin-plugins/plugin-kit/plugin', () => ({
     registerPlugin: (plugin: LoadedPlugin) => {
         state.plugin = plugin;
     },
+    handleCommand: vi.fn(),
     handleTask: vi.fn(),
 }));
 vi.mock('@pumpkin-plugins/plugin-kit/data-dir', () => ({ WasiDataDir: { open: () => state.files } }));
