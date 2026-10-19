@@ -4,10 +4,10 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
 /**
- * Standard vitest config for a plugin package (run from the package directory):
- *  - `unit`:        src/**\/*.test.ts, no server needed
- *  - `integration`: test/**\/*.itest.ts, runs against a real Pumpkin (see startPumpkin)
- * Also defines `__PLUGIN_VERSION__` from package.json, like the build does.
+ * Builds the standard vitest config for a plugin package; run vitest from the package directory.
+ * The `unit` project runs `*.test.ts` files under `src/` without a server. The `integration` project
+ * runs `*.itest.ts` files under `test/` against a real Pumpkin server started with `startPumpkin`.
+ * Like the build, the config defines `__PLUGIN_VERSION__` from the package's `package.json`.
  */
 export function definePluginVitestConfig() {
     const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
