@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -111,7 +112,12 @@ class Object {
     }
 
     bool hasProperty(const char *name) const { return data_->properties.count(name) != 0; }
-    std::shared_ptr<HostObject> getHostObject(Runtime &) const { return data_->hostObject; }
+    bool isHostObject(Runtime &) const { return data_->hostObject != nullptr; }
+    // Hermes reads any object as a host object here without checking, so callers must check first.
+    std::shared_ptr<HostObject> getHostObject(Runtime &) const {
+        if (!data_->hostObject) std::abort();
+        return data_->hostObject;
+    }
     Array asArray(Runtime &) const;
     const std::shared_ptr<ObjectData> &data() const { return data_; }
 

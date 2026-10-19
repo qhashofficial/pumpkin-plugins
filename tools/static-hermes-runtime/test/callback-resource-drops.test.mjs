@@ -7,7 +7,8 @@ import { afterEach, describe, it } from 'vitest';
 
 const packageRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const runtimeShim = path.join(packageRoot, 'src/component/templates/runtime-shim.template');
-const dispatchFixture = path.join(packageRoot, 'test/fixtures/callback-dispatch.cpp');
+const fixtures = path.join(packageRoot, 'test/fixtures');
+const dispatchFixture = path.join(fixtures, 'callback-dispatch.cpp');
 const directories = [];
 
 function compileAndRun(source) {
@@ -16,7 +17,7 @@ function compileAndRun(source) {
     const input = path.join(root, 'callback-resource-drops.cpp');
     const executable = path.join(root, 'callback-resource-drops');
     fs.writeFileSync(input, source);
-    childProcess.execFileSync(process.env.CXX ?? 'c++', ['-std=c++17', input, '-o', executable], {
+    childProcess.execFileSync(process.env.CXX ?? 'c++', ['-std=c++17', '-I', fixtures, input, '-o', executable], {
         stdio: 'pipe',
     });
     childProcess.execFileSync(executable, [], { stdio: 'pipe' });
@@ -31,6 +32,26 @@ function generatedCallbacks(source) {
         throw new Error('Unable to find callback exports in the runtime shim');
     }
     return source.slice(start, end);
+}
+
+function templateFunction(source, signature) {
+    const start = source.indexOf(signature);
+    if (start < 0) throw new Error(`Unable to find ${signature} in the runtime shim`);
+    let depth = 0;
+    for (let index = source.indexOf('{', start); index < source.length; index++) {
+        if (source[index] === '{') depth++;
+        if (source[index] === '}' && --depth === 0) return source.slice(start, index + 1);
+    }
+    throw new Error(`Unclosed body for ${signature} in the runtime shim`);
+}
+
+function compileFixture(filename, blocks) {
+    let source = fs.readFileSync(path.join(fixtures, filename), 'utf8');
+    for (const [marker, block] of Object.entries(blocks)) {
+        if (source.split(marker).length !== 2) throw new Error(`${filename} must contain exactly one ${marker}`);
+        source = source.replace(marker, block);
+    }
+    compileAndRun(source);
 }
 
 afterEach(() => {
@@ -48,5 +69,12 @@ describe('callback dispatch and resource ownership', () => {
         }
         const callbacks = generatedCallbacks(fs.readFileSync(runtimeShim, 'utf8'));
         compileAndRun(source.replace(marker, callbacks));
+    });
+
+    it('rejects a plain object where a resource is expected', () => {
+        const shim = fs.readFileSync(runtimeShim, 'utf8');
+        compileFixture('native-resource.cpp', {
+            '/* GENERATED_NATIVE_RESOURCE */': templateFunction(shim, 'std::shared_ptr<HostObject> nativeResource('),
+        });
     });
 });
