@@ -206,6 +206,7 @@ jobs:
                   WASM_FILE: ${{ steps.plugin.outputs.wasm_file }}
                   PLUGIN_NAME: ${{ steps.plugin.outputs.plugin_name }}
                   PLUGIN_VERSION: ${{ steps.plugin.outputs.version }}
+                  PLUGIN_SIGNING_KEY: ${{ secrets.PLUGIN_SIGNING_KEY }}
               run: node scripts/prepare-market-plugin.mjs "$WASM_FILE" "$PLUGIN_NAME" "$PLUGIN_VERSION"
 
             - name: 🛒 Publish to Pumpkin Market
