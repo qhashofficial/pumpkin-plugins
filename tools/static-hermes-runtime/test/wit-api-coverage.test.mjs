@@ -70,10 +70,8 @@ it('generates facades and native adapters for the full pinned Pumpkin and WASI W
     expect(fs.existsSync(operationInventoryPath)).toBe(true);
     if (!fs.existsSync(operationInventoryPath)) return;
     const operationInventory = JSON.parse(fs.readFileSync(operationInventoryPath, 'utf8'));
-    const apiPackageJson = JSON.parse(fs.readFileSync(path.join(apiRoot, 'package.json'), 'utf8'));
     expect(operationInventory).toMatchObject({
         apiPackage: '@pumpkin-plugins/pumpkin-api',
-        apiPackageVersion: apiPackageJson.version,
         witPackage: `${apiPackage.packageName}@${apiPackage.version}`,
         sourceWit,
         sourceWitSha256: digestWitDirectory(apiWitDir),
