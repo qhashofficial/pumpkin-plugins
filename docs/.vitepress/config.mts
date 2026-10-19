@@ -105,10 +105,7 @@ function components(group: ComponentGroup): Component[] {
         const fallbackTitle = manifest?.name ?? slug;
         const title = headingSource ? titleOf(headingSource, fallbackTitle) : fallbackTitle;
         const description =
-            manifest?.description ??
-            actionManifest?.description ??
-            (headingSource ? descriptionOf(headingSource) : '') ??
-            '';
+            manifest?.description ?? actionManifest?.description ?? (headingSource ? descriptionOf(headingSource) : '');
         const customIndexFrontmatter = customIndex ? frontmatterOf(customIndex) : {};
         const navigation = navigationMetadata(customIndexFrontmatter);
         const featured = Boolean('featured' in navigation && navigation.featured);
@@ -403,15 +400,6 @@ function documentationSidebarItem(node: DocumentationTreeNode, depth = 0): Sideb
     };
 }
 
-function documentationNavItem(node: DocumentationTreeNode): DefaultTheme.NavItem {
-    if (node.kind === 'page') return { text: node.text, link: node.link };
-    return {
-        text: node.text,
-        ...(node.link ? { link: node.link } : {}),
-        ...(node.items.length ? { items: node.items.map(documentationNavItem) } : {}),
-    };
-}
-
 const docsMenuSections: MenuSection[] = docsTree.map((folder) => ({
     text: folder.text,
     ...(folder.link ? { link: folder.link } : {}),
@@ -475,11 +463,12 @@ function documentationSidebar(item: Component, apiItems: SidebarItem[], extra: S
     ];
 }
 
+const scriptsSidebar = typedocSidebar(path.join(repoRoot, 'docs/api/scripts'));
 const apiSidebar = [
     { text: 'Plugins', link: '/api/plugins/', items: referenceItems(plugins) },
     { text: 'Tools', link: '/api/tools/', items: referenceItems(tools) },
     { text: 'Actions', link: '/api/actions/', items: referenceItems(actions) },
-    { text: 'Scripts', link: '/api/scripts/', items: typedocSidebar(path.join(repoRoot, 'docs/api/scripts')) },
+    { text: 'Scripts', link: '/api/scripts/', items: scriptsSidebar },
 ];
 
 const apiNav = [
@@ -495,7 +484,12 @@ const apiSidebars: Record<string, SidebarItem[]> = {
     '/api/plugins/': [{ text: 'Plugins', link: '/api/plugins/', items: referenceItems(plugins) }],
     '/api/tools/': [{ text: 'Tools', link: '/api/tools/', items: referenceItems(tools) }],
     '/api/actions/': [{ text: 'Actions', link: '/api/actions/', items: referenceItems(actions) }],
-    '/api/scripts/': typedocSidebar(path.join(repoRoot, 'docs/api/scripts')),
+    '/api/scripts/': scriptsSidebar.length
+        ? [
+              { text: 'Reference', link: '/api/', items: apiNav },
+              { text: 'Script helpers', collapsed: false, items: scriptsSidebar },
+          ]
+        : [],
 };
 
 for (const item of [...plugins, ...tools]) {
@@ -523,14 +517,6 @@ for (const item of actions) {
         typedocSidebar(path.join(repoRoot, 'docs', item.apiReference.slice(1), 'code')),
         [{ text: 'Action contract', link: item.apiReference }],
     );
-}
-
-const scriptsSidebar = typedocSidebar(path.join(repoRoot, 'docs/api/scripts'));
-if (scriptsSidebar.length) {
-    apiSidebars['/api/scripts/'] = [
-        { text: 'Reference', link: '/api/', items: apiNav },
-        { text: 'Script helpers', collapsed: false, items: scriptsSidebar },
-    ];
 }
 
 const featuredPlugin = plugins.find((item) => item.featured);
@@ -592,16 +578,6 @@ const megaMenus: MegaMenu[] = [
 
 megaMenus.push({ text: 'Team', description: 'Meet the contributors.', link: '/team', sections: [] });
 
-const mobileNav: DefaultTheme.NavItem[] = [
-    { text: 'Plugins', items: plugins.map((item) => ({ text: item.title, link: item.overview })) },
-    { text: 'Tools', items: tools.map((item) => ({ text: item.title, link: item.overview })) },
-    { text: 'Actions', items: actions.map((item) => ({ text: item.title, link: item.overview })) },
-    { text: 'Guides', items: guidePages.map(({ text, link }) => ({ text, link })) },
-    { text: 'Docs', items: docsTree.map(documentationNavItem) },
-    { text: 'Reference', items: apiNav },
-    { text: 'Team', link: '/team' },
-];
-
 const componentSidebars: Record<string, SidebarItem[]> = {};
 for (const item of plugins) componentSidebars[`/packages/${item.slug}/`] = componentSidebar(item, plugins, 'plugins');
 for (const item of tools) componentSidebars[`/tools/${item.slug}/`] = componentSidebar(item, tools, 'tools');
@@ -615,14 +591,7 @@ const guideSidebar: SidebarItem[] = [
     { text: 'API reference', link: '/api/' },
 ];
 
-const typedApiMenus = {
-    plugins: referenceItems(plugins),
-    tools: referenceItems(tools),
-    actions: referenceItems(actions),
-};
-
 const themeConfig = {
-    nav: mobileNav,
     megaMenus,
     sidebar: {
         '/packages/': plugins.map((item) => ({ text: item.title, link: item.overview })),
@@ -630,10 +599,6 @@ const themeConfig = {
         '/actions/': actions.map((item) => ({ text: item.title, link: item.overview })),
         '/guides/': guideSidebar,
         '/docs/': docsTree.map((folder) => documentationSidebarItem(folder)),
-        '/api/': [{ text: 'Reference', link: '/api/', items: apiSidebar }],
-        '/api/plugins/': [{ text: 'Plugins', link: '/api/plugins/', items: typedApiMenus.plugins }],
-        '/api/tools/': [{ text: 'Tools', link: '/api/tools/', items: typedApiMenus.tools }],
-        '/api/actions/': [{ text: 'Actions', link: '/api/actions/', items: typedApiMenus.actions }],
         ...componentSidebars,
         ...apiSidebars,
     },
@@ -720,9 +685,6 @@ export default defineConfig({
         plugins: [
             {
                 name: 'component-navigation-assets-and-llms',
-                buildStart() {
-                    fs.writeFileSync(path.join(repoRoot, 'docs/llms.txt'), generateLlmsText());
-                },
                 configureServer(server) {
                     server.middlewares.use((request, response, next) => {
                         const requestPath = request.url?.split('?')[0];
@@ -735,9 +697,7 @@ export default defineConfig({
                     });
                 },
                 generateBundle() {
-                    const llmsText = generateLlmsText();
-                    fs.writeFileSync(path.join(repoRoot, 'docs/llms.txt'), llmsText);
-                    this.emitFile({ type: 'asset', fileName: 'llms.txt', source: llmsText });
+                    this.emitFile({ type: 'asset', fileName: 'llms.txt', source: generateLlmsText() });
                     for (const [fileName, file] of navigationAssets) {
                         this.emitFile({ type: 'asset', fileName, source: fs.readFileSync(file) });
                     }
@@ -756,7 +716,6 @@ export default defineConfig({
         'tools/create-pumpkin-plugin/templates/**',
         '**/CHANGELOG.md',
         '**/AGENTS.md',
-        'plans/**',
         '.agents/**',
         'docs/agents/**',
         '.github/**',
