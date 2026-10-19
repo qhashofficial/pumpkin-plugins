@@ -666,6 +666,55 @@ describe('changed-areas', () => {
         assertOutputs(mixed.outputs, 'code=true\nconfig_only=false\n');
     });
 
+    /** A repo with one public tool, one private tool and a reusable external consumer workflow. */
+    function consumerRepo() {
+        return repo({
+            'package.json': JSON.stringify({
+                name: 'changed-areas-test',
+                scripts: { 'test:external-consumer': 'node scripts/test-external-consumer.mjs' },
+            }),
+            'scripts/test-external-consumer.mjs': "import './utils/registry.mjs';\n",
+            'scripts/utils/registry.mjs': 'export {};\n',
+            'scripts/other.mjs': 'export {};\n',
+            'tools/creator/package.json': JSON.stringify({
+                name: '@test/creator',
+                publishConfig: { access: 'public' },
+            }),
+            'tools/creator/templates/package.json.hbs': '{}\n',
+            'tools/internal/package.json': JSON.stringify({ name: '@test/internal', private: true }),
+            'tools/internal/src/index.ts': 'export {};\n',
+            '.github/workflows/external-consumer.yml':
+                'jobs:\n    run:\n        steps:\n            - run: pnpm run test:external-consumer\n',
+            '.github/workflows/ci.yml': [
+                'name: CI',
+                'jobs:',
+                '    external-consumer:',
+                '        uses: ./.github/workflows/external-consumer.yml',
+                '    generator:',
+                '        steps:',
+                '            - uses: ./.github/common/setup-static-hermes',
+                '',
+            ].join('\n'),
+        });
+    }
+
+    for (const [file, expected] of [
+        ['tools/creator/templates/package.json.hbs', true],
+        ['tools/build/src/cli.ts', false],
+        ['.github/workflows/external-consumer.yml', true],
+        ['scripts/test-external-consumer.mjs', true],
+        ['scripts/utils/registry.mjs', true],
+        ['scripts/other.mjs', false],
+        ['tools/internal/src/index.ts', false],
+    ]) {
+        it(`${expected ? 'tests every' : 'tests only the Linux'} external consumer platform for a change to ${file}`, () => {
+            const dir = consumerRepo();
+            const base = change(dir, { [file]: '// changed\n' });
+            assertOutputs(run(dir, base, 'HEAD').outputs, `code=true\nexternal_consumer_full=${expected}\n`);
+            assertOutputs(runFor('push', dir, base, 'HEAD').outputs, 'external_consumer_full=true\n');
+        });
+    }
+
     /** Commits each subject in turn, each one changing the plugin's source, and returns the base. */
     function releasePush(subjects) {
         const dir = repo({ 'packages/plug/src/plugin.ts': 'export {};\n' });

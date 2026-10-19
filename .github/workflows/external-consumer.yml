@@ -2,6 +2,11 @@ name: External consumer
 
 on:
     workflow_call:
+        inputs:
+            platforms:
+                description: JSON array of platforms to test, from "Linux x64", "macOS arm64" and "Windows x64"
+                type: string
+                default: '["Linux x64", "macOS arm64", "Windows x64"]'
 
 env:
     CI: true
@@ -17,14 +22,8 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                include:
-                    - platform: Linux x64
-                      os: ubuntu-26.04
-                    - platform: macOS arm64
-                      os: macos-15
-                    - platform: Windows x64
-                      os: windows-2025
-        runs-on: ${{ matrix.os }}
+                platform: ${{ fromJSON(inputs.platforms) }}
+        runs-on: ${{ fromJSON('{"Linux x64":"ubuntu-26.04","macOS arm64":"macos-15","Windows x64":"windows-2025"}')[matrix.platform] }}
         steps:
             - name: 🕶️ Checkout repository
               id: checkout-repository

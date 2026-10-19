@@ -41,57 +41,16 @@ function workflowNodeVersion(workflow: string): string {
     return requiredString(versions[0], '.github/workflows/external-consumer.yml node-version');
 }
 
-function parsePlatformMatrix(workflow: string): PlatformRow[] {
-    const lines = workflow.split(/\r?\n/);
-    const includeIndex = lines.findIndex((line) => /^\s*include:\s*$/.test(line));
-    if (includeIndex < 0) throw new Error('.github/workflows/external-consumer.yml: matrix include list not found');
-
-    const includeIndent = lines[includeIndex].search(/\S/);
-    const rows: PlatformRow[] = [];
-    let pendingPlatform: string | undefined;
-
-    for (const line of lines.slice(includeIndex + 1)) {
-        if (line.trim().length === 0 || line.trim().startsWith('#')) continue;
-        const indent = line.search(/\S/);
-        if (indent <= includeIndent) break;
-
-        const content = line.trim();
-        const platform = content.match(/^[-]\s+platform:\s*(.+)$/);
-        if (platform) {
-            if (pendingPlatform !== undefined) {
-                throw new Error(`.github/workflows/external-consumer.yml: ${pendingPlatform} has no runner`);
-            }
-            pendingPlatform = yamlValue(platform[1], 'platform');
-            continue;
-        }
-
-        const runner = content.match(/^os:\s*(.+)$/);
-        if (runner && pendingPlatform !== undefined) {
-            rows.push({ platform: pendingPlatform, runner: yamlValue(runner[1], `${pendingPlatform} runner`) });
-            pendingPlatform = undefined;
-        }
-    }
-
-    if (pendingPlatform !== undefined) {
-        throw new Error(`.github/workflows/external-consumer.yml: ${pendingPlatform} has no runner`);
-    }
-
-    const declaredPlatforms = [...workflow.matchAll(/^\s+-\s+platform:/gm)].length;
-    if (rows.length === 0 || rows.length !== declaredPlatforms) {
-        throw new Error(
-            `.github/workflows/external-consumer.yml: parsed ${rows.length} platform rows from ${declaredPlatforms} declarations`,
-        );
-    }
-
+/** Reads the platform-to-runner map that the external consumer job's `runs-on` looks up. */
+function parsePlatformRunners(workflow: string): PlatformRow[] {
+    const map = workflow.match(/^\s+runs-on:\s*\$\{\{\s*fromJSON\('(\{[^']+\})'\)\[matrix\.platform\]\s*\}\}\s*$/m)?.[1];
+    if (!map) throw new Error('.github/workflows/external-consumer.yml: runs-on platform map not found');
+    const rows = Object.entries(JSON.parse(map) as Record<string, unknown>).map(([platform, runner]) => ({
+        platform,
+        runner: requiredString(runner, `.github/workflows/external-consumer.yml ${platform} runner`),
+    }));
+    if (rows.length === 0) throw new Error('.github/workflows/external-consumer.yml: runs-on platform map is empty');
     return rows;
-}
-
-function yamlValue(value: string | undefined, label: string): string {
-    const unquoted = requiredString(value, `.github/workflows/external-consumer.yml ${label}`).replace(
-        /^(['"])(.*)\1$/,
-        '$2',
-    );
-    return requiredString(unquoted, `.github/workflows/external-consumer.yml ${label}`);
 }
 
 function nodeRequirementRows(requirements: Array<{ name: string; version: string }>): string[][] {
@@ -205,7 +164,7 @@ const supportRows = [
     ...nodeRequirementRows(nodeRequirements),
     ['CI Node.js pin', code(workflowNode)],
     ['Packed-consumer package manager', `${code(packageManagerName)} ${code(packageManagerVersion)}`],
-    ...parsePlatformMatrix(workflow).map(({ platform, runner }) => [`${platform} runner`, code(runner)]),
+    ...parsePlatformRunners(workflow).map(({ platform, runner }) => [`${platform} runner`, code(runner)]),
 ];
 
 const templateRows = templateNames.map((templateName) => {
