@@ -33,7 +33,9 @@ task caches. Turbo still
 checks each task's inputs before reusing outputs. The benchmark's real-server tests run even when a
 build comes from cache. Malloc variants keep their WASI archives and prepared-build fingerprint in
 a separate cache keyed to the pinned Static Hermes toolchain. This keeps those files separate from
-the shared Hades snapshot.
+the shared Hades snapshot. Building malloc also rewrites the host build's compiler export, which the
+malloc fingerprint records, so that cache holds the export too and is restored after the Hades
+build check.
 
 Build saves the prepared Static Hermes build only when no cache matched its key exactly, so
 Integration and Generator can restore it later in the same run. External consumer saves its pnpm
