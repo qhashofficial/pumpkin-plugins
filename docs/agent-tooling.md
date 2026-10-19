@@ -74,11 +74,12 @@ include it in its built-in runner list.
 ## How Codex scopes automatic checks
 
 When you run `check.mjs` without paths, Git status supplies the files to check. Codex's completion
-hooks use a narrower scope: they compare the working tree around each tool call and record only
-changed paths explicitly targeted by `apply_patch` or a shell output redirection. Codex sends every
-file edit as `apply_patch`; `Edit` and `Write` are only matcher aliases for it. A shell command that
-changes files as an implicit side effect has no attributable path. The root agent and each subagent
-also have separate scopes, so one agent's completion report doesn't include another agent's work.
+hooks use a narrower scope: around each tool call they compare only the paths it explicitly
+targets through `apply_patch` or a shell output redirection, and record the ones that changed. Codex
+sends every file edit as `apply_patch`; `Edit` and `Write` are only matcher aliases for it. A shell
+command that changes files as an implicit side effect has no attributable path. The root agent and
+each subagent also have separate scopes, so one agent's completion report doesn't include another
+agent's work.
 
 Completion checks pass explicit paths, which means they skip repository-wide metadata checks. They
 still run `pnpm readme:check` when the scoped changes include non-generated files. Passing these fast
