@@ -60,7 +60,7 @@ pins.
 | 🧪 Extension tests | Extension changes that need checks | The reusable workflow lints, typechecks, tests and packages each changed extension. |
 | 📝 Docs and config | Code, action, extension, generated README, or docs-only `master` pushes | Checks that generated READMEs are current and runs `pnpm check` for release configuration, package metadata and docs-to-code links. |
 | 🔨 Build | Code changes, after change classification | Prepares Static Hermes while lint and typecheck run, then builds each production plugin with its configured engine (Static Hermes by default). It loads one Static Hermes plugin on a real server as a smoke test, then signs and verifies the artifacts. |
-| 📊 Engine comparison | Changes to the benchmarks or the packages and workflow they build and run, and every code push to `master`; after build | Calls `.github/workflows/engine-comparison.yml` through `workflow_call`. Nine engine configurations run in parallel; a report job validates and combines their results from real Pumpkin servers. |
+| 📊 Engine comparison | Changes to the benchmarks or the packages and workflow they build and run, and every code push to `master`; after build | Calls `.github/workflows/engine-comparison.yml` through `workflow_call`. `benchmarks/engine-comparison/scripts/write-engine-comparison-matrix.ts` lists the parallel jobs: one per engine variant, plus Static Hermes stack-guard checks. A report job validates and combines their results from real Pumpkin servers. |
 | 📈 Engine comparison comment | Successful PR CI runs with a benchmark report, including runs for pull requests from forks | Finds the open pull request whose head matches the run, compares the report with the latest matching default-branch run, updates one PR comment, and embeds an SVG chart of timing changes. |
 | 🎃 Integration | Plugin or suite-dependency changes, workspace-wide build configuration, or shared integration setup changes; after build | Runs affected packages and their dependents against the pinned Pumpkin release. Workspace-wide or shared integration changes run the full suite. The job reuses WASM files from Build. |
 | 🧬 Generator | Scaffold, generator setup, or generated-plugin dependency changes; after lint and build | Reuses Build's Static Hermes cache, generates a throwaway plugin, action and extension, checks release registration and READMEs, tests the action and extension, and typechecks, builds and integration-tests the plugin. |
@@ -319,11 +319,9 @@ merges, which prevents conflicts in the shared manifest and release configuratio
 PR goes through README and pin preparation again. Separate release PRs let you hold one plugin back
 without holding another release.
 
-The release, release-PR preparation and benchmark-comment jobs use short-lived GitHub App
-installation tokens. Install the App on this repository with `actions` read and `contents`, `issues`
-and `pull-requests` write permissions. Store its Client ID in the `RELEASE_APP_CLIENT_ID` repository
-variable and its private key in the `RELEASE_APP_PRIVATE_KEY` repository secret. Each job creates its
-own repository-scoped token. The release-PR job uses its token to push prepared README and pin
+The release, release-PR preparation and benchmark-comment jobs use short-lived installation tokens
+from the release GitHub App; [GitHub settings](#github-settings) describes its setup. Each job creates
+its own repository-scoped token. The release-PR job uses its token to push prepared README and pin
 updates, which then trigger normal pull request checks. The benchmark-comment job uses its token to
 read artifacts from earlier runs and publish the SVG as a GitHub attachment in the PR comment.
 
@@ -536,8 +534,9 @@ the action by local path. After a successful publish, the job builds a localized
 `info.description` and the plugin README, then builds command metadata from `info.commands`. The
 description excludes generated README blocks and the `Installation` and `Commands` sections.
 Relative links and images in the README become GitHub URLs at the plugin's release tag. The job
-passes the numeric listing ID returned by the publisher to the metadata action. That action
-sends a patch, leaving the listing's other fields for the Market listing editor.
+passes the numeric listing ID returned by the publisher to the metadata action. In its default
+`patch` mode, that action sends a partial `PUT` with the description and commands, leaving the
+listing's other fields for the Market listing editor.
 
 Builds aren't byte-reproducible, so the job uploads the Build artifact instead of rebuilding the
 plugin. When you select a listing by name, the action searches a limited result set for an exact
