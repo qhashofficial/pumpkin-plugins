@@ -27,6 +27,23 @@ describe('tsconfig.json migration', () => {
         ]);
     });
 
+    it('accepts the trailing commas that TypeScript allows in tsconfig.json', async () => {
+        const source = '{\n    "include": ["src/**/*.ts",],\n}\n';
+
+        const result = await migratePumpkinApiTs.transform({
+            absolutePath: '/project/tsconfig.json',
+            projectRoot: '/project',
+            relativePath: 'tsconfig.json',
+            source,
+        });
+
+        expect(result.messages ?? []).toEqual([]);
+        expect(ts.parseConfigFileTextToJson('tsconfig.json', result.source).config.include).toEqual([
+            'src/**/*.ts',
+            'build/types/bindings/**/*.d.ts',
+        ]);
+    });
+
     it.each([
         ['the `build` exclude', { exclude: ['build'] }],
         ['the `build/**` exclude', { exclude: ['build/**'] }],
