@@ -975,6 +975,26 @@ describe('DH sessions', () => {
         expect(f.sessions.status()).toContain('1 served');
         expect(f.sessions.status()).toContain('Capture budget 32768/32768');
     });
+    it('measures capture cost from block sampling alone, not from storing the result', () => {
+        let clock = 0;
+        const f = fixture(() => clock);
+        f.peer.terrain.sample = () => {
+            clock += 0.001;
+            return { material: 'minecraft:plains_DH-BSW_minecraft:stone', skyLight: 15, blockLight: 0 };
+        };
+        const put = f.cache.put.bind(f.cache);
+        f.cache.put = (key, value) => {
+            clock += 1000;
+            put(key, value);
+        };
+        f.sessions.receive(f.peer, f.request());
+
+        f.sessions.tick(f.peers, 0);
+        f.sessions.tick(f.peers, 0);
+
+        expect(f.ids()).toContain(10);
+        expect(f.sessions.status()).toContain('Capture budget 16384/16384');
+    });
     it('captures loaded terrain, sends split data and reuses the persisted capture', () => {
         const f = fixture();
         f.sessions.receive(f.peer, f.request());
