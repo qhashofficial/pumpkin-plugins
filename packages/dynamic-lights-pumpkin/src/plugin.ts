@@ -17,6 +17,7 @@ import type {
 } from 'pumpkin:plugin/event@0.1.0';
 import * as logging from 'pumpkin:plugin/logging@0.1.0';
 import type { Server } from 'pumpkin:plugin/server@0.1.0';
+import * as uuid from 'pumpkin:plugin/uuid@0.1.0';
 import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import { WasiDataDir } from '@pumpkin-plugins/plugin-kit/data-dir';
 import { cancelTask, runCommand, scheduleDelayed, scheduleRepeating } from '@pumpkin-plugins/plugin-kit/host';
@@ -247,7 +248,7 @@ class DynamicLightsPumpkin extends PluginBase {
 
     private syncPlayer(player: PlayerJoinEventData['player']): void {
         const playerName = player.getName();
-        if (!this.preferences?.isEnabled(playerName)) {
+        if (!this.preferences?.isEnabled(uuid.toString(player.getId()))) {
             this.tracker?.reset(playerName, player);
             return;
         }
@@ -311,7 +312,7 @@ class DynamicLightsPumpkin extends PluginBase {
 
     private syncPlayerEntities(player: PlayerJoinEventData['player']): void {
         const playerName = player.getName();
-        if (!this.preferences?.isEnabled(playerName)) {
+        if (!this.preferences?.isEnabled(uuid.toString(player.getId()))) {
             this.entityTracker?.remove(playerName, player);
             return;
         }
@@ -343,7 +344,7 @@ class DynamicLightsPumpkin extends PluginBase {
 
     /** Toggles one player's dynamic lights and immediately clears them when disabling. */
     togglePlayerLights(player: PlayerJoinEventData['player']): boolean {
-        const enabled = this.preferences?.toggle(player.getName()) ?? true;
+        const enabled = this.preferences?.toggle(uuid.toString(player.getId())) ?? true;
         if (enabled) this.syncPlayer(player);
         else {
             this.tracker?.reset(player.getName(), player);
