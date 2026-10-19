@@ -42,8 +42,14 @@ it('rewrites repository guide links to site routes and preserves other links', (
         [
             '/guides/building',
             '/guides/creating-a-plugin#files-and-network-access',
-            '../README.md',
+            '/tools/static-hermes-runtime/README',
             'https://example.com/guide',
         ],
     );
+});
+
+it('rewrites links from guides to component READMEs', () => {
+    assert.deepEqual(transformLinks('guides/building.md', ['../tools/static-hermes-runtime/README.md#hermes']), [
+        '/tools/static-hermes-runtime/README#hermes',
+    ]);
 });
