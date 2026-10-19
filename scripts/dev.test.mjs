@@ -818,6 +818,69 @@ describe('runDev', () => {
         assert.ok(latest.requests.includes('https://api.github.com/repos/Pumpkin-MC/Pumpkin/releases/latest'));
     });
 
+    it('copies a rebuilt plugin into the server once when the build renames it into place', async () => {
+        const root = tempDir();
+        addPluginFixture(root);
+        const output = path.join(root, 'packages', 'plugin', 'build', 'plugin.wasm');
+        const copied = path.join(root, '.cache', 'pumpkin-dev', 'plugins', 'plugin.wasm');
+        const signalSource = new EventEmitter();
+        const previousExitCode = process.exitCode;
+        let serverStarted;
+        const serverRunning = new Promise((resolve) => {
+            serverStarted = resolve;
+        });
+        const spawnImpl = (command, args) => {
+            const child = new EventEmitter();
+            child.kill = (signal) => process.nextTick(() => child.emit('exit', null, signal));
+            if (args.includes('run')) process.nextTick(() => child.emit('exit', 0, null));
+            if (command === '/fake/pumpkin') serverStarted();
+            return child;
+        };
+        // Publish the way tools/build does: write into a temporary folder beside the output, then rename.
+        const publish = (bytes) => {
+            const temporary = fs.mkdtempSync(path.join(path.dirname(output), '.tmp-'));
+            fs.writeFileSync(path.join(temporary, 'plugin.wasm'), bytes);
+            fs.renameSync(path.join(temporary, 'plugin.wasm'), output);
+            fs.rmSync(temporary, { recursive: true });
+        };
+        const waitFor = async (condition) => {
+            const deadline = Date.now() + 20_000;
+            while (!condition()) {
+                if (Date.now() > deadline) throw new Error('timed out waiting for the plugin copy');
+                await new Promise((resolve) => setTimeout(resolve, 20));
+            }
+        };
+        const copyLogs = [];
+        const originalLog = console.log;
+        console.log = (...args) => {
+            const message = args.join(' ');
+            if (message.startsWith('Copied plugin.wasm')) copyLogs.push(message);
+        };
+
+        const running = runDev({
+            root,
+            spawnImpl,
+            resolveBinary: async () => ({ binary: '/fake/pumpkin', release: 'test release' }),
+            signalSource,
+        });
+        try {
+            await serverRunning;
+            assert.equal(fs.readFileSync(copied, 'utf8'), 'built plugin');
+
+            publish('rebuilt plugin');
+            await waitFor(() => fs.readFileSync(copied, 'utf8') === 'rebuilt plugin');
+            publish('rebuilt plugin');
+            await new Promise((resolve) => setTimeout(resolve, 400));
+        } finally {
+            signalSource.emit('SIGINT');
+            await running;
+            console.log = originalLog;
+            process.exitCode = previousExitCode;
+        }
+        assert.equal(fs.readFileSync(copied, 'utf8'), 'rebuilt plugin');
+        assert.equal(copyLogs.length, 1);
+    });
+
     it('reports an initial build failure without starting Pumpkin', async () => {
         const root = tempDir();
         const packageDir = path.join(root, 'packages', 'plugin');
