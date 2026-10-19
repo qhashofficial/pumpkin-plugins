@@ -62,7 +62,7 @@ function renderPlaceholderTables(): { catalog: string; exists: string; fields: s
     return {
         catalog: ['| Token | Description |', '| --- | --- |', ...catalogRows].join('\n'),
         exists: ['| Token | Description |', '| --- | --- |', ...existsRows].join('\n'),
-        fields: ['| Field | Meaning | Output |', '| --- | --- |', ...fieldRows].join('\n'),
+        fields: ['| Field | Meaning | Output |', '| --- | --- | --- |', ...fieldRows].join('\n'),
     };
 }
 

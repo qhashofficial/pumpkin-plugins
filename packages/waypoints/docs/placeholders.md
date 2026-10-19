@@ -68,7 +68,7 @@ Substitute any field below in a closest, nearest or explicit UUID token. The sam
 to all three families.
 
 | Field | Meaning | Output |
-| --- | --- |
+| --- | --- | --- |
 | `id` | Canonical waypoint UUID. | canonical lowercase UUID |
 | `name` | Complete saved waypoint name. | text |
 | `label` | Saved display label, falling back to the name. | text |
