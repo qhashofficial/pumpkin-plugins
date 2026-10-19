@@ -23,6 +23,15 @@ describe('Minecraft string formatting', () => {
         expect(() => color.hex('#12abc')).toThrow('Expected a six-digit hex color');
     });
 
+    it('restores the outer style after a nested formatted segment', () => {
+        expect(color.red.bold(`Failed for ${color.gold('Bert')} at spawn`)).toBe(
+            '§c§lFailed for §6Bert§r§c§l at spawn§r',
+        );
+        expect(ansi.red.bold(`Failed for ${ansi.gold('Bert')} at spawn`)).toBe(
+            '\u001b[1;91mFailed for \u001b[33mBert\u001b[0m\u001b[1;91m at spawn\u001b[0m',
+        );
+    });
+
     it('leaves text unchanged when no style is selected', () => {
         expect(color('Plain')).toBe('Plain');
     });

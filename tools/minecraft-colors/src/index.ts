@@ -92,14 +92,21 @@ function createFormatter(output: FormatterOutput, state: FormatterState = { form
             return text;
 
         const formats = (Object.keys(FORMATS) as MinecraftFormat[]).filter((format) => state.formats.includes(format));
+        let open: string;
+        let reset: string;
         if (output === 'ansi') {
             const codes: number[] = formats.map((format) => ANSI_FORMATS[format]);
             if (state.ansiColorPrefix !== undefined) codes.push(...state.ansiColorPrefix.split(';').map(Number));
-            return `\u001b[${codes.join(';')}m${text}\u001b[0m`;
+            open = `\u001b[${codes.join(';')}m`;
+            reset = '\u001b[0m';
+        } else {
+            const formatCodes = formats.map((format) => `§${FORMATS[format]}`).join('');
+            open = `${state.legacyColorPrefix ?? ''}${formatCodes}`;
+            reset = '§r';
         }
 
-        const formatCodes = formats.map((format) => `§${FORMATS[format]}`).join('');
-        return `${state.legacyColorPrefix ?? ''}${formatCodes}${text}§r`;
+        // A nested formatted segment ends with a reset; reopen this style after it.
+        return `${open}${text.replaceAll(reset, `${reset}${open}`)}${reset}`;
     }) as TextFormatter;
 
     for (const color of Object.keys(COLORS) as MinecraftColor[]) {
