@@ -432,7 +432,7 @@ class CommandNodeObject final : public ResourceObject {
                     if (count < 1)
                         throw JSError(
                             rt, "CommandNode handler method expects an id");
-                    const auto id = static_cast<uint32_t>(args[0].asNumber());
+                    const auto id = wasiInputInteger<uint32_t>(rt, args[0], "u32");
                     const auto handle =
                         pumpkin_plugin_command_borrow_command_node_t{
                             state->handle};
@@ -493,7 +493,7 @@ class CommandObject final : public ResourceObject {
                             rt, "Command.executeWithHandlerId expects an id");
                     pumpkin_plugin_command_method_command_execute_with_handler_id(
                         pumpkin_plugin_command_borrow_command_t{state->handle},
-                        static_cast<uint32_t>(args[0].asNumber()));
+                        wasiInputInteger<uint32_t>(rt, args[0], "u32"));
                     return Value::undefined();
                 });
         if (key == "drop") return dropResourceFunction(runtime, state_);
@@ -545,10 +545,10 @@ pumpkin_plugin_command_argument_type_t commandArgumentType(Runtime &runtime,
                 !maximum.isUndefined() && !maximum.isNull();
             if (result.val.integer.f0.is_some)
                 result.val.integer.f0.val =
-                    static_cast<int32_t>(minimum.asNumber());
+                    wasiInputInteger<int32_t>(runtime, minimum, "s32");
             if (result.val.integer.f1.is_some)
                 result.val.integer.f1.val =
-                    static_cast<int32_t>(maximum.asNumber());
+                    wasiInputInteger<int32_t>(runtime, maximum, "s32");
         } else {
             result.tag = PUMPKIN_PLUGIN_COMMAND_ARGUMENT_TYPE_DOUBLE;
             result.val.double_.f0.is_some =
@@ -988,7 +988,8 @@ void initializeRuntime() {
                 if (count < 2)
                     throw JSError(rt,
                                   "scheduleDelayedTask expects two arguments");
-                const auto handler = static_cast<uint32_t>(args[0].asNumber());
+                const auto handler =
+                    wasiInputInteger<uint32_t>(rt, args[0], "u32");
                 const auto delay = args[1].asBigInt(rt).asUint64(rt);
                 return Value(static_cast<double>(
                     pumpkin_plugin_scheduler_schedule_delayed_task(handler,
@@ -1003,7 +1004,8 @@ void initializeRuntime() {
                 if (count < 3)
                     throw JSError(
                         rt, "scheduleRepeatingTask expects three arguments");
-                const auto handler = static_cast<uint32_t>(args[0].asNumber());
+                const auto handler =
+                    wasiInputInteger<uint32_t>(rt, args[0], "u32");
                 const auto delay = args[1].asBigInt(rt).asUint64(rt);
                 const auto period = args[2].asBigInt(rt).asUint64(rt);
                 return Value(static_cast<double>(
@@ -1013,10 +1015,12 @@ void initializeRuntime() {
     schedulerApi.setProperty(
         *jsRuntime, "cancelTask",
         hostFunction(*jsRuntime, "cancelTask", 1,
-                     [](Runtime &, const Value &, const Value *args,
-                        std::size_t) -> Value {
+                     [](Runtime &rt, const Value &, const Value *args,
+                        std::size_t count) -> Value {
+                         if (count < 1)
+                             throw JSError(rt, "cancelTask expects a task id");
                          pumpkin_plugin_scheduler_cancel_task(
-                             static_cast<uint32_t>(args[0].asNumber()));
+                             wasiInputInteger<uint32_t>(rt, args[0], "u32"));
                          return Value::undefined();
                      }));
     host.setProperty(*jsRuntime, "scheduler", std::move(schedulerApi));
@@ -1194,7 +1198,7 @@ void initializeRuntime() {
                                   "blockStateToInfo expects a block state id");
                 pumpkin_plugin_world_block_state_info_t info{};
                 if (!pumpkin_plugin_world_block_state_to_info(
-                        static_cast<uint16_t>(args[0].asNumber()), &info))
+                        wasiInputInteger<uint16_t>(rt, args[0], "u16"), &info))
                     return Value::undefined();
                 Object result(rt);
                 result.setProperty(rt, "name",
@@ -1478,7 +1482,7 @@ bool exports_plugin_handle_command(uint32_t command_id,
         if (!result.isNumber())
             throw std::runtime_error(
                 "Plugin command handler did not return a number");
-        *ret = static_cast<int32_t>(result.asNumber());
+        *ret = wasiInputInteger<int32_t>(*jsRuntime, result, "s32");
         senderState->drop();
         serverState->drop();
         argsState->drop();
