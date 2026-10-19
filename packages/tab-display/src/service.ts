@@ -1,13 +1,7 @@
 import type { ResolvedLine, SessionState } from '@pumpkin-plugins/pumpkin-pie-api';
 import { strToU8 } from 'fflate';
 import { type ConfigValidation, type TabDisplayConfig, type TemplateLineConfig, validateConfig } from './config.ts';
-import {
-    type ApplyResult,
-    JAVA_DISPLAY_VERSION,
-    type PlayerSnapshot,
-    type RenderedLine,
-    type TabDisplayStatus,
-} from './model.ts';
+import type { ApplyResult, PlayerSnapshot, RenderedLine, TabDisplayStatus } from './model.ts';
 import { type CompiledTemplate, compileTemplate, renderTemplate } from './templates.ts';
 
 /** One request sent to the shared PumpkinPIE client. */
@@ -200,13 +194,6 @@ export class TabDisplayService {
         const javaVersions = [
             ...new Set(this.latestPlayers.flatMap(({ javaVersion }) => (javaVersion ? [javaVersion] : []))),
         ].sort();
-        const unsupportedJavaVersions = [
-            ...new Set(
-                this.latestPlayers
-                    .filter(({ edition, javaVersion }) => edition === 'java' && javaVersion !== JAVA_DISPLAY_VERSION)
-                    .map(({ javaVersion }) => javaVersion ?? 'unknown'),
-            ),
-        ].sort();
         return {
             enabled: this.config.general.enabled,
             provider: state?.kind ?? 'ready',
@@ -217,13 +204,6 @@ export class TabDisplayService {
             unresolved: [...this.unresolved].sort(),
             javaVersions,
             ...(this.lastFailure === undefined ? {} : { lastFailure: this.lastFailure }),
-            java:
-                unsupportedJavaVersions.length > 0
-                    ? {
-                          kind: 'unsupported',
-                          reason: `Java tab display calls are gated to ${JAVA_DISPLAY_VERSION}; live client behavior is unverified (connected: ${unsupportedJavaVersions.join(', ')})`,
-                      }
-                    : { kind: 'supported' },
             bedrock: {
                 kind: 'unsupported',
                 reason: 'TabDisplay leaves the native Bedrock player list unchanged.',

@@ -90,7 +90,7 @@ describe('TabDisplayService', () => {
         });
     });
 
-    it('does not call Java row setters for Bedrock and reports unsupported Java versions', () => {
+    it('does not call Java row setters for Bedrock players', () => {
         const host = new FakeHost([
             { uuid: 'bedrock', name: 'Bedrock', edition: 'bedrock' },
             { uuid: 'old-java', name: 'OldJava', edition: 'java', javaVersion: 'v-1-21-2' },
@@ -110,10 +110,6 @@ describe('TabDisplayService', () => {
         expect(setName).toHaveBeenCalledWith('old-java', expect.anything());
         expect(setHeaderFooter).toHaveBeenCalledTimes(1);
         expect(setHeaderFooter).toHaveBeenCalledWith('old-java', expect.anything(), expect.anything());
-        expect(service.status().java).toEqual({
-            kind: 'unsupported',
-            reason: 'Java tab display calls are gated to v-26-3; live client behavior is unverified (connected: v-1-21-2)',
-        });
         expect(service.status().lastFailure).toBeUndefined();
     });
 
