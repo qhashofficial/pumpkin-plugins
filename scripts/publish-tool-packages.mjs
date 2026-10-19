@@ -237,33 +237,17 @@ function assertVersion(version, label) {
 }
 
 /**
- * Reads one exact public npm version after confirming its package exists on the public registry.
+ * Reads the integrity of one exact public npm version from its package document.
  *
  * @param {string} packageName - npm package name, including its scope when present.
  * @param {string} version - Exact semantic version to query.
  * @param {typeof fetch} [fetchImpl] - Fetch implementation used for the registry request.
- * @returns {Promise<string | null>} Registry integrity, or null only when the existing package's exact version returns 404.
- * @throws {Error} When the registry is unavailable or returns an unsuccessful or malformed response.
+ * @returns {Promise<string | null>} Registry integrity, or null when the existing package does not list the version.
+ * @throws {Error} When the package is missing, or the registry is unavailable or returns a malformed response.
  */
 export async function getNpmRegistryIntegrity(packageName, version, fetchImpl = fetch) {
-    const packageUrl = encodeURIComponent(packageName);
-    const versionUrl = encodeURIComponent(version);
-    const packageResponse = await fetchImpl(`https://registry.npmjs.org/${packageUrl}`);
-    if (packageResponse.status === 404) {
-        throw new Error(
-            `npm registry returned HTTP 404: package ${packageName} was not found; refusing to publish its first version from the automated publisher`,
-        );
-    }
-    assertRegistryResponseOk(packageResponse);
-    const packageDocument = await readRegistryJson(packageResponse);
-    if (packageDocument?.name !== packageName) {
-        throw new Error(`npm registry package lookup did not identify ${packageName}`);
-    }
-
-    const versionResponse = await fetchImpl(`https://registry.npmjs.org/${packageUrl}/${versionUrl}`);
-    if (versionResponse.status === 404) return null;
-    assertRegistryResponseOk(versionResponse);
-    const registryPackage = await readRegistryJson(versionResponse);
+    const registryPackage = (await readNpmPackument(packageName, fetchImpl)).versions[version];
+    if (registryPackage === undefined) return null;
 
     const integrity = registryPackage?.dist?.integrity;
     if (typeof integrity !== 'string' || integrity.length === 0) {
@@ -288,26 +272,25 @@ export async function getNpmRegistryIntegrity(packageName, version, fetchImpl = 
  * @throws {Error} When the package is missing or the registry response is unsuccessful or malformed.
  */
 export async function getNpmRegistryVersions(packageName, fetchImpl = fetch) {
-    const packageUrl = encodeURIComponent(packageName);
-    const response = await fetchImpl(`https://registry.npmjs.org/${packageUrl}`);
+    return Object.keys((await readNpmPackument(packageName, fetchImpl)).versions);
+}
+
+async function readNpmPackument(packageName, fetchImpl) {
+    const response = await fetchImpl(`https://registry.npmjs.org/${encodeURIComponent(packageName)}`);
     if (response.status === 404) {
         throw new Error(
             `npm registry returned HTTP 404: package ${packageName} was not found; refusing to publish its first version from the automated publisher`,
         );
     }
     assertRegistryResponseOk(response);
-    const packageDocument = await readRegistryJson(response);
-    if (packageDocument?.name !== packageName) {
+    const packument = await readRegistryJson(response);
+    if (packument?.name !== packageName) {
         throw new Error(`npm registry package lookup did not identify ${packageName}`);
     }
-    if (
-        !packageDocument.versions ||
-        typeof packageDocument.versions !== 'object' ||
-        Array.isArray(packageDocument.versions)
-    ) {
+    if (!packument.versions || typeof packument.versions !== 'object' || Array.isArray(packument.versions)) {
         throw new Error(`npm registry response has no valid versions map for ${packageName}`);
     }
-    return Object.keys(packageDocument.versions);
+    return packument;
 }
 
 function assertRegistryResponseOk(response) {
