@@ -9,6 +9,7 @@ import {
     type Request,
 } from '@pumpkin-plugins/upnpumpkin-api';
 import { describe, expect, it } from 'vitest';
+import { statusLines } from './commands/format.ts';
 import { CONFIG_FILE } from './config/schema.ts';
 import { PortForwarder } from './forwarder.ts';
 
@@ -268,6 +269,20 @@ describe('PortForwarder', () => {
             settle(() => keys().length === 1);
             expect(keys()).toEqual(['tcp:2222']);
             expect(ask('A', { op: 'status', key: 'web' })).toEqual({ ok: true, status: { kind: 'unknown' } });
+        });
+
+        it('keeps plugins apart when their names and keys contain colons', () => {
+            const { forwarder, settle, ask, keys } = setup(
+                '[java]\nenabled = false\n\n[bedrock]\nenabled = false\n\n[plugins]\nallowed = ["A", "A:B"]\n',
+            );
+            forwarder.start();
+            ask('A', ensure({ ...web, key: 'B:web', port: 1111 }));
+            ask('A:B', ensure({ ...web, key: 'web', port: 2222 }));
+            settle(() => keys().length === 2);
+            expect(keys()).toEqual(['tcp:1111', 'tcp:2222']);
+            const lines = statusLines(forwarder.snapshot.info, forwarder.snapshot.mappings);
+            expect(lines).toContainEqual(expect.stringMatching(/^A B:web \(TCP 1111\)/));
+            expect(lines).toContainEqual(expect.stringMatching(/^A:B web \(TCP 2222\)/));
         });
 
         it('reports the network', () => {
