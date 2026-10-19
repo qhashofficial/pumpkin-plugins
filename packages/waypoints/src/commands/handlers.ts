@@ -4,17 +4,18 @@ import type { Server } from 'pumpkin:plugin/server@0.1.0';
 import { type CommandHandlers, type CommandLine, errorLine } from '@pumpkin-plugins/docs';
 import type { CommandSuggestionHandler } from '@pumpkin-plugins/plugin-kit/commands';
 import { disposeWasiResource } from '@pumpkin-plugins/plugin-kit/wasi-resource';
-import { PLUGIN_NAME } from '../name';
-import { canAccessWaypoint } from '../waypoints/access';
+import { PLUGIN_NAME } from '../name.ts';
+import { canAccessWaypoint } from '../waypoints/access.ts';
 import type { MutationResult, WaypointCatalog, WaypointMetadataPatch } from '../waypoints/catalog.ts';
 import {
     type AccessGrant,
+    grantKey,
     normalizeColor,
     WAYPOINT_METADATA_DEFAULTS,
     type Waypoint,
     type WaypointMetadataKey,
     waypointNameKey,
-} from '../waypoints/model';
+} from '../waypoints/model.ts';
 import type { commands } from './spec.ts';
 
 const OPERATOR_ONLY = 'Only server operators can manage waypoints.';
@@ -454,12 +455,6 @@ function updateGrant(runtime: WaypointCommandRuntime, name: string, grant: Acces
         runtime.catalog.update(name, { access: { ...waypoint.access, grants } }),
         add ? 'Access grant added.' : 'Access grant removed.',
     );
-}
-
-function grantKey(grant: AccessGrant): string {
-    if (grant.type === 'player') return `player:${grant.playerId.toLowerCase()}`;
-    if (grant.type === 'permission') return `permission:${grant.node}`;
-    return `group:${grant.slug}`;
 }
 
 function withOnlinePlayer<T extends readonly CommandLine[]>(
