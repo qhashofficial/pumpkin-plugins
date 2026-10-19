@@ -1,4 +1,4 @@
-/** biome-ignore-all lint/correctness/noUnusedFunctionParameters: the abstract class `Public`  shouldn't need to use the `_` prefix for parameters */
+/** biome-ignore-all lint/correctness/noUnusedFunctionParameters: the default methods of the abstract class `Plugin` keep their parameter names without the `_` prefix */
 import type {
     Command,
     CommandSender,
@@ -12,7 +12,7 @@ import type { IpcMessage, PluginId } from 'pumpkin:plugin/ipc@0.1.0';
 import type { PluginMetadata } from 'pumpkin:plugin/metadata@0.1.0';
 import type { Server } from 'pumpkin:plugin/server@0.1.0';
 import type { ChunkBuffer, Entity, GenerationPhase } from 'pumpkin:plugin/world@0.1.0';
-import { clearTaskHandlers, dispatchTask, getNextHandlerId } from './handler-registry.ts';
+import { clearTaskHandlers, dispatchTask, getNextHandlerId } from './task-registry.ts';
 
 /**
  * Handles one Pumpkin event and may return a replacement event payload.
@@ -213,9 +213,7 @@ export function handleEvent(eventId: number, server: Server, event: Event): Even
 
 /** Dispatch a command invocation and return the callback's result code. */
 export function handleCommand(commandId: number, sender: CommandSender, server: Server, args: ConsumedArgs): number {
-    const handler = commandHandlers.get(commandId);
-    if (handler) return handler(sender, server, args);
-    throw new Error(`No handler for command ID ${commandId}`);
+    return requireHandler(commandHandlers, commandId, 'command handler')(sender, server, args);
 }
 
 /** Dispatch a command suggestion request. */
@@ -225,9 +223,7 @@ export function handleCommandSuggestion(
     server: Server,
     request: SuggestionRequest,
 ): CommandSuggestions {
-    const handler = commandSuggestionHandlers.get(handlerId);
-    if (handler) return handler(sender, server, request);
-    throw new Error(`No command suggestion handler registered for ID ${handlerId}`);
+    return requireHandler(commandSuggestionHandlers, handlerId, 'command suggestion handler')(sender, server, request);
 }
 
 /** Dispatch a scheduled task invocation. Unknown task IDs are ignored. */
@@ -247,56 +243,38 @@ export function handleIpcMessage(sender: PluginId, message: IpcMessage): IpcMess
 
 /** Ask a registered AI goal whether it can start. */
 export function handleAiGoalCanStart(goalId: number, server: Server, entity: Entity): boolean {
-    const goal = aiGoals.get(goalId);
-    if (goal) return goal.canStart(server, entity);
-    throw new Error(`No AI goal registered for ID ${goalId}`);
+    return requireHandler(aiGoals, goalId, 'AI goal').canStart(server, entity);
 }
 
 /** Ask an active AI goal whether it should continue. */
 export function handleAiGoalShouldContinue(goalId: number, server: Server, entity: Entity): boolean {
-    const goal = aiGoals.get(goalId);
-    if (goal) return goal.shouldContinue(server, entity);
-    throw new Error(`No AI goal registered for ID ${goalId}`);
+    return requireHandler(aiGoals, goalId, 'AI goal').shouldContinue(server, entity);
 }
 
 /** Notify an AI goal that it has started. */
 export function handleAiGoalStart(goalId: number, server: Server, entity: Entity): void {
-    const goal = aiGoals.get(goalId);
-    if (goal) {
-        goal.start(server, entity);
-        return;
-    }
-    throw new Error(`No AI goal registered for ID ${goalId}`);
+    requireHandler(aiGoals, goalId, 'AI goal').start(server, entity);
 }
 
 /** Advance an active AI goal by one tick. */
 export function handleAiGoalTick(goalId: number, server: Server, entity: Entity): void {
-    const goal = aiGoals.get(goalId);
-    if (goal) {
-        goal.tick(server, entity);
-        return;
-    }
-    throw new Error(`No AI goal registered for ID ${goalId}`);
+    requireHandler(aiGoals, goalId, 'AI goal').tick(server, entity);
 }
 
 /** Notify an AI goal that it has stopped. */
 export function handleAiGoalStop(goalId: number, server: Server, entity: Entity): void {
-    const goal = aiGoals.get(goalId);
-    if (goal) {
-        goal.stop(server, entity);
-        return;
-    }
-    throw new Error(`No AI goal registered for ID ${goalId}`);
+    requireHandler(aiGoals, goalId, 'AI goal').stop(server, entity);
 }
 
 /** Dispatch a world-generation phase to a registered chunk generator. */
 export function handleGeneratePhase(generatorId: number, phase: GenerationPhase, chunk: ChunkBuffer): void {
-    const generator = chunkGenerators.get(generatorId);
-    if (generator) {
-        generator(phase, chunk);
-        return;
-    }
-    throw new Error(`No generator registered for ID ${generatorId}`);
+    requireHandler(chunkGenerators, generatorId, 'generator')(phase, chunk);
+}
+
+function requireHandler<T>(handlers: Map<number, T>, id: number, label: string): T {
+    const handler = handlers.get(id);
+    if (handler === undefined) throw new Error(`No ${label} registered for ID ${id}`);
+    return handler;
 }
 
 /** The metadata export consumed by Pumpkin during plugin loading. */
