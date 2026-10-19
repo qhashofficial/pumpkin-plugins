@@ -34,7 +34,7 @@ Built-in sources, including torches and lava buckets, are listed in `config.toml
 disable it, change its `light_level`, or add any item ID you want to support.
 
 Entity lights are enabled by default and also cover dropped items, so turning `entities.enabled`
-off turns off dropped-item lights too. The plugin checks entities in a 15-block cube around each player every
+off turns off dropped-item lights too. The plugin checks entities within 15 blocks of each player along each axis every
 10 ticks by default and sends changes only when a configured entity light moves, changes level or leaves
 range. Configure `entity_sources` with Pumpkin entity names such as `blaze`, `magma-cube`, `glow-squid` or
 `glow-item-frame`. Dropped items use the same configured level as their held form when the plugin observes them
