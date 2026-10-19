@@ -43,14 +43,14 @@ Pumpkin asks you to approve these on the server console when it loads the plugin
 | `/dhs cache memory clear` | Clear the in-memory cache | `DistantHorizonsSupportPumpkin:command.dhs.cache.memory.clear` | operators (level 3) |
 | `/dhs cache disk clear` | Clear the disk cache | `DistantHorizonsSupportPumpkin:command.dhs.cache.disk.clear` | operators (level 3) |
 | `/dhs cache recover <x> <z>` | Back up and rebuild one cached LOD section from loaded terrain at block coordinates | `DistantHorizonsSupportPumpkin:command.dhs.cache.recover` | operators (level 3) |
-| `/dhs map` | Show cached LOD sections at your position or block coordinates (default radius 4; maximum 16_384 sections) | `DistantHorizonsSupportPumpkin:command.dhs.map` | operators (level 3) |
-| `/dhs map <radius>` | Show cached LOD sections at your position or block coordinates (default radius 4; maximum 16_384 sections) | `DistantHorizonsSupportPumpkin:command.dhs.map` | operators (level 3) |
-| `/dhs map <x> <z>` | Show cached LOD sections at your position or block coordinates (default radius 4; maximum 16_384 sections) | `DistantHorizonsSupportPumpkin:command.dhs.map` | operators (level 3) |
-| `/dhs map <x> <z> <radius>` | Show cached LOD sections at your position or block coordinates (default radius 4; maximum 16_384 sections) | `DistantHorizonsSupportPumpkin:command.dhs.map` | operators (level 3) |
-| `/dhs generate` | Force-build LOD sections at your position or block coordinates (default radius 0; maximum radius 31 sections; at most 4_096 sections per request) | `DistantHorizonsSupportPumpkin:command.dhs.generate` | operators (level 3) |
-| `/dhs generate <radius>` | Force-build LOD sections at your position or block coordinates (default radius 0; maximum radius 31 sections; at most 4_096 sections per request) | `DistantHorizonsSupportPumpkin:command.dhs.generate` | operators (level 3) |
-| `/dhs generate <x> <z>` | Force-build LOD sections at your position or block coordinates (default radius 0; maximum radius 31 sections; at most 4_096 sections per request) | `DistantHorizonsSupportPumpkin:command.dhs.generate` | operators (level 3) |
-| `/dhs generate <x> <z> <radius>` | Force-build LOD sections at your position or block coordinates (default radius 0; maximum radius 31 sections; at most 4_096 sections per request) | `DistantHorizonsSupportPumpkin:command.dhs.generate` | operators (level 3) |
+| `/dhs map` | Show cached LOD sections at your position or block coordinates (default radius 4; maximum 16,384 sections) | `DistantHorizonsSupportPumpkin:command.dhs.map` | operators (level 3) |
+| `/dhs map <radius>` | Show cached LOD sections at your position or block coordinates (default radius 4; maximum 16,384 sections) | `DistantHorizonsSupportPumpkin:command.dhs.map` | operators (level 3) |
+| `/dhs map <x> <z>` | Show cached LOD sections at your position or block coordinates (default radius 4; maximum 16,384 sections) | `DistantHorizonsSupportPumpkin:command.dhs.map` | operators (level 3) |
+| `/dhs map <x> <z> <radius>` | Show cached LOD sections at your position or block coordinates (default radius 4; maximum 16,384 sections) | `DistantHorizonsSupportPumpkin:command.dhs.map` | operators (level 3) |
+| `/dhs generate` | Force-build LOD sections at your position or block coordinates (default radius 0; maximum radius 31 sections; at most 4,096 sections per request) | `DistantHorizonsSupportPumpkin:command.dhs.generate` | operators (level 3) |
+| `/dhs generate <radius>` | Force-build LOD sections at your position or block coordinates (default radius 0; maximum radius 31 sections; at most 4,096 sections per request) | `DistantHorizonsSupportPumpkin:command.dhs.generate` | operators (level 3) |
+| `/dhs generate <x> <z>` | Force-build LOD sections at your position or block coordinates (default radius 0; maximum radius 31 sections; at most 4,096 sections per request) | `DistantHorizonsSupportPumpkin:command.dhs.generate` | operators (level 3) |
+| `/dhs generate <x> <z> <radius>` | Force-build LOD sections at your position or block coordinates (default radius 0; maximum radius 31 sections; at most 4,096 sections per request) | `DistantHorizonsSupportPumpkin:command.dhs.generate` | operators (level 3) |
 <!-- docs:end commands -->
 
 ## Configuration
