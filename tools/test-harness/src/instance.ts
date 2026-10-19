@@ -7,6 +7,8 @@ import { prepareServerDir, type ServerDir, type ServerDirOptions } from './serve
 
 /** Options for `startPumpkin`. */
 export interface StartOptions extends ServerDirOptions {
+    /** The server's `RUST_LOG` level. Default `info`; `debug` shows plugins' debug logs too. */
+    logLevel?: 'info' | 'debug' | 'trace';
     /** Used in the saved log file name when PUMPKIN_TEST_LOG_DIR is set. */
     name?: string;
     /** How long to wait for the server to finish starting. Default 90 s. */
@@ -101,7 +103,7 @@ export class PumpkinInstance {
                 cwd: server.dir,
                 stdio: 'pipe',
                 // Tests use INFO startup and plugin logs as observable readiness and behavior signals.
-                env: { ...process.env, RUST_LOG: 'info' },
+                env: { ...process.env, RUST_LOG: options.logLevel ?? 'info' },
             });
             const instance = new PumpkinInstance(child, server, options.name ?? 'pumpkin');
             try {

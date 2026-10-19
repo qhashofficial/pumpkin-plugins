@@ -247,6 +247,17 @@ describe('startPumpkin', () => {
         }
     });
 
+    it('passes a requested log level to the server, for tests that wait on debug logs', async () => {
+        fakePumpkin(0, [], true);
+
+        const server = await startPumpkin({ logLevel: 'debug' });
+        try {
+            expect(server.logs()).toContain('fake RUST_LOG=debug');
+        } finally {
+            await server.stop();
+        }
+    });
+
     it('starts again on other ports when the server loses one to another process', async () => {
         const ports = fakePumpkin(1);
         const server = await startPumpkin({ name: 'port-taken' });
