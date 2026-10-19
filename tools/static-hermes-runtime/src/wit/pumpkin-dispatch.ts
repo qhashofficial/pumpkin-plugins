@@ -1,4 +1,5 @@
 import type { WitAnalysis } from './analysis.ts';
+import { cIdentifier, jsName, pascalCase } from './names.ts';
 import {
     generateWitApiFunctionForResolvedOperation,
     generateWitResourceMethodForResolvedPlan,
@@ -146,24 +147,4 @@ function appendResource(
 function unsupportedPlanError(plan: WitApiAdapterPlan): Error {
     const operationPath = plan.resource ? `${plan.resource.name}.${plan.operation.name}` : plan.operation.name;
     return new Error(`No Static Hermes adapter is generated for ${plan.apiInterface.specifier}#${operationPath}`);
-}
-
-function pascalCase(value: string): string {
-    return value
-        .split(/[^a-zA-Z0-9]+/)
-        .filter(Boolean)
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join('');
-}
-
-function jsName(value: string): string {
-    return value.replace(/^%/, '').replace(/-([a-zA-Z0-9])/g, (_match, character: string) => character.toUpperCase());
-}
-
-function cIdentifier(value: string): string {
-    return value
-        .replace(/^%/, '')
-        .replace(/[^a-zA-Z0-9_]/g, '_')
-        .replace(/_+/g, '_')
-        .toLowerCase();
 }
