@@ -28,12 +28,11 @@ export interface ClientOptions {
 /** Validated protocol 0 consumer with no host imports or implicit cache. */
 export class PieClient {
     readonly guard: CallbackGuard;
+    private readonly send: SendMessage;
     private readonly provider: string;
     /** Inject the transport and share a callback guard with any expansion router. */
-    constructor(
-        private readonly send: SendMessage,
-        options: ClientOptions = {},
-    ) {
+    constructor(send: SendMessage, options: ClientOptions = {}) {
+        this.send = send;
         this.guard = options.guard ?? new CallbackGuard();
         this.provider = options.provider ?? PIE_PROVIDER;
     }
