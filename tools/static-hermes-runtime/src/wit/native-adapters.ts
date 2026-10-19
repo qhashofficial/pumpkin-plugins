@@ -703,7 +703,7 @@ function generateWitResult(
         const callExpression = `const bool callSucceeded = ${functionName}(${outputArguments.join(', ')});`;
         const errorReturn =
             error.kind === 'unit'
-                ? `Object errorValue(rt); errorValue.setProperty(rt, "tag", "err"); return errorValue;`
+                ? `Object errorValue(rt); errorValue.setProperty(rt, "__staticHermesWitError", Value::null()); return errorValue;`
                 : generateWitErrorReturn(apiPackage, apiInterface, error, 'error');
         const successReturn =
             output.kind === 'resource'
