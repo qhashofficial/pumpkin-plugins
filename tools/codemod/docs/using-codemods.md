@@ -96,7 +96,8 @@ The `migrate-pumpkin-api-ts` codemod follows the repository's
   and adding `@pumpkin-plugins/build` under `dependencies`. The old package is removed from
   `dependencies`, `devDependencies`, `peerDependencies`, or `optionalDependencies` wherever it is
   declared; each existing version range for the replacement packages is retained and moved into
-  `dependencies`. For either package without an existing range, the codemod adds it at `^0.1.0`.
+  `dependencies`. For either package without an existing range, the codemod adds a caret range on
+  its current release.
 - A recognized `pumpkin-plugin-build <entry> <output>` command to
   `pumpkin-plugins-build`, moving the two paths into `pumpkinPlugin.entry` and
   `pumpkinPlugin.output`.

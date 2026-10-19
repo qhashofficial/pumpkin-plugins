@@ -5,6 +5,7 @@ import { parse } from 'jsonc-parser';
 import { describe, expect, it } from 'vitest';
 import { runCodemod } from '../../runner.js';
 import { migratePumpkinApiTs } from '../migrate-pumpkin-api.js';
+import { API_VERSION_RANGE, BUILD_VERSION_RANGE } from './constants.js';
 
 describe('WASI capability inference', () => {
     it('preserves JSONC comments and infers WASI capabilities from the manifest', async () => {
@@ -56,8 +57,8 @@ describe('WASI capability inference', () => {
             expect(result?.after).toContain('// Keep this project note.');
             expect(manifest.dependencies).toEqual({
                 'other-package': '1.2.3',
-                '@pumpkin-plugins/pumpkin-api': '^0.1.0',
-                '@pumpkin-plugins/build': '^0.1.0',
+                '@pumpkin-plugins/pumpkin-api': API_VERSION_RANGE,
+                '@pumpkin-plugins/build': BUILD_VERSION_RANGE,
             });
             expect(manifest.scripts).toEqual({
                 build: 'pumpkin-plugins-build',

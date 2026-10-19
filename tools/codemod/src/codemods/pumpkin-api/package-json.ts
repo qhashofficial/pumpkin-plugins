@@ -4,6 +4,7 @@ import {
     API_VERSION_RANGE,
     BUILD_COMMAND,
     BUILD_PACKAGE,
+    BUILD_VERSION_RANGE,
     DEPENDENCY_SECTIONS,
     ENGINE_NOTE,
     LEGACY_API_PACKAGE,
@@ -28,7 +29,7 @@ export async function migratePackageJson(source: string, projectRoot: string): P
 
     let migrated = source;
     const apiVersion = existingDependencyVersion(initialDependencies, API_PACKAGE) ?? API_VERSION_RANGE;
-    const buildVersion = existingDependencyVersion(initialDependencies, BUILD_PACKAGE) ?? API_VERSION_RANGE;
+    const buildVersion = existingDependencyVersion(initialDependencies, BUILD_PACKAGE) ?? BUILD_VERSION_RANGE;
 
     for (const sectionName of DEPENDENCY_SECTIONS) {
         if (Object.hasOwn(recordOf(original.value[sectionName]) ?? {}, LEGACY_API_PACKAGE)) {
