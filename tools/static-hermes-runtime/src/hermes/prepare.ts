@@ -32,27 +32,6 @@ export interface HermesPreparationOptions {
     workspaceRoot?: string;
 }
 
-/** Ordered source, patch, and build stages for Hermes preparation. */
-export interface HermesStageRunner {
-    /** Build or reuse the host compiler and WASI archives. */
-    build(): Promise<void> | void;
-    /** Apply the configured patches to the pinned checkout. */
-    patch(): Promise<void> | void;
-    /** Ensure the repository is checked out at its pinned commit. */
-    source(): Promise<void> | void;
-}
-
-/**
- * Run the named Hermes stages in source, patch, then build order.
- *
- * @param stages - Implementations for each preparation stage.
- */
-export async function runHermesPreparationStages(stages: HermesStageRunner): Promise<void> {
-    await stages.source();
-    await stages.patch();
-    await stages.build();
-}
-
 /**
  * Ensure the pinned source, apply its patch series, then prepare host and WASI build artifacts.
  *
@@ -72,29 +51,21 @@ export async function prepareHermes(options: HermesPreparationOptions = {}): Pro
     await withHermesBuildLock(
         paths.cacheRoot,
         async () => {
-            await runHermesPreparationStages({
-                source: () => {
-                    ensurePinnedSource(paths, pin, patches);
-                },
-                patch: () => {
-                    try {
-                        applyCurrentPatches(paths.source, pin.commit, patches);
-                    } catch (error) {
-                        if (!(error instanceof HermesPatchConflictError)) throw error;
-                        refreshHermesSource({
-                            pin,
-                            source: paths.source,
-                            managedSource: paths.managedSource,
-                            managedPaths: affectedHermesPaths(patches),
-                        });
-                        console.log(
-                            'Rebuilt stale Hermes source cache from the pinned commit; applying current patch series.',
-                        );
-                        applyCurrentPatches(paths.source, pin.commit, patches);
-                    }
-                },
-                build: () => buildCurrentHermes(context, paths, pin, patches, buildHermesWithLockHeld),
-            });
+            ensurePinnedSource(paths, pin, patches);
+            try {
+                applyCurrentPatches(paths.source, pin.commit, patches);
+            } catch (error) {
+                if (!(error instanceof HermesPatchConflictError)) throw error;
+                refreshHermesSource({
+                    pin,
+                    source: paths.source,
+                    managedSource: paths.managedSource,
+                    managedPaths: affectedHermesPaths(patches),
+                });
+                console.log('Rebuilt stale Hermes source cache from the pinned commit; applying current patch series.');
+                applyCurrentPatches(paths.source, pin.commit, patches);
+            }
+            await buildCurrentHermes(context, paths, pin, patches, buildHermesWithLockHeld);
         },
         { resources: [paths.source, paths.hostBuild, paths.wasiBuild] },
     );
