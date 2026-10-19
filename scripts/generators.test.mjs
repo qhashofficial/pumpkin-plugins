@@ -112,3 +112,12 @@ test('a generated extension supports the @types/vscode version in the catalog', 
     // vsce refuses to package when @types/vscode is newer than engines.vscode.
     assert.equal(manifest.engines.vscode, '^1.999.0');
 });
+
+test('a generated extension README keeps the display name and description as typed', { skip: skipOnWindows }, () => {
+    const root = generate('extension', ['my-extension', 'Terms & Tools', 'Looks up <terms> & tools']);
+    const readme = fs.readFileSync(path.join(root, 'extensions/my-extension/README.md'), 'utf8');
+
+    // scripts/check-docs.mjs requires the README to mention the package.json displayName.
+    assert.match(readme, /^# Terms & Tools$/m);
+    assert.match(readme, /^Looks up <terms> & tools$/m);
+});
