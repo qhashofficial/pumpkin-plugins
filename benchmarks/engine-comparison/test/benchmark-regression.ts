@@ -10,6 +10,9 @@ import {
 export type BenchmarkChangeStatus = 'regression' | 'improvement' | 'within-jitter';
 export type BenchmarkCommentStatus = 'warning' | 'celebration' | 'regular';
 
+/** Smallest absolute median change, in milliseconds, that can count as a regression or improvement. */
+export const MINIMUM_CHANGE_MS = 1;
+
 /** A workload timing compared with the same engine and workload in the baseline run. */
 export interface BenchmarkChange {
     baselineMedianMs: number;
@@ -55,6 +58,7 @@ export interface BenchmarkCommentDetails {
 
 /**
  * Compares workload medians from matching engine configurations and classifies changes beyond the jitter threshold.
+ * A change smaller than {@link MINIMUM_CHANGE_MS} counts as jitter whatever its percentage.
  *
  * @param current - Results produced by the current revision.
  * @param baseline - Results produced by the baseline revision.
@@ -103,6 +107,7 @@ export function compareBenchmarkResults(
 
             const currentMedianMs = median(workload.samplesMs);
             const changePercent = ((currentMedianMs - baselineMedianMs) / baselineMedianMs) * 100;
+            const significant = Math.abs(currentMedianMs - baselineMedianMs) >= MINIMUM_CHANGE_MS;
             changes.push({
                 baselineMedianMs,
                 changePercent,
@@ -110,12 +115,13 @@ export function compareBenchmarkResults(
                 engineId: engine.id,
                 engineLabel: engine.label,
                 operationsPerSample: workload.operationsPerSample,
-                status:
-                    changePercent > thresholdPercent
-                        ? 'regression'
-                        : changePercent < -thresholdPercent
-                          ? 'improvement'
-                          : 'within-jitter',
+                status: !significant
+                    ? 'within-jitter'
+                    : changePercent > thresholdPercent
+                      ? 'regression'
+                      : changePercent < -thresholdPercent
+                        ? 'improvement'
+                        : 'within-jitter',
                 workloadArea: workload.area,
                 workload: workload.name,
                 workloadProvenance: workload.provenance,
@@ -187,7 +193,7 @@ export function formatBenchmarkComment(details: BenchmarkCommentDetails): string
             heading,
             '',
             `Compared \`${escapeMarkdown(shortSha(details.currentSha))}\` with baseline \`${escapeMarkdown(shortSha(details.baselineSha))}\`.`,
-            `Changes within ±${comparison.thresholdPercent}% are treated as runner jitter. Lower time is better. ${direction}`,
+            `Changes within ±${comparison.thresholdPercent}% or under ${MINIMUM_CHANGE_MS} ms are treated as runner jitter. Lower time is better. ${direction}`,
             '',
         );
 
