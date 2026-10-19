@@ -62,8 +62,8 @@ empty on disable or unload under exclusive ownership.
 
 Defaults refresh templates every 20 ticks and snapshot at most 500 players; `general.max_players` is
 bounded at 5,000. Placeholder resolution processes at most 256 requests and 1 MiB per batch on a
-tick. Rendered fields are capped at 8 KiB. When the provider is unavailable, the last successful
-frame is retained for up to 30 seconds before configured fallback text is applied.
+tick. A rendered field longer than 8 KiB is cut to fit. When the provider is unavailable, the last
+successful frame is retained for up to 30 seconds before configured fallback text is applied.
 
 No server TPS or client display performance benchmark has been collected. The work limits bound
 individual snapshots and placeholder batches, but they are not a measured capacity claim.

@@ -337,7 +337,7 @@ export class TabDisplayService {
             });
             this.applyGeneration(rendered);
         } catch {
-            this.lastFailure = 'Literal fallback exceeded the configured output limits';
+            this.lastFailure = 'Could not apply the fallback display';
         }
     }
 

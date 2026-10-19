@@ -225,6 +225,30 @@ describe('TabDisplayService', () => {
         expect(service.status().lastFailure).toContain('general.max_players');
     });
 
+    it('shortens one oversized placeholder value without blocking other players', () => {
+        const host = new FakeHost(viewers);
+        const oversized = `a${'é'.repeat(5000)}`;
+        const service = new TabDisplayService({
+            host,
+            resolver: {
+                resolveBatch: (requests) =>
+                    requests.map(({ text, viewer }) => ({
+                        text: text.replaceAll('%player_name%', viewer === 'Alex' ? oversized : (viewer ?? '')),
+                        unresolved: [],
+                    })),
+            },
+            now: () => 0,
+            config: validConfig(baseConfig()),
+        });
+
+        service.tick();
+
+        // 'é' is two bytes in UTF-8, so the longest whole-character prefix within 8 KiB is 8191 bytes.
+        expect(host.names.get('uuid-a')).toBe(`a${'é'.repeat(4095)}`);
+        expect(host.names.get('uuid-b')).toBe('Bea');
+        expect(service.status().lastFailure).toBeUndefined();
+    });
+
     it('rejects mismatched placeholder batches without applying shifted player data', () => {
         const host = new FakeHost(viewers);
         const resolver: TabPlaceholderResolver = { resolveBatch: () => [{ text: 'wrong', unresolved: [] }] };
