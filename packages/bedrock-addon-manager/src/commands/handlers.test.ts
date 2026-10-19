@@ -28,8 +28,11 @@ describe('the /baddon commands', () => {
         expect(new Set(info.commands.map((c) => c.permission))).toEqual(
             new Set([`${COMMAND_PERMISSION}.list`, `${COMMAND_PERMISSION}.reload`]),
         );
-        expect(info.commands.find((command) => command.usage === '/baddon list')?.defaultPermission).toEqual({
-            tag: 'allow',
-        });
+    });
+
+    it('are for operators only, because the listing shows file names, UUIDs and download URLs', () => {
+        for (const command of info.commands) {
+            expect(command.defaultPermission, command.usage).toEqual({ tag: 'op', val: 'three' });
+        }
     });
 });
