@@ -106,10 +106,12 @@ function* surveyUpnp(net: Network, options: DiscoveryOptions): Steps<UpnpCandida
     const responses = yield* search(net, options.ssdp ?? SSDP_ADDRESS, options.searchMs ?? 3000);
     if (responses.length === 0) throw new Error('no router answered the search');
 
+    const described = yield* parallel(responses.map((response) => describeSteps(net, response)));
     const candidates: UpnpCandidate[] = [];
     let refusal: RouterRefusedError | undefined;
-    for (const response of responses) {
-        const candidate = yield* describeSteps(net, response);
+    for (const result of described) {
+        if (!result.ok) continue;
+        const candidate = result.value;
         const reason = candidate.identity && options.screen?.(candidate.identity);
         if (candidate.identity && reason) refusal ??= new RouterRefusedError(reason, candidate.identity);
         else candidates.push(candidate);
