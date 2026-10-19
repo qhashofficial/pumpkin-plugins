@@ -25,9 +25,9 @@ network may not pass the discovery traffic the router needs.
 ## A port is not opened or players cannot connect
 
 In `/upnp status`, look at the state and reason shown for the Java and Bedrock ports. Confirm
-`java.port` and `bedrock.port` match the server listeners. Java uses TCP and Bedrock uses UDP. The
-router mapping does not change host firewall rules, so allow the same ports and protocols through
-the server's firewall.
+`java.port` and `bedrock.port` match the server listeners. Java uses TCP, and Bedrock uses both
+TCP and UDP on the same port. The router mapping does not change host firewall rules, so allow the
+same ports and protocols through the server's firewall.
 
 The router also needs a public internet-side address to accept inbound connections. When it has
 none, the reason in `/upnp status` says why:

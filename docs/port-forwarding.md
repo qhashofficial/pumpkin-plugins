@@ -14,7 +14,7 @@ how plugins can request additional mappings.
 | Layer | Package | What it does |
 | --- | --- | --- |
 | Engine | `@pumpkin-plugins/port-mapping` (`tools/port-mapping`) | Finds a router and manages port mappings. It has no Pumpkin or WASI imports; it uses a small `Network` interface that unit tests can implement with a fake router. |
-| Plugin | UPnPumpkin (`packages/upnpumpkin`) | Runs the engine over WASI sockets, opens the Java and Bedrock ports, and handles mapping requests from other plugins. |
+| Plugin | UPnPumpkin (`packages/upnpumpkin`) | Runs the engine over WASI sockets, opens the Java port (TCP) and the Bedrock port (TCP and UDP), and handles mapping requests from other plugins. |
 | API | `@pumpkin-plugins/upnpumpkin-api` (`tools/apis/upnpumpkin-api`) | Provides the IPC message format, client, and watcher for plugins that need a port opened. |
 | Host | `@pumpkin-plugins/plugin-kit` (`tools/plugin-kit`) | Gives plugins the host services UPnPumpkin uses: a data folder, logging, scheduling, commands, and IPC. |
 

@@ -1,8 +1,8 @@
 # UPnPumpkin
 
 If players outside your local network need to reach your server, UPnPumpkin can ask your router to
-forward the Java TCP and Bedrock UDP ports using UPnP or NAT-PMP. When the network supports
-automatic mapping, you don't have to add those router rules by hand.
+forward the Java TCP port and the Bedrock TCP and UDP ports using UPnP or NAT-PMP. When the network
+supports automatic mapping, you don't have to add those router rules by hand.
 
 Install `upnpumpkin.wasm` in the Pumpkin server's `plugins/` folder, then restart the server. The
 [configuration reference](../README.md#configuration) lists the default ports and other settings.
