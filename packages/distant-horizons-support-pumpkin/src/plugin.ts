@@ -56,7 +56,7 @@ class DistantHorizonsSupportPumpkin extends PluginBase {
             settings.disk_cache_entries,
             settings.memory_cache_mb * 1024 * 1024,
         );
-        const sessions = new Sessions(settings, cache, hostLogger);
+        const sessions = new Sessions(settings, cache, hostLogger, Date.now, monotonicMilliseconds);
         this.placeholders = new DistantHorizonsPlaceholderService({
             sessions,
             cache,
@@ -145,7 +145,7 @@ class DistantHorizonsSupportPumpkin extends PluginBase {
 }
 
 function monotonicMilliseconds(): number {
-    return Number(monotonicNow() / 1_000_000n);
+    return Number(monotonicNow()) / 1_000_000;
 }
 
 registerPlugin(new DistantHorizonsSupportPumpkin());

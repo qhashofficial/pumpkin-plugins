@@ -383,13 +383,14 @@ export class Sessions {
                     const measured = measureTerrainSource(peer.terrain);
                     const started = this.measureNow();
                     const complete = request.builder.step(measured.source, blocksBudget);
+                    // Charge only sampling to the cost estimate, not the terrain recheck or cache write.
+                    this.workBudget.observe(measured.samples(), this.measureNow() - started);
                     if (complete) {
                         let stillLoaded: ReturnType<NonNullable<typeof peer.terrain.prepare>> | undefined;
                         try {
                             stillLoaded = peer.terrain.prepare?.(region);
                         } catch (err) {
                             this.deferTerrain(request, String(err));
-                            this.workBudget.observe(measured.samples(), this.measureNow() - started);
                             return;
                         }
                         if (stillLoaded && stillLoaded.status !== 'ready') {
@@ -399,7 +400,6 @@ export class Sessions {
                                     ? stillLoaded.reason
                                     : 'Terrain preparation is pending',
                             );
-                            this.workBudget.observe(measured.samples(), this.measureNow() - started);
                             return;
                         }
                         const captured = { updated: this.now(), data: request.builder.finish(this.now()) };
@@ -409,7 +409,6 @@ export class Sessions {
                         );
                         this.complete(request, captured);
                     }
-                    this.workBudget.observe(measured.samples(), this.measureNow() - started);
                 } catch (err) {
                     const reason = String(err);
                     this.log.debug(
@@ -574,7 +573,7 @@ export class Sessions {
             `${this.ticks} worker tick(s), ${this.served} served, ${this.rejected} rejected, ${this.cancelled} cancelled.`,
             `${queuedPackets} queued packet(s) across ${queuedResponses} response(s); ${queuedBytes} logical queued response bytes retained.`,
             `${this.dhPacketBytesSent} DH packet bytes sent; ${this.refreshes.size} background cache refresh(es).`,
-            `Last DH tick-end handler: ${this.lastHandlerMs} ms; Pumpkin MSPT excludes this handler on the pinned server.`,
+            `Last DH tick-end handler: ${this.lastHandlerMs.toFixed(2)} ms; Pumpkin MSPT excludes this handler on the pinned server.`,
         ];
         if (progress) lines.push(progress.trim());
         if (forced) lines.push(forced);
