@@ -4,6 +4,7 @@ import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { WASI_VERSION } from '@pumpkin-plugins/wasi-capabilities';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BuildError } from './errors.ts';
 import { ensureWasiWit, readLock, type WasiWitLock } from './wasi-wit.ts';
@@ -69,7 +70,7 @@ vi.mock('node:fs', async (importOriginal) => {
 const sha = (text: string) => createHash('sha256').update(text).digest('hex');
 const FILES = { 'io/poll.wit': 'package wasi:io;', 'clocks/world.wit': 'package wasi:clocks;' };
 const lock: WasiWitLock = {
-    version: '9.9.9',
+    version: WASI_VERSION,
     files: Object.fromEntries(Object.entries(FILES).map(([k, v]) => [k, sha(v)])),
 };
 
@@ -130,6 +131,15 @@ describe('ensureWasiWit', () => {
         }
     });
 
+    it('rejects a lock whose WASI version differs from the one plugins import', async () => {
+        const download = server();
+
+        await expect(
+            ensureWasiWit({ cacheDir: tmp(), lock: { ...lock, version: '0.0.1' }, fetchFile: download.fetchFile }),
+        ).rejects.toThrow(/0\.0\.1.*wasi-wit\.lock\.json.*wasi-capabilities/);
+        expect(download.urls).toEqual([]);
+    });
+
     it('rejects a cache-escaping WIT file key before writing generated content', async () => {
         const cache = tmp();
         const escapedFile = path.join(os.tmpdir(), `${path.basename(cache)}-file-escape.wit`);
@@ -141,7 +151,7 @@ describe('ensureWasiWit', () => {
                 ensureWasiWit({
                     cacheDir: cache,
                     lock: {
-                        version: '9.9.9',
+                        version: WASI_VERSION,
                         files: { [rel]: sha('package wasi:evil;') },
                         generatedFiles: { [rel]: 'package wasi:evil;' },
                     },
@@ -161,7 +171,7 @@ describe('ensureWasiWit', () => {
     it('rejects Windows path separators in WIT keys on every platform', async () => {
         const cache = tmp();
         const rel = `..\\..\\${path.basename(cache)}-windows-escape.wit`;
-        const escapedFile = path.resolve(cache, 'wasi-wit', '9.9.9', rel);
+        const escapedFile = path.resolve(cache, 'wasi-wit', WASI_VERSION, rel);
         fs.rmSync(escapedFile, { force: true });
 
         try {
@@ -169,7 +179,7 @@ describe('ensureWasiWit', () => {
                 ensureWasiWit({
                     cacheDir: cache,
                     lock: {
-                        version: '9.9.9',
+                        version: WASI_VERSION,
                         files: { [rel]: sha('package wasi:evil;') },
                         generatedFiles: { [rel]: 'package wasi:evil;' },
                     },
@@ -342,12 +352,12 @@ describe('ensureWasiWit', () => {
         const { urls, fetchFile } = server();
         const dir = await ensureWasiWit({ cacheDir: cache, lock, fetchFile });
 
-        expect(dir).toBe(path.join(cache, 'wasi-wit', '9.9.9'));
+        expect(dir).toBe(path.join(cache, 'wasi-wit', WASI_VERSION));
         expect(fs.readFileSync(path.join(dir, 'io/poll.wit'), 'utf8')).toBe(FILES['io/poll.wit']);
         expect(fs.readFileSync(path.join(dir, 'clocks/world.wit'), 'utf8')).toBe(FILES['clocks/world.wit']);
         expect(urls.sort()).toEqual([
-            'https://raw.githubusercontent.com/WebAssembly/WASI/v9.9.9/wasip2/clocks/world.wit',
-            'https://raw.githubusercontent.com/WebAssembly/WASI/v9.9.9/wasip2/io/poll.wit',
+            `https://raw.githubusercontent.com/WebAssembly/WASI/v${WASI_VERSION}/wasip2/clocks/world.wit`,
+            `https://raw.githubusercontent.com/WebAssembly/WASI/v${WASI_VERSION}/wasip2/io/poll.wit`,
         ]);
     });
 
@@ -355,7 +365,7 @@ describe('ensureWasiWit', () => {
         const cache = tmp();
         const packageWit = 'package wasi:http@0.2.3;\n';
         const generatedLock = {
-            version: '9.9.9',
+            version: WASI_VERSION,
             files: { 'http/package.wit': sha(packageWit) },
             generatedFiles: { 'http/package.wit': packageWit },
         } satisfies WasiWitLock;
@@ -469,7 +479,9 @@ describe('ensureWasiWit', () => {
 
         await ensureWasiWit({ cacheDir: cache, lock, fetchFile: download.fetchFile });
 
-        expect(download.urls).toEqual(['https://raw.githubusercontent.com/WebAssembly/WASI/v9.9.9/wasip2/io/poll.wit']);
+        expect(download.urls).toEqual([
+            `https://raw.githubusercontent.com/WebAssembly/WASI/v${WASI_VERSION}/wasip2/io/poll.wit`,
+        ]);
         expect(fs.readFileSync(damagedFile, 'utf8')).toBe(FILES['io/poll.wit']);
         expect(fs.readFileSync(validSibling, 'utf8')).toBe(FILES['clocks/world.wit']);
     });
@@ -489,7 +501,9 @@ describe('ensureWasiWit', () => {
         await ensureWasiWit({ cacheDir: cache, lock, fetchFile: download.fetchFile });
         filesystemState.failReadPath = undefined;
 
-        expect(download.urls).toEqual(['https://raw.githubusercontent.com/WebAssembly/WASI/v9.9.9/wasip2/io/poll.wit']);
+        expect(download.urls).toEqual([
+            `https://raw.githubusercontent.com/WebAssembly/WASI/v${WASI_VERSION}/wasip2/io/poll.wit`,
+        ]);
         expect(fs.readFileSync(damagedFile, 'utf8')).toBe(FILES['io/poll.wit']);
         expect(fs.readFileSync(validSibling, 'utf8')).toBe(FILES['clocks/world.wit']);
     });
@@ -530,7 +544,7 @@ describe('ensureWasiWit', () => {
         await expect(
             ensureWasiWit({ cacheDir: cache, lock, fetchFile: server({ 'io/poll.wit': 'evil' }).fetchFile }),
         ).rejects.toThrow(/io\/poll\.wit .* has hash .*, expected /);
-        expect(fs.existsSync(path.join(cache, 'wasi-wit', '9.9.9', 'io/poll.wit'))).toBe(false);
+        expect(fs.existsSync(path.join(cache, 'wasi-wit', WASI_VERSION, 'io/poll.wit'))).toBe(false);
     });
 
     it('says what to do when there is no network on the first build', async () => {

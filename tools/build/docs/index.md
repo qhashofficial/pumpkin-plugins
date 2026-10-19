@@ -57,6 +57,11 @@ The builder and migration codemod use the shared, dependency-free
 WIT interfaces, and the pinned WASI version. These capabilities describe the services a plugin needs;
 they do not infer its Pumpkin permissions.
 
+That package's `WASI_VERSION` is the only owner of the WASI version. The builder's
+`wasi-wit.lock.json` pins the WIT files for that release, and the builder stops with an error that
+names both files if the lock's `version` differs. To move to a new WASI release, change
+`WASI_VERSION` and refresh the lock in the same change.
+
 ## Build constraints
 
 Static Hermes uses the pinned Pumpkin API WIT and WASI 2. Keep the workspace's Pumpkin API version
