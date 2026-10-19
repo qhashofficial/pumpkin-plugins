@@ -52,7 +52,7 @@ Pumpkin asks you to approve these on the server console when it loads the plugin
 
 | Command | Description | Permission | Default access |
 | --- | --- | --- | --- |
-| `/baddon list` | List detected packs and their effective settings | `BedrockAddonManager:command.baddon.list` | everyone |
+| `/baddon list` | List detected packs and their effective settings | `BedrockAddonManager:command.baddon.list` | operators (level 3) |
 | `/baddon reload` | Reload `config.toml` and rescan the packs folder | `BedrockAddonManager:command.baddon.reload` | operators (level 3) |
 <!-- docs:end commands -->
 
