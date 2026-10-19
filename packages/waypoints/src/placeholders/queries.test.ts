@@ -369,8 +369,8 @@ describe('waypoint placeholder queries', () => {
     });
 
     it('rejects partial selection when geometry becomes nonfinite', () => {
-        const extreme = waypoint(ids.one, 'Extreme', { x: 0, y: 1e308, z: 0 });
-        const farViewer = context({ position: { x: 0, y: -1e308, z: 0 } });
+        const extreme = waypoint(ids.one, 'Extreme', { x: 0, y: 20_000_000, z: 0 });
+        const farViewer = context({ position: { x: -Number.MAX_VALUE, y: -Number.MAX_VALUE, z: 0 } });
 
         expect(() => closestWaypoint([extreme], farViewer)).toThrow(RangeError);
         expect(() => formatWaypointField(extreme, 'distance', farViewer)).toThrow(RangeError);
