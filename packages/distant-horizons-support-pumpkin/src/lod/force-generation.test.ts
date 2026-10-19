@@ -10,6 +10,9 @@ function fixture(height = 1) {
     const cache = new LodCache(files, 128, 4096);
     const reports: string[] = [];
     let samples = 0;
+    // The forced-work budget adapts to how long samples take. A fake clock where each sample costs
+    // 1 µs keeps that cost the same on a fast or a loaded machine.
+    let clock = 0;
     const peer: ForcedLodPeer = {
         name: 'Alice',
         level: 'world',
@@ -20,6 +23,7 @@ function fixture(height = 1) {
             terrainGenerator: unavailableTerrainGenerator,
             sample: () => {
                 samples++;
+                clock += 0.001;
                 return { material: 'minecraft:plains_DH-BSW_minecraft:stone', skyLight: 15, blockLight: 0 };
             },
         },
@@ -34,7 +38,12 @@ function fixture(height = 1) {
             return true;
         },
     };
-    const generation = new ForcedLodGeneration(cache, logger, () => 1234);
+    const generation = new ForcedLodGeneration(
+        cache,
+        logger,
+        () => 1234,
+        () => clock,
+    );
     return { files, cache, generation, logger, peer, peers, reports, samples: () => samples };
 }
 
