@@ -96,7 +96,9 @@ jobs:
               uses: actions/checkout@v7.0.1
               with:
                   # Diffing against the base needs the history behind it, not just the one commit.
+                  # Commits and trees are enough; the few blobs read at the base are fetched on demand.
                   fetch-depth: 0
+                  filter: blob:none
 
             - name: 📥 Fetch comparison base
               id: fetch-comparison-base
@@ -452,8 +454,6 @@ jobs:
             - name: 🕶️ Checkout repository
               id: checkout-repository
               uses: actions/checkout@v7.0.1
-              with:
-                  fetch-depth: 0
 
             - name: 🚀 Bootstrap
               id: bootstrap
