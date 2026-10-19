@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { resolvePumpkinBinary } from './binary.ts';
 import { PUMPKIN_RELEASE } from './pumpkin-version.ts';
-import { assetName } from './util.ts';
+import { assetName, isMuslLinux } from './util.ts';
 
 const cacheDirs: string[] = [];
 
@@ -26,7 +26,7 @@ function setupCache(): string {
 describe('resolvePumpkinBinary', () => {
     it('verifies a downloaded binary against the checksum before reusing the cache', async () => {
         const cache = setupCache();
-        const asset = assetName(process.platform, process.arch);
+        const asset = assetName(process.platform, process.arch, isMuslLinux());
         const bytes = Buffer.from('test Pumpkin binary');
         const checksum = createHash('sha256').update(bytes).digest('hex');
         const fetchMock = vi.fn<typeof fetch>(async (input) => {
@@ -48,7 +48,7 @@ describe('resolvePumpkinBinary', () => {
 
     it('rejects a cached binary that does not match the pinned release checksum', async () => {
         const cache = setupCache();
-        const asset = assetName(process.platform, process.arch);
+        const asset = assetName(process.platform, process.arch, isMuslLinux());
         const trustedBytes = Buffer.from('trusted Pumpkin binary');
         const corruptedBytes = Buffer.from('corrupted cached Pumpkin binary');
         const checksum = createHash('sha256').update(trustedBytes).digest('hex');
@@ -65,7 +65,7 @@ describe('resolvePumpkinBinary', () => {
 
     it('rejects a binary with the wrong checksum without caching it', async () => {
         const cache = setupCache();
-        const asset = assetName(process.platform, process.arch);
+        const asset = assetName(process.platform, process.arch, isMuslLinux());
         const expectedBytes = Buffer.from('trusted Pumpkin binary');
         const actualBytes = Buffer.from('corrupted Pumpkin binary');
         const checksum = createHash('sha256').update(expectedBytes).digest('hex');
@@ -92,7 +92,7 @@ describe('resolvePumpkinBinary', () => {
 
     it('does not download an asset missing from the checksum list', async () => {
         const cache = setupCache();
-        const asset = assetName(process.platform, process.arch);
+        const asset = assetName(process.platform, process.arch, isMuslLinux());
         const fetchMock = vi.fn<typeof fetch>(async () => new Response(`${'f'.repeat(64)}  other-platform\n`));
         vi.stubGlobal('fetch', fetchMock);
 
@@ -108,7 +108,7 @@ describe('resolvePumpkinBinary', () => {
         'reports an HTTP error for the %s download',
         async (failedDownload) => {
             const cache = setupCache();
-            const asset = assetName(process.platform, process.arch);
+            const asset = assetName(process.platform, process.arch, isMuslLinux());
             const bytes = Buffer.from('test Pumpkin binary');
             const checksum = createHash('sha256').update(bytes).digest('hex');
             const fetchMock = vi.fn<typeof fetch>(async (input) => {
