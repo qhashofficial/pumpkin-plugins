@@ -10,7 +10,7 @@ import { executeCli, main, resolveApiWit, run } from './cli.ts';
 import { BuildError } from './errors.ts';
 import { cacheDir } from './repo.ts';
 import { generateTypes } from './types.ts';
-import { withWasiWitFileLock } from './wasi-wit-lock.ts';
+import { withFileLock } from './wasi-wit-lock.ts';
 
 vi.mock('./bundle.ts', () => ({ bundlePlugin: vi.fn() }));
 vi.mock('./types.ts', () => ({ generateTypes: vi.fn() }));
@@ -831,7 +831,7 @@ describe('run arguments', () => {
             const publicationGate = new Promise<void>((resolve) => {
                 releasePublication = resolve;
             });
-            activePublisher = withWasiWitFileLock(publicationLock, async () => {
+            activePublisher = withFileLock(publicationLock, async () => {
                 signalPublication();
                 await publicationGate;
             });

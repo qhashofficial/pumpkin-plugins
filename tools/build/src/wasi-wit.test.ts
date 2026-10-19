@@ -8,12 +8,10 @@ import { WASI_VERSION } from '@pumpkin-plugins/wasi-capabilities';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BuildError } from './errors.ts';
 import { ensureWasiWit, readLock, type WasiWitLock } from './wasi-wit.ts';
-import { withWasiWitFileLock } from './wasi-wit-lock.ts';
 
 const filesystemState = vi.hoisted(() => ({
     rejectRenameOverExistingFile: false,
-    onRemoveLock: undefined as ((filename: string) => void) | undefined,
-    failLockWrite: undefined as { lockPath: string; replacement?: string } | undefined,
+    onRemove: undefined as ((filename: string) => void) | undefined,
     failReadPath: undefined as string | undefined,
 }));
 vi.mock('node:fs', async (importOriginal) => {
@@ -31,29 +29,6 @@ vi.mock('node:fs', async (importOriginal) => {
             }
             return actual.readFileSync(...args);
         },
-        writeFileSync: (...args: Parameters<typeof actual.writeFileSync>) => {
-            const failure = filesystemState.failLockWrite;
-            if (failure !== undefined) {
-                filesystemState.failLockWrite = undefined;
-                const [file] = args;
-                if (typeof file === 'number') {
-                    actual.writeFileSync(file, '{"pid":');
-                    if (failure.replacement !== undefined) {
-                        actual.closeSync(file);
-                        actual.rmSync(failure.lockPath, { force: true });
-                        actual.writeFileSync(failure.lockPath, failure.replacement, { flag: 'wx' });
-                    }
-                } else {
-                    actual.writeFileSync(file, '{"pid":', { flag: 'wx' });
-                    if (failure.replacement !== undefined) {
-                        actual.rmSync(failure.lockPath, { force: true });
-                        actual.writeFileSync(failure.lockPath, failure.replacement, { flag: 'wx' });
-                    }
-                }
-                throw new Error('injected lock write failure');
-            }
-            return actual.writeFileSync(...args);
-        },
         renameSync: (...args: Parameters<typeof actual.renameSync>) => {
             if (filesystemState.rejectRenameOverExistingFile && actual.existsSync(args[1])) {
                 throw Object.assign(new Error('destination already exists'), { code: 'EEXIST' });
@@ -61,7 +36,7 @@ vi.mock('node:fs', async (importOriginal) => {
             return actual.renameSync(...args);
         },
         rmSync: (...args: Parameters<typeof actual.rmSync>) => {
-            filesystemState.onRemoveLock?.(String(args[0]));
+            filesystemState.onRemove?.(String(args[0]));
             return actual.rmSync(...args);
         },
     };
@@ -82,8 +57,7 @@ const tmp = () => {
 };
 afterEach(() => {
     filesystemState.rejectRenameOverExistingFile = false;
-    filesystemState.onRemoveLock = undefined;
-    filesystemState.failLockWrite = undefined;
+    filesystemState.onRemove = undefined;
     filesystemState.failReadPath = undefined;
     vi.restoreAllMocks();
     for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
@@ -233,120 +207,6 @@ describe('ensureWasiWit', () => {
         expect(fs.existsSync(path.join(cache, 'wasi-wit'))).toBe(false);
     });
 
-    it('removes a partially written lock after the lock write fails', async () => {
-        const lockPath = path.join(tmp(), 'cache.lock');
-        filesystemState.failLockWrite = { lockPath };
-
-        await expect(withWasiWitFileLock(lockPath, () => undefined)).rejects.toThrow('injected lock write failure');
-
-        expect(fs.existsSync(lockPath)).toBe(false);
-    });
-
-    it('keeps a replacement lock when the original lock write fails', async () => {
-        const lockPath = path.join(tmp(), 'cache.lock');
-        const replacement = JSON.stringify({ pid: 123, token: 'replacement' });
-        filesystemState.failLockWrite = { lockPath, replacement };
-
-        await expect(withWasiWitFileLock(lockPath, () => undefined)).rejects.toThrow('injected lock write failure');
-
-        expect(fs.readFileSync(lockPath, 'utf8')).toBe(replacement);
-    });
-
-    it('recovers a stale WIT cache lock when its recovery owner has exited', async () => {
-        const lockPath = path.join(tmp(), 'cache.lock');
-        const reclaimLockPath = `${lockPath}.reclaim`;
-        const staleOwner = JSON.stringify({ pid: 99999999, token: 'stale' });
-        fs.writeFileSync(lockPath, staleOwner);
-        fs.writeFileSync(reclaimLockPath, JSON.stringify({ pid: 99999998, token: 'abandoned-recovery' }));
-        vi.spyOn(Date, 'now').mockReturnValueOnce(1_000).mockReturnValueOnce(1_001).mockReturnValue(1_000_000);
-
-        await expect(withWasiWitFileLock(lockPath, () => 'recovered')).resolves.toBe('recovered');
-
-        expect(fs.existsSync(lockPath)).toBe(false);
-        expect(fs.existsSync(reclaimLockPath)).toBe(false);
-    });
-
-    it('keeps a live WIT recovery owner while waiting for a stale cache lock', async () => {
-        const lockPath = path.join(tmp(), 'cache.lock');
-        const reclaimLockPath = `${lockPath}.reclaim`;
-        const staleOwner = JSON.stringify({ pid: 99999999, token: 'stale' });
-        const liveRecoveryOwner = JSON.stringify({ pid: process.pid, token: 'live-recovery' });
-        fs.writeFileSync(lockPath, staleOwner);
-        fs.writeFileSync(reclaimLockPath, liveRecoveryOwner);
-        const now = vi.spyOn(Date, 'now');
-        now.mockReturnValueOnce(1_000).mockReturnValueOnce(1_001).mockReturnValue(1_000_000);
-
-        await expect(withWasiWitFileLock(lockPath, () => undefined)).rejects.toThrow(
-            `inspect recovery claim ${reclaimLockPath}`,
-        );
-
-        expect(fs.readFileSync(lockPath, 'utf8')).toBe(staleOwner);
-        expect(fs.readFileSync(reclaimLockPath, 'utf8')).toBe(liveRecoveryOwner);
-    });
-
-    it('does not let a stale-lock waiter delete the replacement lock', async () => {
-        const cache = tmp();
-        const lockPath = path.join(cache, 'cache.lock');
-        fs.writeFileSync(lockPath, JSON.stringify({ pid: 99999999, token: 'stale' }));
-        const operations: string[] = [];
-        let signalFirstEntered = (): void => undefined;
-        let releaseFirst = (): void => undefined;
-        let signalSecondEntered = (): void => undefined;
-        let releaseSecond = (): void => undefined;
-        const firstEntered = new Promise<void>((resolve) => {
-            signalFirstEntered = resolve;
-        });
-        const secondEntered = new Promise<void>((resolve) => {
-            signalSecondEntered = resolve;
-        });
-        const firstGate = new Promise<void>((resolve) => {
-            releaseFirst = resolve;
-        });
-        const secondGate = new Promise<void>((resolve) => {
-            releaseSecond = resolve;
-        });
-        let second: Promise<void> | undefined;
-        let injectedSecondWaiter = false;
-        filesystemState.onRemoveLock = (filename) => {
-            if (!injectedSecondWaiter && path.resolve(filename) === lockPath) {
-                injectedSecondWaiter = true;
-                second = withWasiWitFileLock(lockPath, async () => {
-                    operations.push('second:start');
-                    signalSecondEntered();
-                    await secondGate;
-                    operations.push('second:end');
-                });
-            }
-        };
-
-        const first = withWasiWitFileLock(lockPath, async () => {
-            operations.push('first:start');
-            signalFirstEntered();
-            await firstGate;
-            operations.push('first:end');
-        });
-
-        try {
-            await firstEntered;
-            await new Promise<void>((resolve) => setImmediate(resolve));
-            expect(operations).toEqual(['first:start']);
-
-            releaseFirst();
-            await secondEntered;
-            expect(operations).toEqual(['first:start', 'first:end', 'second:start']);
-            releaseSecond();
-            await Promise.all([first, second]);
-
-            expect(operations).toEqual(['first:start', 'first:end', 'second:start', 'second:end']);
-            expect(fs.existsSync(lockPath)).toBe(false);
-            expect(fs.existsSync(`${lockPath}.reclaim`)).toBe(false);
-        } finally {
-            releaseFirst();
-            releaseSecond();
-            await Promise.allSettled([first, ...(second ? [second] : [])]);
-        }
-    });
-
     it('downloads every pinned file from the tagged release into a versioned cache folder', async () => {
         const cache = tmp();
         const { urls, fetchFile } = server();
@@ -472,7 +332,7 @@ describe('ensureWasiWit', () => {
         const damagedFile = path.join(dir, 'io/poll.wit');
         fs.writeFileSync(damagedFile, 'tampered');
         const removedCacheEntries: string[] = [];
-        filesystemState.onRemoveLock = (filename) => {
+        filesystemState.onRemove = (filename) => {
             if (path.resolve(filename).startsWith(dir)) removedCacheEntries.push(filename);
         };
 
