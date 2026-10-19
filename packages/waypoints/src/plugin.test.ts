@@ -29,7 +29,6 @@ const state = vi.hoisted(() => ({
     routedMessage: undefined as Uint8Array | undefined,
 }));
 
-vi.mock('pumpkin:plugin/logging@0.1.0', () => ({ log: vi.fn() }));
 vi.mock('pumpkin:plugin/item-stack@0.1.0', () => ({ ItemStack: class {} }));
 vi.mock('pumpkin:plugin/text@0.1.0', () => ({
     TextComponent: class {
@@ -97,6 +96,7 @@ vi.mock('@pumpkin-plugins/plugin-kit/plugin', () => ({
 }));
 vi.mock('@pumpkin-plugins/plugin-kit/data-dir', () => ({ WasiDataDir: { open: () => state.files } }));
 vi.mock('@pumpkin-plugins/plugin-kit/host', () => ({
+    hostLogger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     scheduleRepeating: (_period: number, run: (server: Server) => void) => {
         const id = ++state.nextTask;
         state.tasks.set(id, run);
