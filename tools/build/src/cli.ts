@@ -97,14 +97,14 @@ export async function run(args: string[], pluginDir: string): Promise<void> {
             else fs.rmSync(witSnapshot, { recursive: true, force: true });
         });
 
-        const engine = config.engine ?? 'static-hermes';
+        const { engine } = config;
         const staticHermesRuntime =
-            engine === 'static-hermes'
+            config.engine === 'static-hermes'
                 ? process.env.STATIC_HERMES_ENABLE_LEAN_ARCHIVE === '0'
                     ? 'full'
                     : (config.staticHermesRuntime ?? 'lean')
                 : undefined;
-        const staticHermesGc = engine === 'static-hermes' ? (config.staticHermesGc ?? 'hades') : undefined;
+        const staticHermesGc = config.engine === 'static-hermes' ? config.staticHermesGc : undefined;
         printBuildOutput({
             type: 'bundle',
             entry,

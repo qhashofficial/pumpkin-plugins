@@ -77,7 +77,7 @@ function runtimeLabel(
     parseTypeScript: boolean,
 ): string {
     if (engine === 'quickjs') return 'QuickJS';
-    const options = [runtimeVariant, gcVariant ?? 'hades', ...(parseTypeScript ? ['-parse-ts'] : [])].filter(
+    const options = [runtimeVariant, gcVariant, ...(parseTypeScript ? ['TS parser'] : [])].filter(
         (option): option is string => option !== undefined,
     );
     return `Static Hermes${options.length === 0 ? '' : ` (${options.join(', ')})`}`;
