@@ -208,7 +208,7 @@ for (const file of docs) {
 // 5. Every root script is documented, so a new one can't go unmentioned.
 const documented = docs.map((f) => code(read(f))).join('\n');
 for (const script of rootScripts) {
-    if (!new RegExp(`pnpm (run )?${script.replace(/[:]/g, '\\:')}\\b`).test(documented)) {
+    if (!new RegExp(`pnpm (run )?${RegExp.escape(script)}(?![\\w:-])`).test(documented)) {
         problems.push(`package.json has the script "${script}", which no doc mentions as \`pnpm ${script}\``);
     }
 }
