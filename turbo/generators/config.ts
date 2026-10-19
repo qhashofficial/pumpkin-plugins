@@ -12,7 +12,6 @@ const ACTION_FILES = ['README.md', 'CHANGELOG.md', 'version.txt', 'action.yml', 
 const EXTENSION_FILES = [
     'README.md',
     'CHANGELOG.md',
-    'LICENSE',
     'package.json',
     'tsconfig.json',
     '.vscodeignore',
@@ -53,6 +52,17 @@ function run(root: string, command: string, args: string[], done: string) {
     return done;
 }
 
+// Owner fields that package-metadata.mjs doesn't derive are copied from the root package.json.
+function readRootPackage(root: string): Record<string, unknown> {
+    return JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+}
+
+// Fills in homepage, bugs, repository and license from the root package.json.
+function fillPackageMetadata(root: string) {
+    return () =>
+        run(root, process.execPath, ['scripts/package-metadata.mjs', '--fix'], 'Filled in the package metadata');
+}
+
 // vsce refuses to package an extension whose engines.vscode is older than @types/vscode.
 function catalogVersion(root: string, dependency: string): string {
     const workspace = parse(fs.readFileSync(path.join(root, 'pnpm-workspace.yaml'), 'utf8'));
@@ -73,7 +83,7 @@ function sortReleaseEntries(entries: [string, unknown][]): [string, unknown][] {
 
 /** Defines Turbo generators for plugins, actions, and extensions. */
 export default function generator(plop: PlopTypes.NodePlopAPI): void {
-    plop.setHelper('json', (value: string) => JSON.stringify(value));
+    plop.setHelper('json', (value: unknown) => JSON.stringify(value));
     plop.setHelper('helloWorld', (displayName: string) => JSON.stringify(`Hello World from ${displayName}`));
 
     plop.setGenerator('plugin', {
@@ -112,11 +122,13 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
             const { turbo } = data as Answers;
             const root = turbo.paths.root;
             const name = (data as Answers).name;
+            const rootPackage = readRootPackage(root);
             return [
                 ...FILES.map((file) => ({
                     type: 'add',
                     path: `{{ turbo.paths.root }}/packages/{{ name }}/${file}`,
                     templateFile: `templates/plugin/${file}.hbs`,
+                    data: { rootPackage },
                 })),
                 registerRelease('release-please-config.json', (json, name) => {
                     const packages = json.packages as Record<string, unknown>;
@@ -129,6 +141,7 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
                     for (const key of Object.keys(json)) delete json[key];
                     Object.assign(json, Object.fromEntries(sorted));
                 }),
+                fillPackageMetadata(root),
                 () => run(root, 'pnpm', ['install', '--no-frozen-lockfile'], 'Installed dependencies'),
                 () =>
                     run(
@@ -205,11 +218,15 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
             const answers = data as Answers;
             const root = answers.turbo.paths.root;
             const name = answers.name;
+            // package.json allows "Name <email> (url)" or an object; action.yml wants only the name.
+            const author = readRootPackage(root).author as string | { name: string };
+            const authorName = (typeof author === 'string' ? author : author.name).replace(/\s*[<(].*$/, '');
             return [
                 ...ACTION_FILES.map((file) => ({
                     type: 'add',
                     path: `{{ turbo.paths.root }}/actions/{{ name }}/${file}`,
                     templateFile: `templates/action/${file}.hbs`,
+                    data: { authorName },
                 })),
                 registerRelease('release-please-config.json', (json, name) => {
                     const packages = json.packages as Record<string, unknown>;
@@ -303,13 +320,20 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
             const root = answers.turbo.paths.root;
             const name = answers.name;
             const vscodeVersion = catalogVersion(root, '@types/vscode');
+            const rootPackage = readRootPackage(root);
             return [
                 ...EXTENSION_FILES.map((file) => ({
                     type: 'add',
                     path: `{{ turbo.paths.root }}/extensions/{{ name }}/${file}`,
                     templateFile: `templates/extension/${file}.hbs`,
-                    data: { vscodeVersion },
+                    data: { rootPackage, vscodeVersion },
                 })),
+                // vsce wants a license file in the extension; it carries the repository's license.
+                {
+                    type: 'add',
+                    path: '{{ turbo.paths.root }}/extensions/{{ name }}/LICENSE',
+                    templateFile: path.join(root, 'LICENSE'),
+                },
                 registerRelease('release-please-config.json', (json, name) => {
                     const packages = json.packages as Record<string, unknown>;
                     packages[`extensions/${name}`] = { component: name, 'release-as': '0.0.1' };
@@ -321,6 +345,7 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
                     for (const key of Object.keys(json)) delete json[key];
                     Object.assign(json, Object.fromEntries(sorted));
                 }),
+                fillPackageMetadata(root),
                 () => run(root, 'pnpm', ['install', '--no-frozen-lockfile'], 'Installed dependencies'),
                 () => run(root, 'pnpm', ['exec', 'pumpkin-plugins-docs', 'root'], 'Updated root README and references'),
                 () =>
