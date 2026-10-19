@@ -40,13 +40,11 @@ interface WitApiFunctionOptions {
     apiObjectName?: string;
     functionName?: string;
     propertyName?: string;
-    resourceDrops?: Map<string, [string, string]>;
 }
 
 interface WitResourceMethodOptions {
     includePackageName?: boolean;
     preserveArgumentCheckLine?: boolean;
-    resourceDrops?: Map<string, [string, string]>;
 }
 
 /** Annotate selected adapter types with the standalone cleanup functions declared by wit-bindgen. */
@@ -171,11 +169,7 @@ function wasiOperationCFunctionName(
 export function generateWitResourceMethodForResolvedPlan(
     apiPackage: WitApiPackage,
     plan: WitApiAdapterPlan | WitWasiAdapterPlan,
-    {
-        includePackageName = true,
-        preserveArgumentCheckLine = false,
-        resourceDrops = new Map<string, [string, string]>(),
-    }: WitResourceMethodOptions = {},
+    { includePackageName = true, preserveArgumentCheckLine = false }: WitResourceMethodOptions = {},
 ): string | undefined {
     const { apiInterface, operation, parameters, resultType, resource } = plan;
     if (!resource || plan.kind !== 'resource-method') {
@@ -194,7 +188,7 @@ export function generateWitResourceMethodForResolvedPlan(
         beforeCall.push(...(input.beforeCall ?? []));
         callArguments.push(input.argument);
     }
-    const result = generateWitResult(apiPackage, apiInterface, resultType, functionName, callArguments, resourceDrops);
+    const result = generateWitResult(apiPackage, apiInterface, resultType, functionName, callArguments);
     if (!result) return undefined;
 
     const methodName = jsName(operation.name);
@@ -226,7 +220,6 @@ function generateWitApiFunction(
         functionName,
         apiObjectName = `generated${pascalCase(apiInterface.name)}Api`,
         propertyName = jsName(operation.name),
-        resourceDrops = new Map(),
     }: WitApiFunctionOptions = {},
 ): string | undefined {
     const nativeFunctionName = functionName ?? wasiOperationCFunctionName(apiPackage, apiInterface, operation);
@@ -241,14 +234,7 @@ function generateWitApiFunction(
         callArguments.push(input.argument);
     }
 
-    const result = generateWitResult(
-        apiPackage,
-        apiInterface,
-        resultType,
-        nativeFunctionName,
-        callArguments,
-        resourceDrops,
-    );
+    const result = generateWitResult(apiPackage, apiInterface, resultType, nativeFunctionName, callArguments);
     if (!result) return undefined;
     const argumentCheck =
         parameters.length === 0
@@ -687,7 +673,6 @@ function generateWitResult(
     type: ResolvedWitType,
     functionName: string,
     argumentsList: string[],
-    resourceDrops: Map<string, [string, string]>,
 ): GeneratedWitResult | undefined {
     if (type.kind === 'unsupported') return undefined;
     const callArguments = [...argumentsList];
@@ -695,9 +680,6 @@ function generateWitResult(
     if (type.kind === 'result') {
         const output = type.ok;
         const error = type.error;
-        if (output.kind === 'resource') {
-            resourceDrops.set(`${output.interfaceName}.${output.name}`, [output.interfaceName, output.name]);
-        }
         const value =
             output.kind === 'resource'
                 ? undefined
@@ -777,15 +759,7 @@ function generateWitResult(
         };
     }
     if (type.kind === 'resource')
-        return generateWitResourceResult(
-            apiPackage,
-            apiInterface,
-            type,
-            functionName,
-            callArguments,
-            resourceDrops,
-            'resource',
-        );
+        return generateWitResourceResult(apiPackage, apiInterface, type, functionName, callArguments, 'resource');
     if (type.kind === 'option') {
         const value = generateWitResultValue(apiPackage, apiInterface, type.item, 'result', 'resultValue');
         if (!value) return undefined;
@@ -1181,12 +1155,10 @@ function generateWitResourceResult(
     type: Extract<ResolvedWitType, { kind: 'resource' }>,
     functionName: string,
     argumentsList: string[],
-    resourceDrops: Map<string, [string, string]>,
     resultKind: 'resource' | 'option' | 'list',
 ): GeneratedWitResult {
     const ownerInterface = type.interfaceName;
     const resource = type.name;
-    resourceDrops.set(`${ownerInterface}.${resource}`, [ownerInterface, resource]);
     const ownType = witCType(apiPackage, apiInterface, type);
     /** Generate the native wrapper return statement for one owned resource. */
     const ownerPackage = apiPackage.packageName.startsWith('wasi:') ? (type.packageName ?? apiPackage.packageName) : '';

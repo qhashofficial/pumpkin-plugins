@@ -219,7 +219,16 @@ it('generates facades and native adapters for the full pinned Pumpkin and WASI W
         }),
     };
     const typedPumpkinDispatch = emitPumpkinMethodDispatch(unresolvedApiTypes, typedAnalysis);
-    expect(typedPumpkinDispatch).toBe(pumpkinDispatch);
+    // The frozen oracle drops only resources that an operation returns directly. Every declared
+    // resource now has a drop branch, so compare the rest with the oracle.
+    expect(withoutWitDrops(typedPumpkinDispatch)).toBe(withoutWitDrops(pumpkinDispatch));
+    for (const apiInterface of typedApi.interfaces) {
+        for (const resource of apiInterface.resources) {
+            expect(typedPumpkinDispatch).toContain(
+                `interfaceName == ${JSON.stringify(apiInterface.name)} && resourceName == ${JSON.stringify(resource.name)}) {`,
+            );
+        }
+    }
 
     expect(typedApi.interfaces.map((apiInterface) => generateEsmFacade(apiInterface, typedApi.interfaces))).toEqual(
         apiPackage.interfaces.map((apiInterface) => generateEsmFacade(apiInterface, apiPackage.interfaces)),
@@ -284,11 +293,19 @@ it('generates facades and native adapters for the full pinned Pumpkin and WASI W
         emitWasiAdapterDispatch(wasiPackage.interfaces, typedAnalysis, generatedFreeFunctions),
     );
     expect(typedOutput.runtimeSource).toContain('installGeneratedWasiApiFunctions(*jsRuntime);');
-    expect(typedOutput.runtimeSource).toContain(generateWitSimpleMethodDispatch(apiPackage, eventSource, apiMethods));
+    expect(typedOutput.runtimeSource).toContain(
+        withoutWitDrops(generateWitSimpleMethodDispatch(apiPackage, eventSource, apiMethods)),
+    );
     expect(count(typedOutput.runtimeSource, /case PUMPKIN_PLUGIN_EVENT_EVENT_TYPE_/g)).toBe(eventVariant.cases.length);
     expect(count(typedOutput.runtimeSource, /data\.setProperty\(runtime,/g)).toBeGreaterThanOrEqual(eventFieldCount);
     expect(typedOutput.runtimeSource).not.toContain('<PUMPKIN_WIT_EVENT_');
 }, 30_000);
+
+function withoutWitDrops(dispatch) {
+    const end = dispatch.indexOf('\n}\n');
+    expect(dispatch.startsWith('void generatedWitDropResource(')).toBe(true);
+    return dispatch.slice(end + 3);
+}
 
 function count(source, expression) {
     return source.match(expression)?.length ?? 0;
