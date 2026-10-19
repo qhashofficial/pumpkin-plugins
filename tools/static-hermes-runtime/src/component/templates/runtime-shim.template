@@ -1249,6 +1249,17 @@ void logPluginError(const std::string &message) {
     plugin_string_free(&text);
 }
 
+void useFallbackMetadata(
+    exports_pumpkin_plugin_metadata_plugin_metadata_t *metadata,
+    const std::string &reason) {
+    exports_pumpkin_plugin_metadata_plugin_metadata_free(metadata);
+    std::memset(metadata, 0, sizeof(*metadata));
+    logPluginError("Static Hermes could not read the plugin metadata: " + reason);
+    plugin_string_dup(&metadata->name, "unknown");
+    plugin_string_dup(&metadata->version, "0.0.0");
+    plugin_string_dup(&metadata->description, "Static Hermes plugin");
+}
+
 void setCommandError(plugin_command_error_t *error,
                      const std::string &message) {
     error->tag = PUMPKIN_PLUGIN_COMMAND_COMMAND_ERROR_INVALID_CONSUMPTION;
@@ -1835,10 +1846,10 @@ void exports_pumpkin_plugin_metadata_get_metadata(
                        object.getProperty(*jsRuntime, "dependencies"));
         copyStringList(&ret->permissions, *jsRuntime,
                        object.getProperty(*jsRuntime, "permissions"));
+    } catch (const std::exception &exception) {
+        useFallbackMetadata(ret, exception.what());
     } catch (...) {
-        plugin_string_dup(&ret->name, "unknown");
-        plugin_string_dup(&ret->version, "0.0.0");
-        plugin_string_dup(&ret->description, "Static Hermes plugin");
+        useFallbackMetadata(ret, "unknown exception");
     }
 }
 
