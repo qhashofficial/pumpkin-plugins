@@ -107,20 +107,26 @@ consumer.
 
 ## Run all plugins on Pumpkin
 
-Run `pnpm dev` to build every plugin and start the latest stable Pumpkin release. To use Pumpkin's
-latest nightly build, run `pnpm dev --nightly` or `pnpm dev:nightly`. Stable release metadata is
-cached in `.cache/pumpkin` for 24 hours; set `PUMPKIN_REFRESH_RELEASE=1` to refresh it for one run.
-Nightly metadata refreshes at every start because the `nightly` tag is reused, and the binary cache
-uses the uploaded asset ID to detect replaced builds. Stable binaries are checked against
-`checksums.sha256`; nightly binaries are checked against their GitHub release asset SHA-256 digest.
+Run `pnpm dev` to build every plugin and start the Pumpkin release pinned in
+[`pumpkin-version.ts`](../tools/test-harness/src/pumpkin-version.ts), the same one the integration
+tests use, so the server matches the plugins' WIT ABI. It's downloaded once into `.cache/pumpkin`
+and checked against the release's `checksums.sha256`.
+
+To try a newer server, run `pnpm dev --latest` for the latest stable release, or run
+`pnpm dev --nightly` (or `pnpm dev:nightly`) for the latest nightly build. Plugins may fail to load
+there if that server's ABI differs from the pin. Latest-release metadata is cached in
+`.cache/pumpkin` for 24 hours; set `PUMPKIN_REFRESH_RELEASE=1` to refresh it for one run. Nightly
+metadata refreshes at every start because the `nightly` tag is reused, and the binary cache uses the
+uploaded asset ID to detect replaced builds. Stable binaries are checked against `checksums.sha256`;
+nightly binaries are checked against their GitHub release asset SHA-256 digest.
 
 Pass `--release` to use release settings for the initial build and hot-reload rebuilds. For example,
 run `pnpm dev -- --release`.
 
 To build once and run without plugin hot reload or build watchers, run `pnpm dev:no-hot-reload`. Add
-`--nightly` or use `pnpm dev:nightly:no-hot-reload` to start the latest nightly build. You can also
-pass `--release`, as in `pnpm dev:no-hot-reload -- --release`. Restart the command after changing a
-plugin.
+`--latest` or `--nightly`, or use `pnpm dev:nightly:no-hot-reload`, to start a newer server. You can
+also pass `--release`, as in `pnpm dev:no-hot-reload -- --release`. Restart the command after
+changing a plugin.
 
 The dev server lives in `.cache/pumpkin-dev`, so its world and settings remain between runs. Each
 command configures Pumpkin's plugin hot reload to match the mode you chose. In hot-reload mode,
@@ -132,7 +138,7 @@ default development builds and included in `--release` builds. Each rebuild chan
 file, so a hot reload denies a plugin's permissions until you restart the server or pre-allow them
 in the dev server's `pumpkin.toml`; see [Runtime caveats](#runtime-caveats).
 
-To use a local server binary instead of downloading the latest release, set `PUMPKIN_BIN`. Set
+To use a local server binary instead of downloading one, set `PUMPKIN_BIN`. Set
 `PUMPKIN_CACHE_DIR` to change the binary cache directory. To reset the dev server's world, config,
 and plugins, stop the server and remove `.cache/pumpkin-dev`.
 
