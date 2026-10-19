@@ -25,6 +25,7 @@ export class PlayerSync {
     private readonly sent = new SyncTracker();
     private readonly lastRegeneration = new Map<string, boolean>();
     private readonly failed = new Set<string>();
+    private ticked = false;
 
     constructor(private readonly log: Logger) {}
 
@@ -58,6 +59,9 @@ export class PlayerSync {
         this.sent.retain(online);
         for (const id of this.lastRegeneration.keys()) if (!online.has(id)) this.lastRegeneration.delete(id);
         for (const id of this.failed) if (id !== 'unknown' && !online.has(id)) this.failed.delete(id);
+        if (this.ticked) return;
+        this.ticked = true;
+        this.log.debug(`${tag} Finished the first tick, syncing hunger on every tick from now on.`);
     }
 
     /**
