@@ -92,6 +92,13 @@ test('plugin generator rejects multiline descriptions and accepts a one-line des
     assert.equal(validate('A valid plugin description'), true);
 });
 
+test('plugin generator accepts a description of exactly 70 characters and rejects a longer one', () => {
+    const validate = getPluginDescriptionValidator();
+
+    assert.equal(validate('x'.repeat(70)), true);
+    assert.match(validate('x'.repeat(71)), /at most 70 characters/);
+});
+
 test('a generated plugin defines the parse-ts build every plugin needs', { skip: skipOnWindows }, () => {
     const root = generate('plugin', ['my-plugin', 'MyPlugin', 'Does a thing']);
     const manifest = readJson(path.join(root, 'packages/my-plugin/package.json'));
@@ -182,4 +189,23 @@ test('a generated action names the root package author', { skip: skipOnWindows }
     const action = fs.readFileSync(path.join(root, 'actions/my-action/action.yml'), 'utf8');
 
     assert.match(action, /^author: "?Example Person"?$/m);
+});
+
+test('each generator registers its component for releases in sorted order', { skip: skipOnWindows }, () => {
+    for (const [generatorName, args, dir, entry] of [
+        ['plugin', ['my-plugin', 'MyPlugin', 'Does a thing'], 'packages/my-plugin', {}],
+        ['action', ['my-action', 'My Action', 'Does a thing'], 'actions/my-action', { 'release-type': 'simple' }],
+        ['extension', ['my-extension', 'My Extension', 'Does a thing'], 'extensions/my-extension', {}],
+    ]) {
+        const root = generate(generatorName, args);
+        const config = readJson(path.join(root, 'release-please-config.json'));
+        const manifest = readJson(path.join(root, '.release-please-manifest.json'));
+        const component = dir.split('/')[1];
+
+        assert.deepEqual(config.packages[dir], { component, ...entry, 'release-as': '0.0.1' });
+        assert.equal(manifest[dir], '0.0.0');
+        for (const keys of [Object.keys(config.packages), Object.keys(manifest)]) {
+            assert.deepEqual(keys, keys.toSorted(), `${generatorName} keeps release entries sorted`);
+        }
+    }
 });

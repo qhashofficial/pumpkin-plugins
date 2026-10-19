@@ -34,17 +34,57 @@ const FILES = [
 
 type Answers = { name: string; displayName: string; description: string; turbo: { paths: { root: string } } };
 
-// Both release-please files list every plugin; CI fails if one is missing.
-function registerRelease(file: string, update: (json: Record<string, unknown>, name: string) => void) {
+type Group = 'packages' | 'actions' | 'extensions';
+
+// Prompts for a new kebab-case folder in `group`. turbo gen runs from the repository root.
+function folderPrompt(group: Group, example: string) {
+    return {
+        type: 'input',
+        name: 'name',
+        message: `Folder name (kebab-case, e.g. ${example}):`,
+        validate: (value: string) => {
+            if (!KEBAB_CASE.test(value)) return 'Use kebab-case: lowercase letters, digits and dashes';
+            if (fs.existsSync(path.join(process.cwd(), group, value))) return `${group}/${value} already exists`;
+            return true;
+        },
+    };
+}
+
+// `my-action` becomes `My Action`.
+function titleCase(name: string): string {
+    return name
+        .split('-')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+}
+
+function modifyJson(file: string, update: (json: Record<string, unknown>, name: string) => Record<string, unknown>) {
     return {
         type: 'modify',
         path: `{{ turbo.paths.root }}/${file}`,
-        transform: (content: string, data: Answers) => {
-            const json = JSON.parse(content);
-            update(json, data.name);
-            return `${JSON.stringify(json, null, 4)}\n`;
-        },
+        transform: (content: string, data: Answers) =>
+            `${JSON.stringify(update(JSON.parse(content), data.name), null, 4)}\n`,
     };
+}
+
+// Registers the component in both Release Please files, pinning its first release to 0.0.1.
+// check-release-config.mjs fails when a component is missing from either file, unless
+// release-please-paused.json lists it.
+function registerComponent(group: Group, entry: Record<string, unknown> = {}) {
+    const sorted = (json: Record<string, unknown>) =>
+        Object.fromEntries(Object.entries(json).sort(([a], [b]) => a.localeCompare(b)));
+    return [
+        modifyJson('release-please-config.json', (config, name) => ({
+            ...config,
+            packages: sorted({
+                ...(config.packages as Record<string, unknown>),
+                [`${group}/${name}`]: { component: name, ...entry, 'release-as': '0.0.1' },
+            }),
+        })),
+        modifyJson('.release-please-manifest.json', (manifest, name) =>
+            sorted({ ...manifest, [`${group}/${name}`]: '0.0.0' }),
+        ),
+    ];
 }
 
 function run(root: string, command: string, args: string[], done: string) {
@@ -69,18 +109,6 @@ function catalogVersion(root: string, dependency: string): string {
     return String(workspace.catalog[dependency]);
 }
 
-function sortReleaseEntries(entries: [string, unknown][]): [string, unknown][] {
-    const group = (name: string) => {
-        if (name.startsWith('actions/')) return 0;
-        if (name.startsWith('extensions/')) return 1;
-        if (name.startsWith('packages/')) return 2;
-        return 3;
-    };
-    return entries.sort(([a], [b]) => {
-        return group(a) - group(b) || a.localeCompare(b);
-    });
-}
-
 /** Defines Turbo generators for plugins, actions, and extensions. */
 export default function generator(plop: PlopTypes.NodePlopAPI): void {
     plop.setHelper('json', (value: unknown) => JSON.stringify(value));
@@ -89,17 +117,7 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
     plop.setGenerator('plugin', {
         description: 'Create a new Pumpkin plugin package in packages/',
         prompts: [
-            {
-                type: 'input',
-                name: 'name',
-                message: 'Folder name (kebab-case, e.g. my-plugin):',
-                validate: (value: string) => {
-                    if (!KEBAB_CASE.test(value)) return 'Use kebab-case: lowercase letters, digits and dashes';
-                    if (fs.existsSync(path.join(process.cwd(), 'packages', value)))
-                        return `packages/${value} already exists`;
-                    return true;
-                },
-            },
+            folderPrompt('packages', 'my-plugin'),
             {
                 type: 'input',
                 name: 'displayName',
@@ -114,7 +132,7 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
                 validate: (value: string) => {
                     if (value.trim().length === 0) return 'A description is required';
                     if (/[\r\n]/.test(value)) return 'Enter a one-line description';
-                    return value.length <= MAX_DESCRIPTION || `Keep it under ${MAX_DESCRIPTION} characters`;
+                    return value.length <= MAX_DESCRIPTION || `Use at most ${MAX_DESCRIPTION} characters`;
                 },
             },
         ],
@@ -130,17 +148,7 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
                     templateFile: `templates/plugin/${file}.hbs`,
                     data: { rootPackage },
                 })),
-                registerRelease('release-please-config.json', (json, name) => {
-                    const packages = json.packages as Record<string, unknown>;
-                    packages[`packages/${name}`] = { component: name, 'release-as': '0.0.1' };
-                    json.packages = Object.fromEntries(Object.entries(packages).sort(([a], [b]) => a.localeCompare(b)));
-                }),
-                registerRelease('.release-please-manifest.json', (json, name) => {
-                    json[`packages/${name}`] = '0.0.0';
-                    const sorted = Object.entries(json).sort(([a], [b]) => a.localeCompare(b));
-                    for (const key of Object.keys(json)) delete json[key];
-                    Object.assign(json, Object.fromEntries(sorted));
-                }),
+                ...registerComponent('packages'),
                 fillPackageMetadata(root),
                 () => run(root, 'pnpm', ['install', '--no-frozen-lockfile'], 'Installed dependencies'),
                 () =>
@@ -179,26 +187,12 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
     plop.setGenerator('action', {
         description: 'Create a new GitHub Action in actions/',
         prompts: [
-            {
-                type: 'input',
-                name: 'name',
-                message: 'Folder name (kebab-case, e.g. my-action):',
-                validate: (value: string) => {
-                    if (!KEBAB_CASE.test(value)) return 'Use kebab-case: lowercase letters, digits and dashes';
-                    if (fs.existsSync(path.join(process.cwd(), 'actions', value)))
-                        return `actions/${value} already exists`;
-                    return true;
-                },
-            },
+            folderPrompt('actions', 'my-action'),
             {
                 type: 'input',
                 name: 'displayName',
                 message: 'Action name shown in GitHub (e.g. My Action):',
-                default: (answers: { name: string }) =>
-                    answers.name
-                        .split('-')
-                        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-                        .join(' '),
+                default: (answers: { name: string }) => titleCase(answers.name),
                 validate: (value: string) => {
                     if (!value.trim()) return 'An action name is required';
                     return !/[\r\n]/.test(value) || 'Enter a one-line action name';
@@ -228,21 +222,7 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
                     templateFile: `templates/action/${file}.hbs`,
                     data: { authorName },
                 })),
-                registerRelease('release-please-config.json', (json, name) => {
-                    const packages = json.packages as Record<string, unknown>;
-                    packages[`actions/${name}`] = {
-                        component: name,
-                        'release-type': 'simple',
-                        'release-as': '0.0.1',
-                    };
-                    json.packages = Object.fromEntries(sortReleaseEntries(Object.entries(packages)));
-                }),
-                registerRelease('.release-please-manifest.json', (json, name) => {
-                    json[`actions/${name}`] = '0.0.0';
-                    const sorted = sortReleaseEntries(Object.entries(json));
-                    for (const key of Object.keys(json)) delete json[key];
-                    Object.assign(json, Object.fromEntries(sorted));
-                }),
+                ...registerComponent('actions', { 'release-type': 'simple' }),
                 () =>
                     run(
                         root,
@@ -279,26 +259,12 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
     plop.setGenerator('extension', {
         description: 'Create a VS Code extension in extensions/',
         prompts: [
-            {
-                type: 'input',
-                name: 'name',
-                message: 'Folder and extension name (kebab-case, e.g. minecraft-terms):',
-                validate: (value: string) => {
-                    if (!KEBAB_CASE.test(value)) return 'Use kebab-case: lowercase letters, digits and dashes';
-                    if (fs.existsSync(path.join(process.cwd(), 'extensions', value)))
-                        return `extensions/${value} already exists`;
-                    return true;
-                },
-            },
+            folderPrompt('extensions', 'my-extension'),
             {
                 type: 'input',
                 name: 'displayName',
                 message: 'Extension display name:',
-                default: (answers: { name: string }) =>
-                    answers.name
-                        .split('-')
-                        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-                        .join(' '),
+                default: (answers: { name: string }) => titleCase(answers.name),
                 validate: (value: string) => {
                     if (!value.trim()) return 'An extension name is required';
                     return !/[\r\n]/.test(value) || 'Enter a one-line extension name';
@@ -310,7 +276,7 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
                 message: `One-line description (at most ${MAX_DESCRIPTION} characters):`,
                 validate: (value: string) => {
                     if (!value.trim()) return 'A description is required';
-                    if (value.length > MAX_DESCRIPTION) return `Keep it under ${MAX_DESCRIPTION} characters`;
+                    if (value.length > MAX_DESCRIPTION) return `Use at most ${MAX_DESCRIPTION} characters`;
                     return !/[\r\n]/.test(value) || 'Enter a one-line description';
                 },
             },
@@ -334,17 +300,7 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
                     path: '{{ turbo.paths.root }}/extensions/{{ name }}/LICENSE',
                     templateFile: path.join(root, 'LICENSE'),
                 },
-                registerRelease('release-please-config.json', (json, name) => {
-                    const packages = json.packages as Record<string, unknown>;
-                    packages[`extensions/${name}`] = { component: name, 'release-as': '0.0.1' };
-                    json.packages = Object.fromEntries(sortReleaseEntries(Object.entries(packages)));
-                }),
-                registerRelease('.release-please-manifest.json', (json, name) => {
-                    json[`extensions/${name}`] = '0.0.0';
-                    const sorted = sortReleaseEntries(Object.entries(json));
-                    for (const key of Object.keys(json)) delete json[key];
-                    Object.assign(json, Object.fromEntries(sorted));
-                }),
+                ...registerComponent('extensions'),
                 fillPackageMetadata(root),
                 () => run(root, 'pnpm', ['install', '--no-frozen-lockfile'], 'Installed dependencies'),
                 () => run(root, 'pnpm', ['exec', 'pumpkin-plugins-docs', 'root'], 'Updated root README and references'),
