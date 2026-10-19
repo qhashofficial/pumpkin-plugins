@@ -118,7 +118,14 @@ Add the generated declaration glob to the `include` list in `tsconfig.json`, kee
 "include": ["build/types/bindings/**/*.d.ts", "src/**/*.ts"]
 ```
 
-The `--types-only` command generates these declarations from the upstream WIT commit pinned by the installed API package's `wit.lock.json`. The build tool fetches the source on first use and after lockfile changes, then reuses the ignored `.cache/pumpkin-api-wit/<lock-digest>/` consumer cache.
+The `--types-only` command generates these declarations from the upstream WIT commit pinned by the installed API package's `wit.lock.json`. The build tool fetches the source on first use and after lockfile changes, then reuses the `.cache/pumpkin-api-wit/<lock-digest>/` consumer cache.
+
+The builder writes downloaded inputs such as the fetched WIT to `.cache/`, and generated declarations and the plugin component to `build/`. If your `.gitignore` does not list them yet, add both so they are not committed:
+
+```text
+.cache/
+build/
+```
 
 ## 4. Regenerate Types and Build
 
