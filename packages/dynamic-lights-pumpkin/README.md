@@ -33,7 +33,8 @@ clients, so Bedrock players get no light.
 Built-in sources, including torches and lava buckets, are listed in `config.toml`. Remove an entry to
 disable it, change its `light_level`, or add any item ID you want to support.
 
-Entity lights are enabled by default. The plugin checks entities in a 15-block cube around each player every
+Entity lights are enabled by default and also cover dropped items, so turning `entities.enabled`
+off turns off dropped-item lights too. The plugin checks entities in a 15-block cube around each player every
 10 ticks by default and sends changes only when a configured entity light moves, changes level or leaves
 range. Configure `entity_sources` with Pumpkin entity names such as `blaze`, `magma-cube`, `glow-squid` or
 `glow-item-frame`. Dropped items use the same configured level as their held form when the plugin observes them
@@ -81,7 +82,7 @@ Settings live in `plugins/data/DynamicLightsPumpkin/config.toml`. The plugin cre
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
 | `sources."<item>".light_level` | integer | none | Light emitted while this item is held, from 0 through 15. |
-| `entities.enabled` | boolean | `true` | Whether configured entities emit temporary client-only light. |
+| `entities.enabled` | boolean | `true` | Whether configured entities and dropped items emit temporary client-only light. |
 | `entities.refresh_interval_ticks` | integer | `10` | Ticks between nearby-entity refreshes. Higher values reduce work but make moving lights less smooth. |
 | `entity_sources."<entity type>".light_level` | integer | none | Light emitted by this entity type, from 0 through 15. |
 
@@ -175,7 +176,7 @@ light_level = 8
 # Controls the optional dynamic lights shown around configured entity types.
 [entities]
 
-# Whether configured entities emit temporary client-only light.
+# Whether configured entities and dropped items emit temporary client-only light.
 enabled = true
 
 # Ticks between nearby-entity refreshes. Higher values reduce work but make moving lights less

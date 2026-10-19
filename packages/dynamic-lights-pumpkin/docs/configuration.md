@@ -28,7 +28,7 @@ one determines your light level.
 
 ## Entity light
 
-Set `entities.enabled` to `false` to turn off entity lighting. When it's enabled, the plugin checks
+Set `entities.enabled` to `false` to turn off entity lighting, including dropped items. When it's enabled, the plugin checks
 nearby entities every `entities.refresh_interval_ticks` ticks (default `10`, allowed range `1` to
 `1200`). A longer interval means fewer checks, but moving lights update less smoothly. Add an
 `entity_sources` table for each Pumpkin entity name you want to emit light:

@@ -91,10 +91,12 @@ class DynamicLightsPumpkin extends PluginBase {
         this.tracker = new ClientLightTracker(clientLightStates);
         this.entityTracker = new EntityLightTracker(this.tracker);
         this.lightLevels = new HeldItemLightLevels(sourceLevels(config.sources));
-        this.droppedItemLevels = new DroppedItemLightLevels((itemName) => this.lightLevels?.level(itemName) ?? 0);
         this.entityLevels = new Map(Object.entries(sourceLevels(config.entity_sources)));
         registerCommands(ctx, this);
         if (config.entities.enabled) {
+            // Dropped items are lit by the entity refresh, so they share its setting.
+            this.droppedItemLevels = new DroppedItemLightLevels((itemName) => this.lightLevels?.level(itemName) ?? 0);
+            this.registerDroppedItemEvents(ctx);
             logging.log(
                 'info',
                 `${ansi.named.name(info.name)} entity lights enabled for ${ansi.named.number(this.entityLevels.size)} type${this.entityLevels.size === 1 ? '' : 's'} every ${ansi.named.number(config.entities.refresh_interval_ticks)} ticks`,
@@ -158,7 +160,7 @@ class DynamicLightsPumpkin extends PluginBase {
             (_server, event: PlayerDropItemEventData) => {
                 this.deferPlayerSync(event.player.getName());
                 const level = this.lightLevels?.level(event.itemName) ?? 0;
-                if (event.cancelled || level === 0) return;
+                if (event.cancelled || level === 0 || this.droppedItemLevels === undefined) return;
                 const playerName = event.player.getName();
                 const previous = new Set(nearbyItemIds(event.player));
                 const worldId = playerWorldId(event.player);
@@ -166,6 +168,30 @@ class DynamicLightsPumpkin extends PluginBase {
             },
             'lowest',
         );
+        this.registerEvent(ctx, 'server-load-event', (server: Server) => {
+            const worlds = server.getAllWorlds();
+            let recovered: number;
+            try {
+                recovered = journal.recover(worlds.map((world) => new PumpkinLightWorld(world)));
+            } finally {
+                for (const world of worlds) disposeWasiResource(world);
+            }
+            if (recovered > 0)
+                logging.log(
+                    'warn',
+                    `${ansi.named.name(info.name)} restored ${ansi.named.number(recovered)} stale temporary light level${recovered === 1 ? '' : 's'}`,
+                );
+            const players = server.getAllPlayers();
+            try {
+                for (const player of players) this.syncPlayer(player);
+            } finally {
+                for (const player of players) disposeWasiResource(player);
+            }
+        });
+    }
+
+    /** Tracks dropped items for the entity refresh, with `lowest` priority as for the drop event. */
+    private registerDroppedItemEvents(ctx: Context): void {
         this.registerEvent(
             ctx,
             'item-spawn-event',
@@ -192,26 +218,6 @@ class DynamicLightsPumpkin extends PluginBase {
         );
         this.registerEvent(ctx, 'entity-remove-event', (_server, event: EntityRemoveEventData) => {
             this.droppedItemLevels?.remove(event.entityId);
-        });
-        this.registerEvent(ctx, 'server-load-event', (server: Server) => {
-            const worlds = server.getAllWorlds();
-            let recovered: number;
-            try {
-                recovered = journal.recover(worlds.map((world) => new PumpkinLightWorld(world)));
-            } finally {
-                for (const world of worlds) disposeWasiResource(world);
-            }
-            if (recovered > 0)
-                logging.log(
-                    'warn',
-                    `${ansi.named.name(info.name)} restored ${ansi.named.number(recovered)} stale temporary light level${recovered === 1 ? '' : 's'}`,
-                );
-            const players = server.getAllPlayers();
-            try {
-                for (const player of players) this.syncPlayer(player);
-            } finally {
-                for (const player of players) disposeWasiResource(player);
-            }
         });
     }
 
