@@ -48,7 +48,6 @@ const outputs = {
     tool_paths_released: '[]',
     extension_paths_released: '[]',
     release_metadata: '{}',
-    release_notes: '{}',
     release_count: '0',
     prs: '[]',
     pr_count: '0',

@@ -67,13 +67,12 @@ pins.
 | 🛡️ CI result | Every CI run outside Release Please branches, after every job except Engine comparison | The single required check. It fails when a job the change needs didn't succeed, or when any job failed or was cancelled. |
 | 🚢 Release | `master` pushes after CI result passes, including docs-only pushes | Calls the reusable release workflow. It catches up pending releases and refreshes every open release PR; Actions get GitHub releases, extensions get VSIX assets, public tools publish npm tarballs, and plugins get signed artifacts and Market listings. |
 | 📝 Prepare release PR | Every open release PR on a release run | Refreshes plugin and extension READMEs, action README examples, starter dependency ranges and first-release pins. |
-| 🔏 Sign, 📎 Attach, 🛒 Market | Each released plugin | Confirms the tag points to the commit built in this run, signs and uploads that artifact, publishes it to an existing Market listing, and syncs its description and commands. |
+| 📎 Publish | Each released plugin | Runs `publish-plugin-release.yml`, which the `Recover plugin release` workflow also uses for one tag. It confirms the tag points to the release commit, signs, verifies and uploads the artifact unless the release already has it, publishes it to an existing Market listing, and syncs its description and commands. |
 
 The signed `plugins` build artifact stays available from the run summary for one day; the build job
-summary includes a direct download link. The integration WASM files, their fixture and the release
-workflow's handoff artifacts also expire after one day instead of being deleted, so they stay
-available when you need to rerun a failed job or release. Failure logs remain available for
-diagnosis.
+summary includes a direct download link. The integration WASM files and their fixture also expire
+after one day instead of being deleted, so they stay available when you need to rerun a failed job
+or release. Failure logs remain available for diagnosis.
 
 The Docs workflow uploads its `docs-site` and `github-pages` artifacts only on pushes, where the
 publish job uses them, and lets them expire after one day. The benchmark-comment workflow keeps the

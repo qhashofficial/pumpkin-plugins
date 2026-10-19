@@ -1,4 +1,4 @@
-// Runs the release workflow's shell steps against fixture release sources and artifacts.
+// Tests the plugin publish workflow's steps.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
@@ -8,7 +8,9 @@ import { afterEach, describe, it } from 'node:test';
 import { parse } from 'yaml';
 
 const root = path.resolve(import.meta.dirname, '..');
-const releaseWorkflow = parse(fs.readFileSync(path.join(root, '.github', 'workflows', 'release.yml'), 'utf8'));
+const publishWorkflow = parse(
+    fs.readFileSync(path.join(root, '.github', 'workflows', 'publish-plugin-release.yml'), 'utf8'),
+);
 const dirs = [];
 afterEach(() => {
     for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
@@ -36,7 +38,7 @@ describe('release workflow', () => {
             `export const info = { name: ${JSON.stringify('Published plugin\nplugin_name=Attacker')} };`,
         );
 
-        const step = releaseWorkflow.jobs.assets.steps.find(({ id }) => id === 'plugin');
+        const step = publishWorkflow.jobs.publish.steps.find(({ id }) => id === 'plugin');
         assert.ok(step?.run, 'missing asset input resolver run block');
 
         const outputFile = path.join(sourceRoot, 'github-output');
@@ -52,29 +54,8 @@ describe('release workflow', () => {
         assert.equal(fs.readFileSync(outputFile, 'utf8'), '');
     });
 
-    it('uses the release artifact metadata for Market inputs', () => {
-        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'release-workflow-'));
-        dirs.push(dir);
-        fs.mkdirSync(path.join(dir, 'dist'));
-        fs.writeFileSync(
-            path.join(dir, 'dist', 'release-metadata.json'),
-            JSON.stringify({ plugin_name: 'UPnPumpkin', version: '1.2.3', wasm_file: 'dist/plugin.wasm' }),
-        );
-
-        const step = releaseWorkflow.jobs.market.steps.find(({ id }) => id === 'market');
-        assert.ok(step?.run, 'missing Market input resolver run block');
-
-        const outputFile = path.join(dir, 'github-output');
-        const result = spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', step.run], {
-            cwd: dir,
-            encoding: 'utf8',
-            env: { ...process.env, GITHUB_OUTPUT: outputFile },
-        });
-
-        assert.equal(result.status, 0, result.stderr);
-        assert.equal(
-            fs.readFileSync(outputFile, 'utf8'),
-            'plugin_name=UPnPumpkin\nversion=1.2.3\nwasm_file=dist/plugin.wasm\n',
-        );
+    it('passes the repository signing key to the Market preparation step', () => {
+        const step = publishWorkflow.jobs.publish.steps.find(({ run }) => run?.includes('prepare-market-plugin.mjs'));
+        assert.equal(step?.env?.PLUGIN_SIGNING_KEY, ['$', '{{ secrets.PLUGIN_SIGNING_KEY }}'].join(''));
     });
 });
