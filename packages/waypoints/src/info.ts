@@ -24,11 +24,7 @@ function renderPlaceholders(): string {
     return ['| Token | Description |', '| --- | --- |', ...rows].join('\n');
 }
 
-/**
- * What the plugin is and offers. Feeds both its Pumpkin metadata and its generated README. Declare
- * commands with `defineCommands` and list them here with `commandInfos`, so they are documented from
- * what is registered (see docs/plugin-info-and-readmes.md).
- */
+/** Waypoints metadata and README source: data-folder permissions, `/wp` commands and the PumpkinPIE token table. */
 export const info = {
     name: PLUGIN_NAME,
     description:
