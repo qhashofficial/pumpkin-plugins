@@ -97,7 +97,8 @@ export class PortForwarder {
      */
     reload(): void {
         this.settings = loadPluginConfig(this.files, this.log, this.settings);
-        const { router } = this.settings;
+        // The lease plays no part in finding the router; the mapper reads it at each renewal.
+        const { lease_seconds: _lease, ...router } = this.settings.router;
         const key = JSON.stringify(router);
         if (this.mapper && key !== this.mapperSettings) this.retireMapper();
         if (!this.mapper) this.openMapper(key);
@@ -208,11 +209,14 @@ export class PortForwarder {
 
     private openMapper(settingsKey: string): void {
         const { router } = this.config;
+        const settings = () => this.config.router;
         this.mapperSettings = settingsKey;
         this.mapper = new PortMapper(this.net, {
             upnp: router.upnp,
             natPmp: router.nat_pmp,
-            leaseSeconds: router.lease_seconds,
+            get leaseSeconds() {
+                return settings().lease_seconds;
+            },
             ssdp: parseEndpoint(router.upnp_search),
             natPmpGateway: parseEndpoint(router.nat_pmp_gateway),
             screen: blockedReason,

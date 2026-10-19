@@ -101,6 +101,20 @@ describe('PortForwarder', () => {
         expect(net.sent.filter((s) => s.to.port === 1900)).toHaveLength(searches);
     });
 
+    it('keeps the router and its ports when only the lease changes, and uses the new lease at renewal', () => {
+        const { files, forwarder, settle, keys, net, igd } = setup('[bedrock]\nenabled = false\n');
+        forwarder.start();
+        settle(() => keys().length === 1);
+        const searches = net.sent.filter((s) => s.to.port === 1900).length;
+
+        files.put(CONFIG_FILE, '[router]\nlease_seconds = 600\n\n[bedrock]\nenabled = false\n');
+        forwarder.reload();
+        settle(() => igd?.mappings.get('tcp:25565')?.leaseSeconds === 600, 3600_000);
+        expect(igd?.mappings.get('tcp:25565')?.leaseSeconds).toBe(600);
+        expect(igd?.actions.filter((a) => a === 'DeletePortMapping')).toHaveLength(0);
+        expect(net.sent.filter((s) => s.to.port === 1900)).toHaveLength(searches);
+    });
+
     it('keeps the current settings and ports when a reload finds broken TOML', () => {
         const { files, forwarder, settle, keys, net } = setup('[java]\nport = 25570\n\n[bedrock]\nenabled = false\n');
         forwarder.start();
@@ -124,10 +138,7 @@ describe('PortForwarder', () => {
         settle(() => keys().length === 1);
         const searches = net.sent.filter((s) => s.to.port === 1900).length;
 
-        files.put(
-            CONFIG_FILE,
-            '[router]\nlease_seconds = 600\n\n[java]\nenabled = false\n\n[bedrock]\nenabled = false\n',
-        );
+        files.put(CONFIG_FILE, '[router]\nnat_pmp = false\n\n[java]\nenabled = false\n\n[bedrock]\nenabled = false\n');
         forwarder.reload();
         settle(() => net.sent.filter((s) => s.to.port === 1900).length > searches && keys().length === 1);
         expect(keys()).toEqual(['tcp:8123']);
@@ -145,7 +156,7 @@ describe('PortForwarder', () => {
         forwarder.start();
         settle(() => keys().length === 1);
         const resume = delayRouterReply(net);
-        files.put(CONFIG_FILE, '[router]\nlease_seconds = 600\n[java]\nport = 25570\n[bedrock]\nenabled = false\n');
+        files.put(CONFIG_FILE, '[router]\nnat_pmp = false\n[java]\nport = 25570\n[bedrock]\nenabled = false\n');
         net.autoAdvanceMs = 1;
         const before = net.time;
         forwarder.reload();
@@ -175,7 +186,7 @@ describe('PortForwarder', () => {
         for (let i = 0; i < 50; i++) {
             files.put(
                 CONFIG_FILE,
-                `[router]\nlease_seconds = ${600 + i}\n[java]\nport = ${26000 + i}\n[bedrock]\nenabled = false\n`,
+                `[router]\nnat_pmp = ${i % 2 === 1}\n[java]\nport = ${26000 + i}\n[bedrock]\nenabled = false\n`,
             );
             forwarder.reload();
             forwarder.tick();
@@ -199,7 +210,7 @@ describe('PortForwarder', () => {
         settle(() => keys().length === 1);
         delayRouterReply(net);
         net.autoAdvanceMs = 1;
-        files.put(CONFIG_FILE, '[router]\nlease_seconds = 600\n[java]\nport = 25570\n[bedrock]\nenabled = false\n');
+        files.put(CONFIG_FILE, '[router]\nnat_pmp = false\n[java]\nport = 25570\n[bedrock]\nenabled = false\n');
         forwarder.reload();
         forwarder.tick();
         const cleanupConnection = net.connections.at(-1);
@@ -221,7 +232,7 @@ describe('PortForwarder', () => {
         const resume = delayRouterReply(net, 'AddPortMapping');
         forwarder.start();
         settle(() => keys().length === 1);
-        files.put(CONFIG_FILE, '[router]\nlease_seconds = 600\n[java]\nport = 25570\n[bedrock]\nenabled = false\n');
+        files.put(CONFIG_FILE, '[router]\nnat_pmp = false\n[java]\nport = 25570\n[bedrock]\nenabled = false\n');
         forwarder.reload();
         forwarder.tick();
         expect(keys()).toEqual(['tcp:25565']);
@@ -240,7 +251,7 @@ describe('PortForwarder', () => {
         forwarder.start();
         settle(() => keys().length === 1);
         delayRouterReply(net);
-        files.put(CONFIG_FILE, '[router]\nlease_seconds = 600\n[bedrock]\nenabled = false\n');
+        files.put(CONFIG_FILE, '[router]\nnat_pmp = false\n[bedrock]\nenabled = false\n');
         forwarder.reload();
         forwarder.tick();
         net.autoAdvanceMs = 1;
@@ -517,7 +528,7 @@ describe('PortForwarder with a blocked router', () => {
         expect(forwarder.refusal).toBeDefined();
         expect(log.of('warn')).toHaveLength(1);
 
-        files.put(CONFIG_FILE, '[router]\nlease_seconds = 600\n');
+        files.put(CONFIG_FILE, '[router]\nnat_pmp = false\n');
         forwarder.reload();
         expect(forwarder.refusal).toBeUndefined();
         settle(() => forwarder.refusal !== undefined);

@@ -69,7 +69,7 @@ describe.skipIf(hasPublicAddress)('port forwarding', () => {
         await server.waitForLog(/Opened TCP port 25565/);
         await fs.writeFile(
             path.join(server.pluginDataDir(PLUGIN_NAME), 'config.toml'),
-            routerConfig(router, '\nlease_seconds = 600\n[java]\nport = 25570\n[bedrock]\nenabled = false\n'),
+            routerConfig(router, '\nnat_pmp = false\n[java]\nport = 25570\n[bedrock]\nenabled = false\n'),
         );
         const from = server.lines.length;
         server.command('upnp reload');
