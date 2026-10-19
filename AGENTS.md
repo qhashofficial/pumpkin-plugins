@@ -43,7 +43,9 @@ The project exists to make useful, reliable Pumpkin plugins easy to build, test,
 - For every code-writing task, read [JSDoc TypeScript Documentation](.agents/skills/jsdoc-typescript-docs/SKILL.md)
   before editing and follow the repo-specific JSDoc contract in [Code style](docs/code-style.md).
 - Before any work on a plugin in [packages](packages/) or a shared plugin library in [tools](tools/)
-  (writing, reviewing, debugging, or testing).
+  (writing, reviewing, debugging, or testing), read the
+  [Pumpkin plugin API skill](.agents/skills/pumpkin-plugin-api/SKILL.md). For test work, also read
+  the [Pumpkin testing skill](.agents/skills/pumpkin-testing/SKILL.md).
 - Before changing an area, read its relevant guide from [docs/README.md](docs/README.md) and load
   any skill whose description matches the task. Project skill files live in `.agents/skills/`.
 
