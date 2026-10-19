@@ -107,7 +107,7 @@ The site creates `/llms.txt` during the build from discovered guides, component 
 action metadata, and API references. Links to guides and component docs point to raw Markdown in the
 repository; API links point to the published docs site. The development server serves the same
 content at `/llms.txt`. Update source docs or metadata to change its entries, and
-`docs/.vitepress/config.mts` to change its structure.
+`docs/.vitepress/llms.mts` to change its structure.
 
 The [Team page](team.md) fetches all pages of contributor data from GitHub during builds and
 development, so the build needs network access and fails if GitHub is unavailable. It excludes bot
