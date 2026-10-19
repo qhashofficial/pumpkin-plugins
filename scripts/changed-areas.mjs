@@ -37,18 +37,7 @@ function generatorInputs() {
             relevantFiles.add(normalized);
             return;
         }
-        let expression = '^';
-        for (let index = 0; index < normalized.length; index += 1) {
-            const character = normalized[index];
-            if (character === '*' && normalized[index + 1] === '*') {
-                expression += '.*';
-                index += 1;
-            } else if (character === '*') expression += '[^/]*';
-            else if (character === '?') expression += '[^/]';
-            else expression += character.replace(/[|\\{}()[\]^$+?.]/g, '\\$&');
-        }
-        const matches = new RegExp(`${expression}$`);
-        for (const file of files) if (matches.test(file)) relevantFiles.add(file);
+        for (const file of files) if (path.posix.matchesGlob(file, normalized)) relevantFiles.add(file);
     };
     const readJson = (file) => JSON.parse(readFileSync(path.join(repositoryRoot, file), 'utf8'));
     const packageByName = new Map();
@@ -526,6 +515,9 @@ const generator = Boolean(
         ),
 );
 const integrationRelevant = code.length > 0 ? integrationInputs() : undefined;
+/** Checks a changed file against the workspace-wide inputs, which can be Turborepo globs. */
+const isGlobalInput = (file) =>
+    [...(integrationRelevant?.globalFiles ?? [])].some((input) => path.posix.matchesGlob(file, input));
 const lockfileChanged = code.includes('pnpm-lock.yaml');
 const workspaceConfigChanged = code.includes('pnpm-workspace.yaml');
 const lockfileImporterDirectories = lockfileChanged ? changedLockfileImporters(base, head) : [];
@@ -550,7 +542,7 @@ const integrationAllChanged = Boolean(
             lockfileWideChanged ||
             code.some(
                 (file) =>
-                    integrationRelevant.globalFiles.has(file) ||
+                    isGlobalInput(file) ||
                     [...integrationRelevant.allDirectories].some((directory) => file.startsWith(`${directory}/`)),
             )),
 );
@@ -569,7 +561,7 @@ const touchesInputs = (inputs) =>
     code.some(
         (file) =>
             inputs.files.has(file) ||
-            (integrationRelevant.globalFiles.has(file) && !file.startsWith('.github/')) ||
+            (isGlobalInput(file) && !file.startsWith('.github/')) ||
             [...inputs.directories].some((directory) => file.startsWith(`${directory}/`)),
     );
 const benchmark = Boolean(

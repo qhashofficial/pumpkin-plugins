@@ -255,6 +255,17 @@ describe('changed-areas', () => {
         assert.match(result.log, /Code: benchmarks\/engine-comparison\/src\/workload.ts/);
     });
 
+    it('matches a Turborepo global input glob without a subdirectory to the generator and integration', () => {
+        const turbo = {
+            globalDependencies: ['pnpm-workspace.yaml', 'shared/**/*.json'],
+            tasks: { build: {}, 'test:integration': {} },
+        };
+        const dir = repo({ 'turbo.json': `${JSON.stringify(turbo)}\n`, 'shared/base.json': '{}\n' });
+        const result = run(dir, change(dir, { 'shared/base.json': '{"changed":true}\n' }), 'HEAD');
+        assert.ok(result.ok, result.log);
+        assertOutputs(result.outputs, 'code=true\ngenerator=true\nintegration_scope=all\n');
+    });
+
     /** A repo with a benchmark package that builds with the build tool, plus one unrelated plugin. */
     function benchmarkRepo(files = {}) {
         return repo({
