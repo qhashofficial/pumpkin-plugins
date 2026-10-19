@@ -35,7 +35,9 @@ address. That address works only on the server machine.
 The plugin extracts resource packs from bundles into `packs/.extracted/` and leaves behavior packs
 out. When a bundle contains one resource pack, its extracted filename follows the bundle name; if
 it contains several, each filename also includes the pack name. Use the exact effective filename
-shown by `/baddon list` as the key under `overrides`.
+shown by `/baddon list` as the key under `overrides`. Bundles are unpacked in memory, so one that is
+larger than 256 MiB, packed or unpacked, is left out with a warning; put its resource packs in the
+folder as `.mcpack` files instead.
 
 You can use `overrides` to change pack order, disable a pack, provide a different download URL, or
 set manifest values such as `content_key` and `content_id`. Packs are ordered by `order`, then by
