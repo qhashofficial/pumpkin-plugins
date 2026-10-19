@@ -18,17 +18,17 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | medium | get-metadata hides the real error and returns a plugin named 'unknown' | Fixed in [#2](https://github.com/qhashofficial/pumpkin-plugins/pull/2) |
 | low | result<T> with a unit error returns {tag:'err'} on failure but the bare value on success | Fixed in [#13](https://github.com/qhashofficial/pumpkin-plugins/pull/13) |
 | medium | Each resource property access scans hundreds of string comparisons and allocates new host functions | Deferred |
-| medium | wasm-tools release pins are hardcoded in TypeScript instead of the toolchain lock | Fixed on `fix/shr-toolchain-pins` (not merged yet) |
-| medium | A different wit-bindgen in ~/.cargo/bin blocks setup instead of falling back to the pinned install | Partly fixed on `fix/shr-toolchain-pins` (not merged yet) |
+| medium | wasm-tools release pins are hardcoded in TypeScript instead of the toolchain lock | Fixed in [#50](https://github.com/qhashofficial/pumpkin-plugins/pull/50) |
+| medium | A different wit-bindgen in ~/.cargo/bin blocks setup instead of falling back to the pinned install | Partly fixed in [#50](https://github.com/qhashofficial/pumpkin-plugins/pull/50) |
 | low | Hermes build fingerprint covers every src/hermes module and cli.ts, so any edit forces a full rebuild | Fixed in [#23](https://github.com/qhashofficial/pumpkin-plugins/pull/23) |
 | low | Patch series applicability is checked up front, so overlapping patches show false conflicts | Fixed in [#23](https://github.com/qhashofficial/pumpkin-plugins/pull/23) |
 | low | Hermes build writes into the WASI SDK installation | Fixed in [#23](https://github.com/qhashofficial/pumpkin-plugins/pull/23) |
-| low | Toolchain lookups share the long Hermes prepare.lock | Fixed on `fix/shr-toolchain-pins` (not merged yet) |
+| low | Toolchain lookups share the long Hermes prepare.lock | Fixed in [#50](https://github.com/qhashofficial/pumpkin-plugins/pull/50) |
 | low | Facades wrap resource results by regex on type strings; nested resources come back raw and class names repeat | Fixed in [#13](https://github.com/qhashofficial/pumpkin-plugins/pull/13) |
 | low | WIT naming and helper functions are copied across six generator modules | Fixed in [#13](https://github.com/qhashofficial/pumpkin-plugins/pull/13) |
 | low | Dead or pass-through code in the WIT pipeline | Fixed in [#13](https://github.com/qhashofficial/pumpkin-plugins/pull/13) |
 | low | Two exported buildStaticHermesComponent functions with different shapes; codegen duplicates component analysis | Fixed in [#39](https://github.com/qhashofficial/pumpkin-plugins/pull/39) |
-| low | The runtime package hardcodes the update-check package API for dev builds | Not started (out of time or budget) |
+| low | The runtime package hardcodes the update-check package API for dev builds | Fixed in [#53](https://github.com/qhashofficial/pumpkin-plugins/pull/53) |
 | low | Bytecode is embedded as a hex initializer list | Fixed in [#39](https://github.com/qhashofficial/pumpkin-plugins/pull/39) |
 | low | Unit tests assert wiring and exact argv instead of behaviour; the optional event-result marker exists only for fixtures | Partly fixed in [#39](https://github.com/qhashofficial/pumpkin-plugins/pull/39) |
 | medium | Runtime docs still describe a hand-picked API subset and omit Static Hermes engine caveats | Partly fixed in [#26](https://github.com/qhashofficial/pumpkin-plugins/pull/26) |
@@ -49,11 +49,11 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | medium | Unit tests for src modules live in test/ and duplicate co-located suites | Deferred |
 | medium | Fake git and cmake shells and mocked runners are coupled to exact argv | Fixed in [#23](https://github.com/qhashofficial/pumpkin-plugins/pull/23) |
 | medium | Documented AI-goal and void-callback error handling is untested | Fixed in [#2](https://github.com/qhashofficial/pumpkin-plugins/pull/2) |
-| medium | docs.ts keeps one-shot prose migrations that block handwritten doc edits | Fixed on `refactor/docs-generator-hooks` (not merged yet) |
+| medium | docs.ts keeps one-shot prose migrations that block handwritten doc edits | Fixed in [#61](https://github.com/qhashofficial/pumpkin-plugins/pull/61) |
 | medium | Public types point at TS source, so consumers must enable allowImportingTsExtensions | Fixed in [#28](https://github.com/qhashofficial/pumpkin-plugins/pull/28) |
 | medium | README says the shim implements only part of the Pumpkin API | Fixed in [#28](https://github.com/qhashofficial/pumpkin-plugins/pull/28) |
 | low | Weak and vacuous assertions in codegen and event-dispatch tests | Partly fixed in [#13](https://github.com/qhashofficial/pumpkin-plugins/pull/13) |
-| low | Toolchain tests hard-code pinned versions that are already read from the lock files | Fixed on `fix/shr-toolchain-pins` (not merged yet) |
+| low | Toolchain tests hard-code pinned versions that are already read from the lock files | Fixed in [#50](https://github.com/qhashofficial/pumpkin-plugins/pull/50) |
 | low | C++ contract fixtures each redefine fake runtime types and copy WitScopeGuard | Partly fixed in [#2](https://github.com/qhashofficial/pumpkin-plugins/pull/2) |
 | low | CLI help asserted through full-text snapshots on top of option checks | Fixed in [#39](https://github.com/qhashofficial/pumpkin-plugins/pull/39) |
 | low | Patch 0001 depends on the toolchain file name, and the toolchain copies upstream instead of including it | Partly fixed in [#23](https://github.com/qhashofficial/pumpkin-plugins/pull/23) |
@@ -108,7 +108,7 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | medium | runtime/README.md claims a CI release gate that was removed | Fixed in [#27](https://github.com/qhashofficial/pumpkin-plugins/pull/27) |
 | medium | Tests assert exact output, mock behaviour or call counts instead of outcomes | Fixed in [#25](https://github.com/qhashofficial/pumpkin-plugins/pull/25) |
 | medium | static-hermes-plugin.test.ts tests another package and couples to a plugin directory | Fixed in [#39](https://github.com/qhashofficial/pumpkin-plugins/pull/39) |
-| low | static-analysis runs a full esbuild build per edge on the browser platform | Not started (out of time or budget) |
+| low | static-analysis runs a full esbuild build per edge on the browser platform | Fixed in [#58](https://github.com/qhashofficial/pumpkin-plugins/pull/58) |
 | low | 5 MiB size gate is toggled by matching the root package.json repository URL | Fixed in [#25](https://github.com/qhashofficial/pumpkin-plugins/pull/25) |
 | low | Defaults repeated in several places; dead branch and odd label in output | Fixed in [#15](https://github.com/qhashofficial/pumpkin-plugins/pull/15) |
 | low | Dead parameters and legacy cleanup in the CLI and prepareWit | Fixed in [#27](https://github.com/qhashofficial/pumpkin-plugins/pull/27) |
@@ -121,7 +121,7 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | low | runtime-provenance.test.ts hardcodes values from provenance.json | Fixed in [#27](https://github.com/qhashofficial/pumpkin-plugins/pull/27) |
 | low | WASI WIT download has no explicit timeout | Fixed in [#27](https://github.com/qhashofficial/pumpkin-plugins/pull/27) |
 | low | Update notice hardcodes a personal promo line | Left for the maintainer |
-| low | README wording: fixed entry claim and dense, AI-sounding prose in static-analysis | Not started (out of time or budget) |
+| low | README wording: fixed entry claim and dense, AI-sounding prose in static-analysis | Fixed in [#58](https://github.com/qhashofficial/pumpkin-plugins/pull/58) |
 
 ## Release scripts and root config
 
@@ -130,9 +130,9 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | medium | Root typecheck task declares build/types/** outputs that most packages never produce | Fixed in [#34](https://github.com/qhashofficial/pumpkin-plugins/pull/34) |
 | medium | First-release history for a 0.0.0 component is not cut at its introduction commit | Fixed in [#35](https://github.com/qhashofficial/pumpkin-plugins/pull/35) |
 | medium | Release selector drops shipped files of npm tools (public testing helpers, template READMEs) | Fixed in [#35](https://github.com/qhashofficial/pumpkin-plugins/pull/35) |
-| medium | Renovate commits are all chore(deps), so dependency updates never reach released plugins or tools | Fixed on `chore/repo-config-hygiene` (not merged yet) |
-| medium | Supply-chain release-age guard disabled repo-wide while Renovate automerges minors | Fixed on `chore/repo-config-hygiene` (not merged yet) |
-| medium | `pnpm run docs` and `dev:docs` fail on a fresh clone because the builder CLI is not built first | Fixed on `fix/docs-pipeline-turbo` (not merged yet) |
+| medium | Renovate commits are all chore(deps), so dependency updates never reach released plugins or tools | Fixed in [#62](https://github.com/qhashofficial/pumpkin-plugins/pull/62) |
+| medium | Supply-chain release-age guard disabled repo-wide while Renovate automerges minors | Fixed in [#62](https://github.com/qhashofficial/pumpkin-plugins/pull/62) |
+| medium | `pnpm run docs` and `dev:docs` fail on a fresh clone because the builder CLI is not built first | Fixed in [#60](https://github.com/qhashofficial/pumpkin-plugins/pull/60) |
 | medium | Market listing description keeps README-relative links that break on market.pumpkinmc.org | Fixed in [#43](https://github.com/qhashofficial/pumpkin-plugins/pull/43) |
 | medium | Pack-and-inspect logic is implemented three times and the real adapter only runs at release time | Fixed in [#31](https://github.com/qhashofficial/pumpkin-plugins/pull/31) |
 | low | scripts/market-plugin-name.mjs is dead code, and its test file tests release.yml | Fixed in [#43](https://github.com/qhashofficial/pumpkin-plugins/pull/43) |
@@ -143,7 +143,7 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | low | npm-bootstrap 'trust changes' assertion can never fail and the message describes nothing the script does | Fixed in [#31](https://github.com/qhashofficial/pumpkin-plugins/pull/31) |
 | low | Tests keep vestigial assertions from older behaviour | Fixed in [#43](https://github.com/qhashofficial/pumpkin-plugins/pull/43) |
 | low | unpin-release-as.mjs points to a docs heading that does not exist | Fixed in [#43](https://github.com/qhashofficial/pumpkin-plugins/pull/43) |
-| low | Stale claims that pnpm-workspace.yaml pins the Pumpkin API ABI | Partly fixed on `chore/repo-config-hygiene` (not merged yet) |
+| low | Stale claims that pnpm-workspace.yaml pins the Pumpkin API ABI | Partly fixed in [#62](https://github.com/qhashofficial/pumpkin-plugins/pull/62) |
 | low | Automated npm publish always moves the latest dist-tag | Fixed in [#31](https://github.com/qhashofficial/pumpkin-plugins/pull/31) |
 | low | package-extension.mjs can leave package.json rewritten and has a dead normalization path | Fixed in [#43](https://github.com/qhashofficial/pumpkin-plugins/pull/43) |
 | low | register-public-tool's atomic write is over-engineered and its test patches fs | Fixed in [#43](https://github.com/qhashofficial/pumpkin-plugins/pull/43) |
@@ -152,10 +152,10 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | low | Root typecheck makes every package wait for the plugin builder build | Fixed in [#34](https://github.com/qhashofficial/pumpkin-plugins/pull/34) |
 | low | turbo.json repeats the Static Hermes env list four times | Fixed in [#34](https://github.com/qhashofficial/pumpkin-plugins/pull/34) |
 | low | release-commits.mjs has dead branches and duplicated test-file patterns | Fixed in [#35](https://github.com/qhashofficial/pumpkin-plugins/pull/35) |
-| low | Release-critical .mjs scripts are never type-checked | Partly fixed on `fix/docs-pipeline-turbo` (not merged yet) |
+| low | Release-critical .mjs scripts are never type-checked | Partly fixed in [#60](https://github.com/qhashofficial/pumpkin-plugins/pull/60) |
 | low | npm registry lookups are duplicated and use two requests where one suffices | Fixed in [#31](https://github.com/qhashofficial/pumpkin-plugins/pull/31) |
-| low | .vscode settings hardcode one platform and duplicate schema mappings | Fixed on `chore/repo-config-hygiene` (not merged yet) |
-| low | Root .gitignore, .gitattributes and .npmrc leave gaps or are dead | Fixed on `chore/repo-config-hygiene` (not merged yet) |
+| low | .vscode settings hardcode one platform and duplicate schema mappings | Fixed in [#62](https://github.com/qhashofficial/pumpkin-plugins/pull/62) |
+| low | Root .gitignore, .gitattributes and .npmrc leave gaps or are dead | Fixed in [#62](https://github.com/qhashofficial/pumpkin-plugins/pull/62) |
 | low | package-metadata description message disagrees with the limit | Fixed in [#43](https://github.com/qhashofficial/pumpkin-plugins/pull/43) |
 
 ## Dev and check scripts, agent hooks, generators
@@ -174,9 +174,9 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | low | Upstream pin issue lookup downloads 1000 issue bodies to find one marker | Fixed in [#11](https://github.com/qhashofficial/pumpkin-plugins/pull/11) |
 | medium | changed-areas hardcodes action consumers and a cross-plugin integration dependency | Fixed in [#19](https://github.com/qhashofficial/pumpkin-plugins/pull/19) |
 | medium | changed-areas.mjs is a 490-line top-level script with duplicated, heuristic discovery | Deferred |
-| low | Benchmark charts accumulate forever on a branch forked from master | Not started (out of time or budget) |
-| low | Baseline discovery can page through the whole CI run history, two API calls per run | Not started (out of time or budget) |
-| low | Engine comparison scripts duplicate their GitHub API helpers | Not started (out of time or budget) |
+| low | Benchmark charts accumulate forever on a branch forked from master | Fixed in [#56](https://github.com/qhashofficial/pumpkin-plugins/pull/56) |
+| low | Baseline discovery can page through the whole CI run history, two API calls per run | Fixed in [#56](https://github.com/qhashofficial/pumpkin-plugins/pull/56) |
+| low | Engine comparison scripts duplicate their GitHub API helpers | Fixed in [#56](https://github.com/qhashofficial/pumpkin-plugins/pull/56) |
 | medium | check-docs counts a root script as documented when only a longer `name:suffix` script is mentioned | Fixed in [#17](https://github.com/qhashofficial/pumpkin-plugins/pull/17) |
 | low | check-docs uses its own heading slugs, link regex and CI-job parsing | Fixed in [#17](https://github.com/qhashofficial/pumpkin-plugins/pull/17) |
 | medium | Extension template hardcodes `engines.vscode` instead of reading the catalog `@types/vscode` | Fixed in [#5](https://github.com/qhashofficial/pumpkin-plugins/pull/5) |
@@ -204,19 +204,19 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | --- | --- | --- |
 | high | Upstream pin reconcile tries to reopen a closed PR whose branch was deleted, so the scheduled workflow fails every day | Fixed in [#11](https://github.com/qhashofficial/pumpkin-plugins/pull/11) |
 | medium | Third-party actions pinned by mutable tag while holding write-scoped App tokens or secrets | Deferred |
-| medium | Actions cache is over the 10 GB limit because of per-run and per-commit keys, which evicts the 8-minute Static Hermes build | Fixed on `ci/cache-and-clone-costs` (not merged yet) |
+| medium | Actions cache is over the 10 GB limit because of per-run and per-commit keys, which evicts the 8-minute Static Hermes build | Fixed in [#59](https://github.com/qhashofficial/pumpkin-plugins/pull/59) |
 | medium | Action tests run twice: once in the coverage Test job and again in a per-action matrix with a full bootstrap each | Fixed in [#19](https://github.com/qhashofficial/pumpkin-plugins/pull/19) |
 | medium | Four near-identical gate jobs and a 60-line release `if` encode CI selection logic in YAML | Fixed in [#19](https://github.com/qhashofficial/pumpkin-plugins/pull/19) |
 | low | Release-merge fast path misses the bot's starter-sync commit, and the release PR job pushes three separate bot commits | Partly fixed in [#19](https://github.com/qhashofficial/pumpkin-plugins/pull/19) |
 | medium | Engine comparison (11 jobs) runs on every code change although it never gates anything | Fixed in [#19](https://github.com/qhashofficial/pumpkin-plugins/pull/19) |
-| medium | Malloc benchmark cache is hit but each variant still spends about 9 minutes in benchmark:build | Fixed on `ci/cache-and-clone-costs` (not merged yet) |
+| medium | Malloc benchmark cache is hit but each variant still spends about 9 minutes in benchmark:build | Fixed in [#59](https://github.com/qhashofficial/pumpkin-plugins/pull/59) |
 | medium | External consumer runs the full Linux/macOS/Windows matrix on every code PR | Fixed in [#19](https://github.com/qhashofficial/pumpkin-plugins/pull/19) |
-| medium | Toolchain versions hardcoded in YAML instead of read from their source of truth | Partly fixed on `fix/shr-toolchain-pins` (not merged yet) |
-| medium | Full-history clones of a 500 MB repo on the critical path and in jobs that do not need history | Fixed on `ci/cache-and-clone-costs` (not merged yet) |
-| medium | Docs workflow repeats CI's docs checks and uploads two site artifacts on PRs that publish nothing | Partly fixed on `fix/docs-pipeline-turbo` (not merged yet) |
-| medium | Recover workflow re-implements the release asset and Market pipeline, and tag verification is copied four times | Not started (out of time or budget) |
+| medium | Toolchain versions hardcoded in YAML instead of read from their source of truth | Partly fixed in [#50](https://github.com/qhashofficial/pumpkin-plugins/pull/50) |
+| medium | Full-history clones of a 500 MB repo on the critical path and in jobs that do not need history | Fixed in [#59](https://github.com/qhashofficial/pumpkin-plugins/pull/59) |
+| medium | Docs workflow repeats CI's docs checks and uploads two site artifacts on PRs that publish nothing | Partly fixed in [#60](https://github.com/qhashofficial/pumpkin-plugins/pull/60) |
+| medium | Recover workflow re-implements the release asset and Market pipeline, and tag verification is copied four times | Fixed on `ci/reusable-plugin-publish` (not merged yet) |
 | medium | CI build exports the release signing key to the job environment although release.yml re-signs every asset | Partly fixed in [#19](https://github.com/qhashofficial/pumpkin-plugins/pull/19) |
-| low | Benchmark comment never posts on fork PRs because workflow_run.pull_requests is empty for forks | Fixed on `ci/cache-and-clone-costs` (not merged yet) |
+| low | Benchmark comment never posts on fork PRs because workflow_run.pull_requests is empty for forks | Fixed in [#59](https://github.com/qhashofficial/pumpkin-plugins/pull/59) |
 | medium | Market listing lookup duplicated across the publish and update actions with divergent behaviour | Fixed in [#33](https://github.com/qhashofficial/pumpkin-plugins/pull/33) |
 | low | Name lookup searches only the first 20 results, so a release can silently skip Market publishing | Fixed in [#33](https://github.com/qhashofficial/pumpkin-plugins/pull/33) |
 | low | Publish action docs tell users to upload signed artifacts, while this repo strips signatures before Market | Fixed in [#33](https://github.com/qhashofficial/pumpkin-plugins/pull/33) |
@@ -226,10 +226,10 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | low | Job-summary step-outcome table repeats the GitHub UI and requires toJSON(steps) plumbing, which carries App tokens | Deferred |
 | low | Artifact cleanup jobs spend runners deleting artifacts that already expire after one day | Partly fixed in [#19](https://github.com/qhashofficial/pumpkin-plugins/pull/19) |
 | low | Build job runs `pnpm run build` twice plus a smoke integration test the integration job repeats | Fixed in [#19](https://github.com/qhashofficial/pumpkin-plugins/pull/19) |
-| low | setup-static-hermes installs the Rust toolchain in every job even when wit-bindgen is cached | Fixed on `fix/shr-toolchain-pins` (not merged yet) |
-| low | Upstream pin validation builds Hermes with an unpinned, uncached toolchain, unlike CI | Fixed on `ci/cache-and-clone-costs` (not merged yet) |
+| low | setup-static-hermes installs the Rust toolchain in every job even when wit-bindgen is cached | Fixed in [#50](https://github.com/qhashofficial/pumpkin-plugins/pull/50) |
+| low | Upstream pin validation builds Hermes with an unpinned, uncached toolchain, unlike CI | Fixed in [#59](https://github.com/qhashofficial/pumpkin-plugins/pull/59) |
 | low | Action tests pass the whole runner environment to the spawned action | Fixed in [#33](https://github.com/qhashofficial/pumpkin-plugins/pull/33) |
-| low | CI docs claim nine engine configurations while the matrix runs eleven | Fixed on `docs/ci-release-benchmark-guides` (not merged yet) |
+| low | CI docs claim nine engine configurations while the matrix runs eleven | Fixed in [#63](https://github.com/qhashofficial/pumpkin-plugins/pull/63) |
 | low | `main` branch triggers are dead configuration while the logic hardcodes `master` | Partly fixed in [#19](https://github.com/qhashofficial/pumpkin-plugins/pull/19) |
 | low | Bug report form doesn't ask for the client edition (Java/Bedrock) | Fixed in [#36](https://github.com/qhashofficial/pumpkin-plugins/pull/36) |
 | low | Per-plugin labels are hand-maintained and new plugins don't get one | Fixed in [#36](https://github.com/qhashofficial/pumpkin-plugins/pull/36) |
@@ -240,18 +240,18 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | --- | --- | --- |
 | medium | Byte-by-byte number[] Writer on the transfer, encode and cache hot paths | Fixed in [#21](https://github.com/qhashofficial/pumpkin-plugins/pull/21) |
 | medium | session.ts (838 lines) mixes protocol handling, capture scheduling, refresh, transfer pacing and status | Deferred |
-| low | /dhs status shows capture progress only when requests[0] is the one being built | Fixed on `fix/dh-session-requests` (not merged yet) |
-| medium | A block change in a section rejects every pending request for it instead of restarting the capture | Fixed on `fix/dh-session-requests` (not merged yet) |
+| low | /dhs status shows capture progress only when requests[0] is the one being built | Fixed in [#49](https://github.com/qhashofficial/pumpkin-plugins/pull/49) |
+| medium | A block change in a section rejects every pending request for it instead of restarting the capture | Fixed in [#49](https://github.com/qhashofficial/pumpkin-plugins/pull/49) |
 | medium | Capture scheduler interleaves many partial builders and can capture the same section twice | Deferred |
-| low | Work-cost and handler timing use Date.now although the plugin already has a monotonic clock | Fixed on `fix/dh-session-requests` (not merged yet) |
+| low | Work-cost and handler timing use Date.now although the plugin already has a monotonic clock | Fixed in [#49](https://github.com/qhashofficial/pumpkin-plugins/pull/49) |
 | low | tick() re-resolves every player's host handles many times per tick, including idle clients | Deferred |
-| low | Any error inside a peer callback is treated as 'player gone' and ends the session or forced job with a misleading reason | Fixed on `fix/dh-session-requests` (not merged yet) |
-| low | Malformed or incompatible DH messages close the session but are logged at debug as 'Ignoring' | Fixed on `fix/dh-session-requests` (not merged yet) |
+| low | Any error inside a peer callback is treated as 'player gone' and ends the session or forced job with a misleading reason | Fixed in [#49](https://github.com/qhashofficial/pumpkin-plugins/pull/49) |
+| low | Malformed or incompatible DH messages close the session but are logged at debug as 'Ignoring' | Fixed in [#49](https://github.com/qhashofficial/pumpkin-plugins/pull/49) |
 | high | World change sends a DH close message and then immediately a new level init; DH client behaviour unverified | Deferred |
 | medium | Wire format is only tested against the plugin's own encoder; no golden fixtures or client-level E2E | Deferred |
 | low | Block state properties sorted with localeCompare | Refuted in verification |
-| medium | Unsupported world setup (unknown dimension height, non-DH world name) fails every request silently | Fixed on `fix/dh-session-requests` (not merged yet) |
-| medium | /dhs generate and /dhs cache recover refuse Bedrock operators though they need no DH client | Fixed on `fix/dh-session-requests` (not merged yet) |
+| medium | Unsupported world setup (unknown dimension height, non-DH world name) fails every request silently | Fixed in [#49](https://github.com/qhashofficial/pumpkin-plugins/pull/49) |
+| medium | /dhs generate and /dhs cache recover refuse Bedrock operators though they need no DH client | Fixed in [#49](https://github.com/qhashofficial/pumpkin-plugins/pull/49) |
 | medium | Forced capture uses a fixed 32,768 samples per tick, ignoring MSPT and blocks_per_tick | Fixed in [#21](https://github.com/qhashofficial/pumpkin-plugins/pull/21) |
 | low | Sample counting, section region and section-position packing are duplicated | Partly fixed in [#21](https://github.com/qhashofficial/pumpkin-plugins/pull/21) |
 | medium | Terrain package ships speculative chunk-loader/generator machinery that is always 'unavailable' | Deferred |
@@ -259,16 +259,16 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | medium | Config file I/O borrows the DH protocol codec for UTF-8 and caps config.toml at 64 KiB | Fixed in [#21](https://github.com/qhashofficial/pumpkin-plugins/pull/21) |
 | medium | Memory cache is bounded by entry count, not bytes | Fixed in [#21](https://github.com/qhashofficial/pumpkin-plugins/pull/21) |
 | low | Interrupted cache writes leave .tmp files that are never cleaned up | Fixed in [#21](https://github.com/qhashofficial/pumpkin-plugins/pull/21) |
-| low | Startup log points to a README section that does not exist | Fixed on `fix/dh-session-requests` (not merged yet) |
-| medium | README and guides repeat the same terrain/bandwidth details and disagree in places | Fixed on `docs/dh-readme-and-tests` (not merged yet) |
-| low | User-facing numbers shown as '16_384' and other text inconsistencies | Fixed on `fix/dh-session-requests` (not merged yet) |
-| medium | Unit tests pin exact formatted output and mock-wired internals | Partly fixed on `docs/dh-readme-and-tests` (not merged yet) |
+| low | Startup log points to a README section that does not exist | Fixed in [#49](https://github.com/qhashofficial/pumpkin-plugins/pull/49) |
+| medium | README and guides repeat the same terrain/bandwidth details and disagree in places | Fixed in [#65](https://github.com/qhashofficial/pumpkin-plugins/pull/65) |
+| low | User-facing numbers shown as '16_384' and other text inconsistencies | Fixed in [#49](https://github.com/qhashofficial/pumpkin-plugins/pull/49) |
+| medium | Unit tests pin exact formatted output and mock-wired internals | Partly fixed in [#65](https://github.com/qhashofficial/pumpkin-plugins/pull/65) |
 | low | Generic Static Hermes resource-disposal regression lives in the DH plugin's integration suite | Fixed in [#2](https://github.com/qhashofficial/pumpkin-plugins/pull/2) |
 | low | Test-only exports and an inverted import through session.ts | Fixed in [#21](https://github.com/qhashofficial/pumpkin-plugins/pull/21) |
 | low | docs.ts deep-imports PumpkinPIE source by relative path | Fixed in [#16](https://github.com/qhashofficial/pumpkin-plugins/pull/16) |
-| low | Re-validation rejects always say 'Request no longer in range' | Fixed on `fix/dh-session-requests` (not merged yet) |
+| low | Re-validation rejects always say 'Request no longer in range' | Fixed in [#49](https://github.com/qhashofficial/pumpkin-plugins/pull/49) |
 | low | Log prefixes and value formatting are inconsistent with the code style | Fixed in [#21](https://github.com/qhashofficial/pumpkin-plugins/pull/21) |
-| low | Confusing names: left() vs playerLeft(), cached_requests_per_tick budgets uncached checks | Partly fixed on `fix/dh-session-requests` (not merged yet) |
+| low | Confusing names: left() vs playerLeft(), cached_requests_per_tick budgets uncached checks | Partly fixed in [#49](https://github.com/qhashofficial/pumpkin-plugins/pull/49) |
 | low | DTO encoder writes unexplained magic values | Fixed in [#21](https://github.com/qhashofficial/pumpkin-plugins/pull/21) |
 
 ## Waypoints and minecraft-colors
@@ -277,7 +277,7 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | --- | --- | --- |
 | medium | Console and RCON cannot run any waypoint admin command, and the console icon path is dead code | Fixed in [#18](https://github.com/qhashofficial/pumpkin-plugins/pull/18) |
 | medium | Revoking a player grant requires that player to be online | Fixed in [#18](https://github.com/qhashofficial/pumpkin-plugins/pull/18) |
-| medium | HUD tick fires PlayerPermissionCheckEvent per viewer and restricted waypoint, 20 times a second | Fixed on `perf/waypoints-hud-access` (not merged yet) |
+| medium | HUD tick fires PlayerPermissionCheckEvent per viewer and restricted waypoint, 20 times a second | Fixed in [#51](https://github.com/qhashofficial/pumpkin-plugins/pull/51) |
 | medium | `/wp reset access` silently wipes all grants and `/wp reset enabled` duplicates enable | Fixed in [#18](https://github.com/qhashofficial/pumpkin-plugins/pull/18) |
 | medium | Validation failures all report 'The waypoint data is invalid.' | Fixed in [#18](https://github.com/qhashofficial/pumpkin-plugins/pull/18) |
 | medium | Generated placeholder field table is malformed (3 header columns, 2 delimiter columns) | Fixed in [#29](https://github.com/qhashofficial/pumpkin-plugins/pull/29) |
@@ -291,13 +291,13 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | medium | Operator-only checks make the admin permission node meaningless | Fixed in [#18](https://github.com/qhashofficial/pumpkin-plugins/pull/18) |
 | medium | PIE namespace is never unregistered on a plugin-only unload | Deferred |
 | low | World change between same-dimension-type worlds may orphan HUD entities on the client | Deferred |
-| low | Java clients other than 26.3 silently get no HUD | Fixed on `perf/waypoints-hud-access` (not merged yet) |
-| low | HUD and placeholder distance formatting are duplicated and disagree near 1000 blocks | Fixed on `perf/waypoints-hud-access` (not merged yet) |
+| low | Java clients other than 26.3 silently get no HUD | Fixed in [#51](https://github.com/qhashofficial/pumpkin-plugins/pull/51) |
+| low | HUD and placeholder distance formatting are duplicated and disagree near 1000 blocks | Fixed in [#51](https://github.com/qhashofficial/pumpkin-plugins/pull/51) |
 | low | Access commands report 'Waypoint not found.' when storage failed to load | Fixed in [#18](https://github.com/qhashofficial/pumpkin-plugins/pull/18) |
 | low | Dead APIs: catalog onChange and store.error | Fixed in [#18](https://github.com/qhashofficial/pumpkin-plugins/pull/18) |
 | low | Item icon workaround has no upstream reference and misses namespaced or execute forms | Partly fixed in [#18](https://github.com/qhashofficial/pumpkin-plugins/pull/18) |
 | low | Name suggestions are offered for `/wp create <name>` | Fixed in [#18](https://github.com/qhashofficial/pumpkin-plugins/pull/18) |
-| low | Icon sprite generator hard-codes its version header and is not discoverable | Partly fixed on `perf/waypoints-hud-access` (not merged yet) |
+| low | Icon sprite generator hard-codes its version header and is not discoverable | Partly fixed in [#51](https://github.com/qhashofficial/pumpkin-plugins/pull/51) |
 | low | Waypoints logging repeats an inline prefixed logger and doesn't color values | Fixed in [#18](https://github.com/qhashofficial/pumpkin-plugins/pull/18) |
 | low | Small consistency issues: template JSDoc, extensionless imports, raster icon | Partly fixed in [#29](https://github.com/qhashofficial/pumpkin-plugins/pull/29) |
 | medium | Nested formatting loses the outer style despite the 'Chalk-style' claim | Fixed in [#37](https://github.com/qhashofficial/pumpkin-plugins/pull/37) |
@@ -383,8 +383,8 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | low | Turning entity lights off also silently disables dropped-item lights | Fixed in [#24](https://github.com/qhashofficial/pumpkin-plugins/pull/24) |
 | low | Wrong range in DynamicLights README and dead tracker method | Fixed in [#24](https://github.com/qhashofficial/pumpkin-plugins/pull/24) |
 | low | DynamicLights plugin.ts mixes lifecycle, event wiring and sync logic in 372 lines | Deferred |
-| low | AppleSkin does per-player world and game-rule host calls every tick; docs overstate the cost savings | Not started (out of time or budget) |
-| medium | Real-server tests for both plugins never exercise their actual behaviour | Not started (out of time or budget) |
+| low | AppleSkin does per-player world and game-rule host calls every tick; docs overstate the cost savings | Fixed in [#54](https://github.com/qhashofficial/pumpkin-plugins/pull/54) |
+| medium | Real-server tests for both plugins never exercise their actual behaviour | Partly fixed in [#54](https://github.com/qhashofficial/pumpkin-plugins/pull/54) |
 | medium | No guest-level test of PieClient/ExpansionRouter over real Pumpkin IPC | Fixed in [#16](https://github.com/qhashofficial/pumpkin-plugins/pull/16) |
 | low | Config tests assert exact rendered text and the parser's exact error wording | Fixed in [#44](https://github.com/qhashofficial/pumpkin-plugins/pull/44) |
 | low | plugin-kit host tests that cannot fail, and no test for handleCommand routing | Partly fixed in [#12](https://github.com/qhashofficial/pumpkin-plugins/pull/12) |
@@ -402,7 +402,7 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | high | The published @pumpkin-plugins/docs CLI and /node entry fail when installed from npm | Fixed in [#6](https://github.com/qhashofficial/pumpkin-plugins/pull/6) |
 | medium | The runtime command model lives in a package named and described as a docs generator | Deferred |
 | medium | The generated README and the guides misstate when Pumpkin asks for plugin permissions | Fixed in [#6](https://github.com/qhashofficial/pumpkin-plugins/pull/6) |
-| medium | The signing guide gets allow_unsigned backwards | Fixed on `docs/ci-release-benchmark-guides` (not merged yet) |
+| medium | The signing guide gets allow_unsigned backwards | Fixed in [#63](https://github.com/qhashofficial/pumpkin-plugins/pull/63) |
 | medium | AGENTS.md has a sentence with no instruction | Fixed in [#26](https://github.com/qhashofficial/pumpkin-plugins/pull/26) |
 | medium | The testing policy contradicts itself and the guides | Fixed in [#26](https://github.com/qhashofficial/pumpkin-plugins/pull/26) |
 | medium | Docs say pnpm-workspace.yaml pins the API package and ABI, but it no longer does | Fixed in [#26](https://github.com/qhashofficial/pumpkin-plugins/pull/26) |
@@ -411,19 +411,19 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | medium | The site ignores VS Code extensions although the generator and guides include them | Fixed in [#9](https://github.com/qhashofficial/pumpkin-plugins/pull/9) |
 | medium | No tests for doc discovery, the docs tree or the docs index generator | Fixed in [#6](https://github.com/qhashofficial/pumpkin-plugins/pull/6) |
 | medium | docs tool tests snapshot entire generated READMEs | Fixed in [#6](https://github.com/qhashofficial/pumpkin-plugins/pull/6) |
-| medium | The benchmark guide's example run contradicts the current workload inventory | Fixed on `docs/ci-release-benchmark-guides` (not merged yet) |
+| medium | The benchmark guide's example run contradicts the current workload inventory | Fixed in [#63](https://github.com/qhashofficial/pumpkin-plugins/pull/63) |
 | medium | `pnpm dev` runs the latest stable Pumpkin instead of the pinned release | Fixed in [#14](https://github.com/qhashofficial/pumpkin-plugins/pull/14) |
 | medium | The plugin starter registers `/plugin`, which collides with Pumpkin's built-in command | Fixed in [#5](https://github.com/qhashofficial/pumpkin-plugins/pull/5) |
-| medium | Building the docs from a fresh clone fails because the builder CLI isn't built yet | Fixed on `fix/docs-pipeline-turbo` (not merged yet) |
+| medium | Building the docs from a fresh clone fails because the builder CLI isn't built yet | Fixed in [#60](https://github.com/qhashofficial/pumpkin-plugins/pull/60) |
 | low | Plugin API index says the packages aren't published yet, but they are | Fixed in [#26](https://github.com/qhashofficial/pumpkin-plugins/pull/26) |
 | low | The ABI page repeats pin values that already live in source files | Fixed in [#26](https://github.com/qhashofficial/pumpkin-plugins/pull/26) |
-| low | The trusted-publishing guide describes a Node check the workflow doesn't do | Not started (out of time or budget) |
+| low | The trusted-publishing guide describes a Node check the workflow doesn't do | Fixed on `ci/reusable-plugin-publish` (not merged yet) |
 | low | Agent-facing pages are published in the public site's Docs menu | Fixed in [#6](https://github.com/qhashofficial/pumpkin-plugins/pull/6) |
-| low | Guide categories are missing or misplaced | Fixed on `docs/ci-release-benchmark-guides` (not merged yet) |
-| low | Handwritten docs hardcode counts and duplicate setup steps | Partly fixed on `docs/ci-release-benchmark-guides` (not merged yet) |
-| low | Repo-local skills contain errors and contradict AGENTS.md | Not started (out of time or budget) |
-| low | typescript-advanced-types is a generic skill that conflicts with repo rules | Not started (out of time or budget) |
-| low | JSDoc guidance contradicts its own examples and the docs package | Not started (out of time or budget) |
+| low | Guide categories are missing or misplaced | Fixed in [#63](https://github.com/qhashofficial/pumpkin-plugins/pull/63) |
+| low | Handwritten docs hardcode counts and duplicate setup steps | Partly fixed in [#63](https://github.com/qhashofficial/pumpkin-plugins/pull/63) |
+| low | Repo-local skills contain errors and contradict AGENTS.md | Fixed in [#57](https://github.com/qhashofficial/pumpkin-plugins/pull/57) |
+| low | typescript-advanced-types is a generic skill that conflicts with repo rules | Fixed in [#57](https://github.com/qhashofficial/pumpkin-plugins/pull/57) |
+| low | JSDoc guidance contradicts its own examples and the docs package | Fixed in [#57](https://github.com/qhashofficial/pumpkin-plugins/pull/57) |
 | low | The docs generator guide is inaccurate and omits CLI commands | Fixed in [#6](https://github.com/qhashofficial/pumpkin-plugins/pull/6) |
 | low | llms.txt says Static Hermes is Pumpkin's runtime | Fixed in [#9](https://github.com/qhashofficial/pumpkin-plugins/pull/9) |
 | low | Arrow-key navigation in MegaNav assumes every menu is a button | Fixed in [#9](https://github.com/qhashofficial/pumpkin-plugins/pull/9) |
@@ -435,15 +435,15 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 
 | Severity | Finding | Status |
 | --- | --- | --- |
-| low | verifyWasm reports valid for any self-signed file and callers never pin the signer key | Not started (out of time or budget) |
-| low | Verifier reads signing data differently from Pumpkin | Not started (out of time or budget) |
-| low | signWasm signs metadata Pumpkin cannot parse when JS callers pass bad field types | Not started (out of time or budget) |
-| low | Private internal packages declare public publishConfig | Partly fixed on `fix/signing-verify` (not merged yet) |
-| low | Signing guide puts key handling and actions under the 'Metadata IDs' heading | Not started (out of time or budget) |
-| medium | docs.ts generators carry one-off migration code and hand-rolled parsers | Partly fixed on `refactor/docs-generator-hooks` (not merged yet) |
-| low | isClosed matches error strings that no runtime produces | Not started (out of time or budget) |
-| medium | The real-server test never exercises the default scheduled update check | Not started (out of time or budget) |
-| low | Version validation by comparing with itself; request override contradicts the blocking warning | Not started (out of time or budget) |
+| low | verifyWasm reports valid for any self-signed file and callers never pin the signer key | Fixed in [#55](https://github.com/qhashofficial/pumpkin-plugins/pull/55) |
+| low | Verifier reads signing data differently from Pumpkin | Fixed in [#55](https://github.com/qhashofficial/pumpkin-plugins/pull/55) |
+| low | signWasm signs metadata Pumpkin cannot parse when JS callers pass bad field types | Fixed in [#55](https://github.com/qhashofficial/pumpkin-plugins/pull/55) |
+| low | Private internal packages declare public publishConfig | Fixed in [#55](https://github.com/qhashofficial/pumpkin-plugins/pull/55) |
+| low | Signing guide puts key handling and actions under the 'Metadata IDs' heading | Fixed in [#55](https://github.com/qhashofficial/pumpkin-plugins/pull/55) |
+| medium | docs.ts generators carry one-off migration code and hand-rolled parsers | Partly fixed in [#61](https://github.com/qhashofficial/pumpkin-plugins/pull/61) |
+| low | isClosed matches error strings that no runtime produces | Fixed in [#53](https://github.com/qhashofficial/pumpkin-plugins/pull/53) |
+| medium | The real-server test never exercises the default scheduled update check | Fixed in [#53](https://github.com/qhashofficial/pumpkin-plugins/pull/53) |
+| low | Version validation by comparing with itself; request override contradicts the blocking warning | Fixed in [#53](https://github.com/qhashofficial/pumpkin-plugins/pull/53) |
 | low | Garbled and duplicated JSDoc in the test harness | Fixed in [#38](https://github.com/qhashofficial/pumpkin-plugins/pull/38) |
 | medium | Binary resolution needs the network on every run and rehashes the cached binary | Fixed in [#38](https://github.com/qhashofficial/pumpkin-plugins/pull/38) |
 | low | waitFor misses lines when given a global or sticky RegExp | Fixed in [#38](https://github.com/qhashofficial/pumpkin-plugins/pull/38) |
@@ -456,8 +456,8 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | low | Generated project ignores the package manager in its README and files | Fixed in [#41](https://github.com/qhashofficial/pumpkin-plugins/pull/41) |
 | low | Starter metadata version duplicates package.json | Fixed in [#41](https://github.com/qhashofficial/pumpkin-plugins/pull/41) |
 | low | Help output is pinned by snapshot | Fixed in [#41](https://github.com/qhashofficial/pumpkin-plugins/pull/41) |
-| medium | Minecraft dictionary misses common terms and has a dead hyphenated entry | Fixed on `fix/cspell-minecraft-words` (not merged yet) |
-| low | Extension test is a mock tautology while the packaging risk is untested | Fixed on `fix/cspell-minecraft-words` (not merged yet) |
+| medium | Minecraft dictionary misses common terms and has a dead hyphenated entry | Fixed in [#52](https://github.com/qhashofficial/pumpkin-plugins/pull/52) |
+| low | Extension test is a mock tautology while the packaging risk is untested | Fixed in [#52](https://github.com/qhashofficial/pumpkin-plugins/pull/52) |
 | low | Extension changelog lists unrelated commits under a duplicated version | Deferred |
 | medium | Benchmark report formatting depends on the host locale | Fixed in [#22](https://github.com/qhashofficial/pumpkin-plugins/pull/22) |
 | low | Millisecond wall-clock timing makes the regression comments noisy and can produce negative samples | Partly fixed in [#22](https://github.com/qhashofficial/pumpkin-plugins/pull/22) |
@@ -485,13 +485,13 @@ Status is one of: fixed (with the pull request), partly fixed, left for the main
 | medium | WASI socket and IPv4 helpers are copied between plugins instead of shared | Deferred |
 | medium | Three separate cross-process file-lock implementations and two WIT fetch-and-cache pipelines | Deferred |
 | low | WIT naming helpers are copied into every static-hermes-runtime generator module | Fixed in [#13](https://github.com/qhashofficial/pumpkin-plugins/pull/13) |
-| medium | README generator hooks keep one-shot prose migrations as permanent code and duplicate their helpers | Partly fixed on `refactor/docs-generator-hooks` (not merged yet) |
+| medium | README generator hooks keep one-shot prose migrations as permanent code and duplicate their helpers | Partly fixed in [#61](https://github.com/qhashofficial/pumpkin-plugins/pull/61) |
 | medium | Pumpkin Market listing lookup is duplicated between the two Market actions, and the copies have drifted | Fixed in [#33](https://github.com/qhashofficial/pumpkin-plugins/pull/33) |
 | medium | pnpm dev copies the test-harness binary resolver but launches the latest Pumpkin instead of the pinned release | Fixed in [#14](https://github.com/qhashofficial/pumpkin-plugins/pull/14) |
 | medium | @pumpkin-plugins/docs, a README generator, is also the runtime library for plugin info and commands, and the source of monorepo discovery | Deferred |
 | low | A published static-analysis package serves one consumer, while tools/build keeps its own separate TypeScript source analysis | Deferred |
 | medium | PumpkinPIE integration tests deep-import other packages' internals and assert hard-coded pins | Partly fixed in [#16](https://github.com/qhashofficial/pumpkin-plugins/pull/16) |
-| low | GITHUB_OUTPUT writing and the GitHub API helpers are reimplemented across scripts in three styles | Not started (out of time or budget) |
-| low | Workflows inline the bootstrap steps and one hard-codes the Node pin and an older setup-node version | Not started (out of time or budget) |
-| low | The Minecraft spelling dictionary and its VS Code extension aren't used by the repo itself | Partly fixed on `fix/cspell-minecraft-words` (not merged yet) |
+| low | GITHUB_OUTPUT writing and the GitHub API helpers are reimplemented across scripts in three styles | Fixed in [#56](https://github.com/qhashofficial/pumpkin-plugins/pull/56) |
+| low | Workflows inline the bootstrap steps and one hard-codes the Node pin and an older setup-node version | Partly fixed on `ci/reusable-plugin-publish` (not merged yet) |
+| low | The Minecraft spelling dictionary and its VS Code extension aren't used by the repo itself | Partly fixed in [#52](https://github.com/qhashofficial/pumpkin-plugins/pull/52) |
 | low | Plugin test helpers redeclare the plugin name and the data-folder layout | Deferred |
