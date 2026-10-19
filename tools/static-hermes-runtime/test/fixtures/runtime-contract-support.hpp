@@ -43,6 +43,7 @@ struct Value {
     explicit Value(std::string string) : kind(Kind::String), string(std::move(string)) {}
     explicit Value(const char *string) : Value(std::string(string)) {}
     Value(Object object);
+    Value(Uint8Array array);
 
     bool isNumber() const { return kind == Kind::Number; }
     bool isString() const { return kind == Kind::String; }
@@ -73,13 +74,15 @@ struct ObjectData {
     std::unordered_map<std::string, Value> properties;
     std::vector<Value> values;
     std::shared_ptr<HostObject> hostObject;
+    std::vector<std::uint8_t> bytes;
     bool isArray = false;
+    bool isUint8Array = false;
 };
 
 class ArrayBuffer {
   public:
     explicit ArrayBuffer(std::vector<std::uint8_t> *bytes) : bytes_(bytes) {}
-    void *data(Runtime &) { return bytes_->data(); }
+    std::uint8_t *data(Runtime &) { return bytes_->data(); }
 
   private:
     std::vector<std::uint8_t> *bytes_;
@@ -89,6 +92,8 @@ class Uint8Array {
   public:
     Uint8Array(Runtime &, std::size_t size) : bytes(size) {}
     ArrayBuffer buffer(Runtime &) { return ArrayBuffer(&bytes); }
+    std::size_t byteLength(Runtime &) const { return bytes.size(); }
+    std::size_t byteOffset(Runtime &) const { return 0; }
 
     std::vector<std::uint8_t> bytes;
 };
@@ -124,6 +129,12 @@ class Object {
         return data_->hostObject;
     }
     Array asArray(Runtime &) const;
+    Uint8Array asUint8Array(Runtime &runtime) const {
+        if (!data_->isUint8Array) throw std::runtime_error("Expected a Uint8Array");
+        Uint8Array array(runtime, 0);
+        array.bytes = data_->bytes;
+        return array;
+    }
     const std::shared_ptr<ObjectData> &data() const { return data_; }
 
     static Object createFromHostObject(Runtime &, std::shared_ptr<HostObject> hostObject) {
@@ -160,6 +171,11 @@ inline Object Runtime::global() {
 }
 
 inline Value::Value(Object value) : kind(Kind::Object), object(value.data()) {}
+
+inline Value::Value(Uint8Array array) : kind(Kind::Object), object(std::make_shared<ObjectData>()) {
+    object->bytes = std::move(array.bytes);
+    object->isUint8Array = true;
+}
 
 inline Object Value::asObject(Runtime &) const {
     if (!isObject()) throw std::runtime_error("Expected an object");
