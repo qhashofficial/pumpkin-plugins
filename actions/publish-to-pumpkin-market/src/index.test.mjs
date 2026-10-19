@@ -614,6 +614,19 @@ describe('publish-to-market action', () => {
         assert.match(result.stderr, /WASM file not found/);
     });
 
+    it('refuses to send the token to a plain HTTP Market URL, even with warn enabled', async () => {
+        const result = await run(
+            fixture(),
+            inputs({
+                'INPUT_API-TOKEN': 'test-token',
+                'INPUT_API-URL': 'http://market.example.test',
+                INPUT_WARN: 'true',
+            }),
+        );
+        assert.equal(result.status, 1);
+        assert.match(result.stderr, /api-url must use https/);
+    });
+
     for (const status of [401, 403, 429, 500]) {
         it(`fails ID lookup on HTTP ${status} even with warn enabled`, async () => {
             const requests = [];
