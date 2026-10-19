@@ -1,13 +1,8 @@
-import type { CommandSender, ConsumedArgs } from 'pumpkin:plugin/command@0.1.0';
 import type { Context } from 'pumpkin:plugin/context@0.1.0';
-import type { Server } from 'pumpkin:plugin/server@0.1.0';
 import { WasiDataDir } from '@pumpkin-plugins/plugin-kit/data-dir';
-import { cancelTask, hostLogger, runCommand, scheduleRepeating } from '@pumpkin-plugins/plugin-kit/host';
+import { cancelTask, hostLogger, scheduleRepeating } from '@pumpkin-plugins/plugin-kit/host';
 import { PluginBase, registerPlugin } from '@pumpkin-plugins/plugin-kit/plugin';
-import {
-    handleCommand as apiHandleCommand,
-    handleIpcMessage as apiHandleIpcMessage,
-} from '@pumpkin-plugins/pumpkin-api';
+import { handleIpcMessage as apiHandleIpcMessage } from '@pumpkin-plugins/pumpkin-api';
 import { registerCommands } from './commands/register.ts';
 import { PortForwarder } from './forwarder.ts';
 import { info } from './info.ts';
@@ -77,19 +72,7 @@ class UPnPumpkin extends PluginBase {
 
 registerPlugin(new UPnPumpkin());
 
-export { handleTask } from '@pumpkin-plugins/plugin-kit/plugin';
-
-/**
- * Dispatches a command: this plugin's own handlers first, then the API package's.
- * @param id - The handler id.
- * @param sender - Who ran the command.
- * @param server - The server instance.
- * @param args - The consumed arguments.
- * @returns The command's success count.
- */
-export function handleCommand(id: number, sender: CommandSender, server: Server, args: ConsumedArgs): number {
-    return runCommand(id, sender, args) ?? apiHandleCommand(id, sender, server, args);
-}
+export { handleCommand, handleTask } from '@pumpkin-plugins/plugin-kit/plugin';
 
 /**
  * Answers a message from another plugin: a request to open a port, or to report on one.
