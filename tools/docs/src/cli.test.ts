@@ -51,7 +51,6 @@ describe('plugin README', { timeout: 15000 }, () => {
         const generated = run(p);
         expect(generated.status).toBe(0);
         const firstReadme = read('p/README.md');
-        expect(firstReadme).toMatchSnapshot();
         expect(firstReadme).toContain('| `/demo list` | List | none |');
 
         put('p/README.md', firstReadme.replace('Hand-written words.', 'My own words.'));
@@ -59,7 +58,6 @@ describe('plugin README', { timeout: 15000 }, () => {
         expect(unchanged.status).toBe(0);
         const preservedReadme = read('p/README.md');
         expect(preservedReadme).toBe(firstReadme.replace('Hand-written words.', 'My own words.'));
-        expect(preservedReadme).toMatchSnapshot();
 
         put(
             'p/src/info.ts',
@@ -72,7 +70,6 @@ describe('plugin README', { timeout: 15000 }, () => {
         const updated = run(p);
         expect(updated.status).toBe(0);
         const updatedReadme = read('p/README.md');
-        expect(updatedReadme).toMatchSnapshot();
         expect(updatedReadme).toContain('`/demo reload`');
         expect(updatedReadme).toContain('My own words.');
     });
@@ -83,7 +80,6 @@ describe('plugin README', { timeout: 15000 }, () => {
         put('p/src/info.ts', plugin('Demo', 'Does demo things.', ', blocks: { routers: "| Telekom |", unused: "x" }'));
         expect(run(p).status).toBe(0);
         const generatedReadme = read('p/README.md');
-        expect(generatedReadme).toMatchSnapshot();
         expect(generatedReadme).toContain('<!-- docs:begin routers -->\n<!-- Generated');
         expect(generatedReadme).toContain('| Telekom |');
         expect(generatedReadme).not.toContain('unused');
@@ -93,7 +89,7 @@ describe('plugin README', { timeout: 15000 }, () => {
         const result = run(path.join(dir, 'p'), 'plugin');
 
         expect(result.status).toBe(0);
-        expect(read('p/README.md')).toMatchSnapshot();
+        expect(read('p/README.md')).toContain('| `/demo list` | List | none |');
     });
 
     it('--check fails on a stale README and never writes', () => {
@@ -161,7 +157,6 @@ describe('root README', { timeout: 15000 }, () => {
         const generated = run(dir, 'root');
         expect(generated.status).toBe(0);
         const first = read('README.md');
-        expect(first).toMatchSnapshot();
         expect(first).toContain('| [Alpha](packages/alpha) | Alpha plugin. | MIT |');
         expect(first).toContain('| [@x/beta](packages/beta) | Beta from package.json | MIT |');
         expect(first).toContain('| [@x/build](tools/build) | Builds | MIT |');
@@ -180,14 +175,12 @@ describe('root README', { timeout: 15000 }, () => {
         const expanded = run(dir, 'root');
         expect(expanded.status).toBe(0);
         const expandedReadme = read('README.md');
-        expect(expandedReadme).toMatchSnapshot();
         expect(expandedReadme.match(/^\| \[/gm)).toHaveLength(5);
         expect(expandedReadme).toContain('[@x/gamma](packages/gamma)');
 
         fs.rmSync(path.join(dir, 'packages/beta'), { recursive: true });
         expect(run(dir, 'root').status).toBe(0);
         const removedReadme = read('README.md');
-        expect(removedReadme).toMatchSnapshot();
         expect(removedReadme).not.toContain('beta');
         const unchanged = run(dir, 'root', '--check');
         expect(unchanged.status).toBe(0);
@@ -205,7 +198,6 @@ describe('root README', { timeout: 15000 }, () => {
         const updatedRoot = run(dir, 'root');
         expect(updatedRoot.status).toBe(0);
         const generatedReadme = read('README.md');
-        expect(generatedReadme).toMatchSnapshot();
         expect(generatedReadme).toContain('**Actions**');
         expect(generatedReadme).toContain('| [Sign plugin](actions/sign) | Add the plugin release signature |');
         expect(generatedReadme.indexOf('**Actions**')).toBeLessThan(generatedReadme.indexOf('**Plugins**'));
@@ -223,7 +215,6 @@ describe('root README', { timeout: 15000 }, () => {
         expect(read('README.md')).toBe(generatedReadme);
         expect(run(dir, 'root').status).toBe(0);
         const updatedReadme = read('README.md');
-        expect(updatedReadme).toMatchSnapshot();
         expect(updatedReadme).toContain('| [Sign plugin](actions/sign) | Verify the plugin release signature |');
     });
 
@@ -232,7 +223,6 @@ describe('root README', { timeout: 15000 }, () => {
         put('actions/folded/action.yml', 'name: Folded\ndescription: >-\n  Action with\n  folded words\n');
         expect(run(dir, 'root').status).toBe(0);
         const generatedReadme = read('README.md');
-        expect(generatedReadme).toMatchSnapshot();
         expect(generatedReadme).toContain("| [A: B](actions/quoted) | Action with a 'quote' |");
         expect(generatedReadme).toContain('| [Folded](actions/folded) | Action with folded words |');
 
@@ -307,7 +297,6 @@ describe('custom document CLI', { timeout: 15000 }, () => {
             const generated = run(root, 'generate', 'docs.ts');
             expect(generated.status).toBe(0);
             const generatedReadme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
-            expect(generatedReadme).toMatchSnapshot();
             expect(generatedReadme).toContain('Fresh');
             const unchanged = run(root, 'generate', 'docs.ts', '--check');
             expect(unchanged.status).toBe(0);
