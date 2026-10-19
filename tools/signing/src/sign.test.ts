@@ -217,6 +217,29 @@ describe('verifyWasm', () => {
         });
     });
 
+    it('accepts a signature in a pumpkin.signature section like the host', () => {
+        const { clean, trailing } = stripSignature(signed);
+        const renamed = appendCustomSections(clean, [
+            ['pumpkin.metadata', trailing[0]?.data ?? Buffer.alloc(0)],
+            ['pumpkin.signature', trailing[1]?.data ?? Buffer.alloc(0)],
+        ]);
+
+        expect(verifyWasm(renamed)).toMatchObject({ signed: true, valid: true, publicKeyHex: publicKeyOf(SEED) });
+    });
+
+    it('accepts uppercase envelope hex like the host and reports the key in lowercase', () => {
+        const { clean, trailing } = stripSignature(signed);
+        const envelope = JSON.parse(Buffer.from(trailing[1]?.data ?? []).toString('utf8'));
+        envelope.public_key_hex = envelope.public_key_hex.toUpperCase();
+        envelope.signature_hex = envelope.signature_hex.toUpperCase();
+        const uppercase = appendCustomSections(clean, [
+            ['pumpkin.metadata', trailing[0]?.data ?? Buffer.alloc(0)],
+            ['wasm_signature', Buffer.from(JSON.stringify(envelope))],
+        ]);
+
+        expect(verifyWasm(uppercase)).toMatchObject({ signed: true, valid: true, publicKeyHex: publicKeyOf(SEED) });
+    });
+
     it.each(['{}', '[]', 'null'])(
         'rejects correctly signed non-metadata %s without exposing a typed object',
         (json) => {
