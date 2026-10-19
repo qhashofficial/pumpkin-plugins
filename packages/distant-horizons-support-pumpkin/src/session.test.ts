@@ -41,13 +41,12 @@ function fixture(measureNow = () => 1000, now = () => 1000) {
         send: (bytes) => sent.push(bytes),
         report: (message) => reports.push(message),
     };
-    const peers = {
-        withPeer: (name: string, use: (p: Peer) => void) => {
-            if (name !== peer.name) return false;
-            use(peer);
-            return true;
-        },
+    const withPeer = (name: string, use: (p: Peer) => void) => {
+        if (name !== peer.name) return false;
+        use(peer);
+        return true;
     };
+    const peers = { withPeer, withTerrain: withPeer };
     const request = (tracker = 1, level = 'world', x = 0, timestamp?: number) =>
         packet(7)
             .int(tracker)
@@ -422,14 +421,13 @@ describe('DH protocol contracts', () => {
         f.cache.put('world:1:0', { updated: 0, data: new Uint8Array(60_000).fill(2) });
         const bobSent: Uint8Array[] = [];
         const bob: Peer = { ...f.peer, name: 'Bob', send: (bytes) => bobSent.push(bytes) };
-        const peers = {
-            withPeer: (name: string, use: (peer: Peer) => void) => {
-                const peer = name === f.peer.name ? f.peer : name === bob.name ? bob : undefined;
-                if (!peer) return false;
-                use(peer);
-                return true;
-            },
+        const withPeer = (name: string, use: (peer: Peer) => void) => {
+            const peer = name === f.peer.name ? f.peer : name === bob.name ? bob : undefined;
+            if (!peer) return false;
+            use(peer);
+            return true;
         };
+        const peers = { withPeer, withTerrain: withPeer };
         f.sessions.receive(bob, packet(3).string(bob.dimension).finish());
         f.sessions.receive(f.peer, clientConfig({ bandwidthKbps: 1 }));
         f.sessions.receive(bob, clientConfig({ bandwidthKbps: 1 }));
@@ -534,14 +532,13 @@ describe('DH protocol contracts', () => {
         f.cache.put('world:1:0', { updated: 1000, data: new Uint8Array(64).fill(2) });
         const bobSent: Uint8Array[] = [];
         const bob: Peer = { ...f.peer, name: 'Bob', send: (bytes) => bobSent.push(bytes) };
-        const peers = {
-            withPeer: (name: string, use: (peer: Peer) => void) => {
-                const peer = name === f.peer.name ? f.peer : name === bob.name ? bob : undefined;
-                if (!peer) return false;
-                use(peer);
-                return true;
-            },
+        const withPeer = (name: string, use: (peer: Peer) => void) => {
+            const peer = name === f.peer.name ? f.peer : name === bob.name ? bob : undefined;
+            if (!peer) return false;
+            use(peer);
+            return true;
         };
+        const peers = { withPeer, withTerrain: withPeer };
         f.sessions.receive(bob, packet(3).string(bob.dimension).finish());
         f.sent.length = 0;
         bobSent.length = 0;
@@ -729,6 +726,17 @@ describe('DH sessions', () => {
         expect(f.reads()).toBe(32768);
     });
 
+    it('runs forced captures for an operator without a DH session channel', () => {
+        const f = fixture();
+        f.peer.terrain.height = 16;
+        f.sessions.forceGenerate(f.peer, 32, 32);
+        const bedrockPeers = { withPeer: () => false, withTerrain: f.peers.withTerrain };
+
+        f.sessions.tick(bedrockPeers);
+
+        expect(f.reads()).toBe(32768);
+        expect(f.sessions.status()).toContain('Forced LOD capture for Alice: 50%');
+    });
     it('keeps forced work running when only the DH protocol session closes', () => {
         const f = fixture();
         f.peer.terrain.height = 16;
@@ -1103,15 +1111,14 @@ describe('DH sessions', () => {
         const bob: Peer = { ...f.peer, name: 'Bob', send: (bytes) => bobSent.push(bytes) };
         const carolSent: Uint8Array[] = [];
         const carol: Peer = { ...f.peer, name: 'Carol', send: (bytes) => carolSent.push(bytes) };
-        const peers = {
-            withPeer: (name: string, use: (peer: Peer) => void) => {
-                const peer =
-                    name === f.peer.name ? f.peer : name === bob.name ? bob : name === carol.name ? carol : undefined;
-                if (!peer) return false;
-                use(peer);
-                return true;
-            },
+        const withPeer = (name: string, use: (peer: Peer) => void) => {
+            const peer =
+                name === f.peer.name ? f.peer : name === bob.name ? bob : name === carol.name ? carol : undefined;
+            if (!peer) return false;
+            use(peer);
+            return true;
         };
+        const peers = { withPeer, withTerrain: withPeer };
         sessions.receive(f.peer, packet(3).string(f.peer.dimension).finish());
         sessions.receive(bob, packet(3).string(bob.dimension).finish());
         sessions.receive(carol, packet(3).string(carol.dimension).finish());

@@ -15,12 +15,24 @@ import type { Settings } from '../config/schema.ts';
 import { PLUGIN_NAME } from '../name.ts';
 import { CHUNK_SIZE_BLOCKS } from '../protocol/constants.ts';
 import { CHANNEL } from '../protocol/messages.ts';
-import type { Peer, Peers } from '../session.ts';
+import type { Peer, Peers, PlayerTerrain } from '../session.ts';
 
-/** Creates terrain access from current player handles, and releases every acquired resource. */
+/** Creates DH session access for a Java player, returning false for players without a Java handle. */
 export function withPlayer(player: Player, settings: Settings, use: (peer: Peer) => void): boolean {
     const java = player.asJava();
     if (!java) return false;
+    try {
+        withPlayerTerrain(player, settings, (peer) =>
+            use({ ...peer, send: (bytes) => java.sendCustomPayload(CHANNEL, bytes) }),
+        );
+        return true;
+    } finally {
+        disposeWasiResource(java);
+    }
+}
+
+/** Creates terrain and chat access for any player, and releases every acquired resource. */
+export function withPlayerTerrain(player: Player, settings: Settings, use: (peer: PlayerTerrain) => void): void {
     let world: ReturnType<typeof player.getWorld> | undefined;
     const chunkLoader = unavailableChunkLoader;
     const terrainGenerator = unavailableTerrainGenerator;
@@ -164,7 +176,6 @@ export function withPlayer(player: Player, settings: Settings, use: (peer: Peer)
                     disposeWasiResource(component);
                 }
             },
-            send: (bytes) => java.sendCustomPayload(CHANNEL, bytes),
             borderBounds: {
                 minX: borderX - radius,
                 maxX: borderX + radius,
@@ -174,28 +185,32 @@ export function withPlayer(player: Player, settings: Settings, use: (peer: Peer)
             insideBorder: (x, z) => Math.abs(x + 0.5 - borderX) <= radius && Math.abs(z + 0.5 - borderZ) <= radius,
             terrain,
         });
-        return true;
     } finally {
         disposeWasiResource(border);
         disposeWasiResource(world);
-        disposeWasiResource(java);
     }
 }
 
-/** Resolves connected Java players afresh for each tick, without retaining host handles. */
+/** Resolves connected players afresh for each tick, without retaining host handles. */
 export function serverPeers(server: Server, settings: Settings, log: Logger): Peers {
+    const withNamedPlayer = (name: string, use: (player: Player) => boolean): boolean => {
+        const player = server.getPlayerByName(name);
+        if (!player) return false;
+        try {
+            return use(player);
+        } catch (err) {
+            log.warn(`${PLUGIN_NAME}: cannot access player terrain: ${String(err)}`);
+            return false;
+        } finally {
+            disposeWasiResource(player);
+        }
+    };
     return {
-        withPeer: (name, use) => {
-            const player = server.getPlayerByName(name);
-            if (!player) return false;
-            try {
-                return withPlayer(player, settings, use);
-            } catch (err) {
-                log.warn(`${PLUGIN_NAME}: cannot access player terrain: ${String(err)}`);
-                return false;
-            } finally {
-                disposeWasiResource(player);
-            }
-        },
+        withPeer: (name, use) => withNamedPlayer(name, (player) => withPlayer(player, settings, use)),
+        withTerrain: (name, use) =>
+            withNamedPlayer(name, (player) => {
+                withPlayerTerrain(player, settings, use);
+                return true;
+            }),
     };
 }
