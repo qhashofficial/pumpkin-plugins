@@ -1,5 +1,6 @@
 import type { DataFiles } from '@pumpkin-plugins/plugin-kit/files';
 import { Reader, Writer } from '../protocol/bytes.ts';
+import { MIN_DTO_BYTES } from './builder.ts';
 
 const MAX_CACHE_FILE_BYTES = 16 * 1024 * 1024;
 const CACHE_FILE_READ_CHUNK_BYTES = 1 << 20;
@@ -68,7 +69,8 @@ export class LodCache {
                 const updated = input.timestamp();
                 const data = input.bytes(input.int());
                 input.end();
-                if (checksum(data) !== expected || data.length < 64) throw new Error('Invalid cached payload');
+                if (checksum(data) !== expected || data.length < MIN_DTO_BYTES)
+                    throw new Error('Invalid cached payload');
                 value = { updated, data };
             } catch {
                 this.files.remove(path);
