@@ -90,6 +90,7 @@ jobs:
                       "$NINJA_VERSION"|"$NINJA_VERSION".*|"$NINJA_VERSION"+*|"$NINJA_VERSION"-*) ;;
                       *) echo "Expected Ninja $NINJA_VERSION, got '$ninja_version'" >&2; exit 1 ;;
                   esac
+                  rustup toolchain install "$RUST_VERSION" --profile minimal
                   rustc "+$RUST_VERSION" --version
                   cargo "+$RUST_VERSION" --version
                   if [[ "$RUNNER_OS" == Windows ]]; then
