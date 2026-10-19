@@ -7,14 +7,14 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
 import { pathToFileURL } from 'node:url';
+import { PUMPKIN_RELEASE } from '../tools/test-harness/src/pumpkin-version.ts';
+import { assetName } from '../tools/test-harness/src/util.ts';
 import {
-    assetName,
     copyPluginBuild,
     listPluginBuilds,
-    parseChecksums,
     parseDevArgs,
     releaseAsset,
-    resolvePumpkinBinary,
+    resolveLatestPumpkinBinary,
     runDev,
 } from './dev.mjs';
 
@@ -71,6 +71,7 @@ describe('parseDevArgs', () => {
     it('selects the server and plugin build modes from command-line arguments', () => {
         assert.deepEqual(parseDevArgs([]), {
             hotReload: true,
+            latest: false,
             nightly: false,
             release: false,
             parseTypeScript: false,
@@ -78,6 +79,7 @@ describe('parseDevArgs', () => {
         });
         assert.deepEqual(parseDevArgs(['--nightly', '--no-hot-reload']), {
             hotReload: false,
+            latest: false,
             nightly: true,
             release: false,
             parseTypeScript: false,
@@ -85,36 +87,12 @@ describe('parseDevArgs', () => {
         });
         assert.deepEqual(parseDevArgs(['--release', '--parse-ts', '--', '--output-logs=errors-only']), {
             hotReload: true,
+            latest: false,
             nightly: false,
             release: true,
             parseTypeScript: true,
             turboArgs: ['--output-logs=errors-only'],
         });
-    });
-});
-
-describe('assetName', () => {
-    it('maps supported operating systems and architectures to release assets', () => {
-        assert.equal(assetName('darwin', 'arm64'), 'pumpkin-ARM64-macOS');
-        assert.equal(assetName('linux', 'x64'), 'pumpkin-X64-Linux');
-        assert.equal(assetName('win32', 'x64'), 'pumpkin-X64-Windows.exe');
-    });
-
-    it('explains unsupported platforms', () => {
-        assert.throws(() => assetName('freebsd', 'x64'), /No Pumpkin release binary for freebsd-x64/);
-    });
-});
-
-describe('parseChecksums', () => {
-    it('parses sha256sum entries with and without the binary marker', () => {
-        const digest = 'A'.repeat(64);
-        assert.deepEqual(
-            parseChecksums(`${digest}  pumpkin-X64-Linux\n${digest} *pumpkin-X64-Windows.exe\n`),
-            new Map([
-                ['pumpkin-X64-Linux', digest.toLowerCase()],
-                ['pumpkin-X64-Windows.exe', digest.toLowerCase()],
-            ]),
-        );
     });
 });
 
@@ -129,7 +107,7 @@ describe('releaseAsset', () => {
     });
 });
 
-describe('resolvePumpkinBinary', () => {
+describe('resolveLatestPumpkinBinary', () => {
     const release = {
         tag_name: '0.2.0',
         prerelease: false,
@@ -194,7 +172,7 @@ describe('resolvePumpkinBinary', () => {
             };
         };
 
-        const result = await resolvePumpkinBinary({ root, platform: 'linux', arch: 'x64', env: {}, fetchImpl });
+        const result = await resolveLatestPumpkinBinary({ root, platform: 'linux', arch: 'x64', env: {}, fetchImpl });
 
         assert.equal(result.release, '0.2.0');
         assert.equal(fs.readFileSync(result.binary).toString(), bytes.toString());
@@ -228,7 +206,7 @@ describe('resolvePumpkinBinary', () => {
             };
         };
 
-        const result = await resolvePumpkinBinary({
+        const result = await resolveLatestPumpkinBinary({
             root,
             platform: 'linux',
             arch: 'x64',
@@ -279,7 +257,7 @@ describe('resolvePumpkinBinary', () => {
             };
         };
 
-        const result = await resolvePumpkinBinary({
+        const result = await resolveLatestPumpkinBinary({
             root,
             platform: 'linux',
             arch: 'x64',
@@ -298,7 +276,7 @@ describe('resolvePumpkinBinary', () => {
 
     it('rejects a prerelease response', async () => {
         await assert.rejects(
-            resolvePumpkinBinary({
+            resolveLatestPumpkinBinary({
                 root: tempDir(),
                 env: {},
                 fetchImpl: async () => ({
@@ -313,7 +291,7 @@ describe('resolvePumpkinBinary', () => {
     it('rejects malformed release metadata before caching it', async () => {
         const root = tempDir();
         await assert.rejects(
-            resolvePumpkinBinary({
+            resolveLatestPumpkinBinary({
                 root,
                 env: {},
                 fetchImpl: async () => ({
@@ -329,7 +307,7 @@ describe('resolvePumpkinBinary', () => {
     it('uses fresh release metadata without making a GitHub request', async () => {
         const root = tempDir();
         const { binary } = seedReleaseCache(root, release, 1_000_000);
-        const result = await resolvePumpkinBinary({
+        const result = await resolveLatestPumpkinBinary({
             root,
             platform: 'linux',
             arch: 'x64',
@@ -346,7 +324,7 @@ describe('resolvePumpkinBinary', () => {
         const root = tempDir();
         seedReleaseCache(root, release, 1_000_000);
         const calls = [];
-        const result = await resolvePumpkinBinary({
+        const result = await resolveLatestPumpkinBinary({
             root,
             platform: 'linux',
             arch: 'x64',
@@ -366,7 +344,7 @@ describe('resolvePumpkinBinary', () => {
         const root = tempDir();
         seedReleaseCache(root, release, 1_000_000);
         const calls = [];
-        await resolvePumpkinBinary({
+        await resolveLatestPumpkinBinary({
             root,
             platform: 'linux',
             arch: 'x64',
@@ -388,7 +366,7 @@ describe('resolvePumpkinBinary', () => {
         const originalWarn = console.warn;
         console.warn = (...args) => warnings.push(args.join(' '));
         try {
-            const result = await resolvePumpkinBinary({
+            const result = await resolveLatestPumpkinBinary({
                 root,
                 platform: 'linux',
                 arch: 'x64',
@@ -413,7 +391,7 @@ describe('resolvePumpkinBinary', () => {
         const originalWarn = console.warn;
         console.warn = () => {};
         try {
-            const result = await resolvePumpkinBinary({
+            const result = await resolveLatestPumpkinBinary({
                 root,
                 platform: 'linux',
                 arch: 'x64',
@@ -433,7 +411,7 @@ describe('resolvePumpkinBinary', () => {
         const root = tempDir();
         seedReleaseCache(root, release, 1_000_000);
         await assert.rejects(
-            resolvePumpkinBinary({
+            resolveLatestPumpkinBinary({
                 root,
                 platform: 'linux',
                 arch: 'x64',
@@ -447,7 +425,7 @@ describe('resolvePumpkinBinary', () => {
 
     it('keeps network failures as errors when there is no cached release', async () => {
         await assert.rejects(
-            resolvePumpkinBinary({
+            resolveLatestPumpkinBinary({
                 root: tempDir(),
                 env: {},
                 fetchImpl: async () => {
@@ -462,7 +440,7 @@ describe('resolvePumpkinBinary', () => {
         const root = tempDir();
         const binary = path.join(root, 'pumpkin');
         fs.writeFileSync(binary, 'local binary');
-        const result = await resolvePumpkinBinary({
+        const result = await resolveLatestPumpkinBinary({
             root,
             env: { PUMPKIN_BIN: binary },
             fetchImpl: async () => assert.fail('PUMPKIN_BIN should avoid GitHub'),
@@ -777,6 +755,67 @@ describe('runDev', () => {
             calls.some(({ args }) => args.includes('watch')),
             false,
         );
+    });
+
+    it('runs the pinned Pumpkin release unless --latest or --nightly asks for another one', async () => {
+        const asset = assetName(process.platform, process.arch);
+        const bytes = Buffer.from('pumpkin binary');
+        const digest = createHash('sha256').update(bytes).digest('hex');
+        const latestRelease = {
+            tag_name: '9.9.9',
+            prerelease: false,
+            draft: false,
+            assets: [
+                { name: asset, browser_download_url: 'https://example.test/latest-pumpkin' },
+                { name: 'checksums.sha256', browser_download_url: 'https://example.test/latest-checksums' },
+            ],
+        };
+        const startServer = async (args) => {
+            const root = tempDir();
+            addPluginFixture(root);
+            const cacheDir = path.join(root, 'pumpkin-cache');
+            const requests = [];
+            let serverCommand;
+            const spawnImpl = (command, spawnArgs) => {
+                const child = new EventEmitter();
+                child.kill = (signal) => process.nextTick(() => child.emit('exit', null, signal));
+                if (spawnArgs.includes('run') || spawnArgs.length === 0) {
+                    if (spawnArgs.length === 0) serverCommand = command;
+                    process.nextTick(() => child.emit('exit', 0, null));
+                }
+                return child;
+            };
+            const originalFetch = globalThis.fetch;
+            const originalEnv = { ...process.env };
+            globalThis.fetch = async (url) => {
+                requests.push(String(url));
+                if (String(url).endsWith('/releases/latest')) return Response.json(latestRelease);
+                if (/checksums(\.sha256)?$/.test(String(url))) return new Response(`${digest}  ${asset}\n`);
+                return new Response(bytes);
+            };
+            process.env.PUMPKIN_CACHE_DIR = cacheDir;
+            delete process.env.PUMPKIN_BIN;
+            delete process.env.PUMPKIN_REFRESH_RELEASE;
+            try {
+                await runDev({ root, spawnImpl, ...parseDevArgs(['--no-hot-reload', ...args]) });
+            } finally {
+                globalThis.fetch = originalFetch;
+                for (const key of Object.keys(process.env)) if (!(key in originalEnv)) delete process.env[key];
+                Object.assign(process.env, originalEnv);
+            }
+            return { serverCommand, cacheDir, requests };
+        };
+
+        const pinned = await startServer([]);
+        assert.equal(pinned.serverCommand, path.join(pinned.cacheDir, `${PUMPKIN_RELEASE}-${asset}`));
+        assert.equal(
+            pinned.requests.some((url) => url.startsWith('https://api.github.com/')),
+            false,
+        );
+
+        const latest = await startServer(['--latest']);
+        assert.equal(latest.serverCommand, path.join(latest.cacheDir, `9.9.9-${asset}`));
+        assert.ok(latest.requests.includes('https://api.github.com/repos/Pumpkin-MC/Pumpkin/releases/latest'));
     });
 
     it('reports an initial Turbo build failure without starting Pumpkin', async () => {
