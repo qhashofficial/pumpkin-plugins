@@ -69,15 +69,16 @@ class DistantHorizonsSupportPumpkin extends PluginBase {
             try {
                 withPlayer(event.player, settings, (peer) => sessions.receive(peer, event.data));
             } catch (err) {
-                sessions.endSession(event.player.getName());
-                hostLogger.warn(`${PLUGIN_NAME}: cannot open DH session: ${String(err)}`);
+                const name = event.player.getName();
+                sessions.endSession(name);
+                hostLogger.warn(`${PLUGIN_NAME}: DH message from ${name} failed: ${String(err)}`);
             }
         });
         this.registerEvent(ctx, 'player-leave-event', (_server, event: PlayerLeaveEventData) => {
             sessions.playerLeft(event.player.getName());
         });
         this.registerEvent(ctx, 'server-tick-end-event', (server) => {
-            sessions.tick(serverPeers(server, settings, hostLogger), server.getMspt());
+            sessions.tick(serverPeers(server, settings), server.getMspt());
             try {
                 this.placeholders?.tick();
             } catch {

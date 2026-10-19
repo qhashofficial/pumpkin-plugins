@@ -1,5 +1,4 @@
 import { defaultValues } from '@pumpkin-plugins/config';
-import { MemoryLogger } from '@pumpkin-plugins/plugin-kit/testing';
 import { TerrainCapture } from '@pumpkin-plugins/terrain';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -473,12 +472,10 @@ describe('server player lookup', () => {
 
     it('returns false when a player disconnected before lookup', () => {
         const getPlayerByName = vi.fn(() => undefined);
-        const log = new MemoryLogger();
-        const peers = serverPeers({ getPlayerByName } as unknown as Server, settings, log);
+        const peers = serverPeers({ getPlayerByName } as unknown as Server, settings);
 
         expect(peers.withPeer('Alice', () => {})).toBe(false);
         expect(getPlayerByName).toHaveBeenCalledWith('Alice');
-        expect(log.of('warn')).toEqual([]);
     });
 
     it('gives Bedrock players terrain access without a DH channel', () => {
@@ -497,7 +494,7 @@ describe('server player lookup', () => {
             getPosition: () => [8, 64, -8],
             [Symbol.dispose]: vi.fn(),
         };
-        const peers = serverPeers({ getPlayerByName: () => player } as unknown as Server, settings, new MemoryLogger());
+        const peers = serverPeers({ getPlayerByName: () => player } as unknown as Server, settings);
         const seen: string[] = [];
 
         expect(peers.withPeer('Steve', () => seen.push('session'))).toBe(false);
@@ -508,7 +505,7 @@ describe('server player lookup', () => {
         expect(world[Symbol.dispose]).toHaveBeenCalledTimes(1);
     });
 
-    it('warns and releases player handles when terrain access fails', () => {
+    it('passes terrain access failures to the caller and releases player handles', () => {
         const java = { [Symbol.dispose]: vi.fn() };
         const player = {
             asJava: () => java,
@@ -517,13 +514,9 @@ describe('server player lookup', () => {
             },
             [Symbol.dispose]: vi.fn(),
         };
-        const log = new MemoryLogger();
-        const peers = serverPeers({ getPlayerByName: () => player } as unknown as Server, settings, log);
+        const peers = serverPeers({ getPlayerByName: () => player } as unknown as Server, settings);
 
-        expect(peers.withPeer('Alice', () => {})).toBe(false);
-        expect(log.of('warn')).toEqual([
-            'DistantHorizonsSupportPumpkin: cannot access player terrain: Error: world unavailable',
-        ]);
+        expect(() => peers.withPeer('Alice', () => {})).toThrow('world unavailable');
         expect(java[Symbol.dispose]).toHaveBeenCalledOnce();
         expect(player[Symbol.dispose]).toHaveBeenCalledOnce();
     });

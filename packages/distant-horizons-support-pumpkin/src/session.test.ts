@@ -737,6 +737,35 @@ describe('DH sessions', () => {
         expect(f.reads()).toBe(32768);
         expect(f.sessions.status()).toContain('Forced LOD capture for Alice: 50%');
     });
+    it('ends only the failing DH session when a player callback throws', () => {
+        const f = fixture();
+        f.cache.put('world:0:0', { updated: 1000, data: new Uint8Array(64).fill(1) });
+        f.sessions.receive(f.peer, f.request());
+        f.peer.send = () => {
+            throw new Error('connection closed');
+        };
+
+        expect(() => f.sessions.tick(f.peers)).not.toThrow();
+
+        expect(f.sessions.hasClient('Alice')).toBe(false);
+        expect(f.log.of('warn').join('\n')).toContain('connection closed');
+    });
+    it('cancels forced work with the real reason when terrain access throws', () => {
+        const f = fixture();
+        f.peer.terrain.height = 16;
+        f.sessions.forceGenerate(f.peer, 32, 32);
+        const failing = {
+            withPeer: f.peers.withPeer,
+            withTerrain: () => {
+                throw new Error('world unavailable');
+            },
+        };
+
+        expect(() => f.sessions.tick(failing)).not.toThrow();
+
+        expect(f.sessions.status()).not.toContain('Forced LOD capture');
+        expect(f.log.of('warn').join('\n')).toContain('world unavailable');
+    });
     it('keeps forced work running when only the DH protocol session closes', () => {
         const f = fixture();
         f.peer.terrain.height = 16;
