@@ -42,6 +42,7 @@
     },
     "files": [
         "dist",
+        "globals.d.ts",
         "runtime",
         "wasi-wit.lock.json"
     ],
