@@ -35,7 +35,7 @@ function infoPath(pluginDir: string): string {
  * Loads the `info` export of a plugin's info module. Node strips the TypeScript types.
  * @param pluginDir - The plugin's folder.
  * @returns What the plugin says about itself.
- * @throws {Error} When the module is missing or doesn't export a usable `info`.
+ * @throws When the module is missing or doesn't export a usable `info`.
  */
 export async function loadInfo(pluginDir: string): Promise<PluginInfo> {
     const file = infoPath(pluginDir);
@@ -146,7 +146,7 @@ async function prepareComponentReferenceUpdates(root: string, siteUrl: URL): Pro
  * @param pluginDir - The plugin's folder.
  * @param check - Only report whether the README is out of date, without writing.
  * @returns What happened to the README.
- * @throws {Error} When the README doesn't exist. `pnpm gen` creates one for new plugins.
+ * @throws When the README doesn't exist. `pnpm gen` creates one for new plugins.
  */
 export async function generatePluginReadme(pluginDir: string, check = false): Promise<Status> {
     const info = await loadInfo(pluginDir);
@@ -200,7 +200,7 @@ function actionRows(root: string): ActionRow[] {
  * @param root - The repository root.
  * @param check - Only report whether the README is out of date, without writing.
  * @returns What happened to the README.
- * @throws {Error} When the README or its `packages` block is missing.
+ * @throws When the README or its `packages` block is missing.
  */
 export async function generateRootReadme(root: string, check = false): Promise<Status> {
     const rootPackage = readJson(path.join(root, 'package.json'));
