@@ -133,6 +133,16 @@ it('digests every WIT file under a package directory, including nested dependenc
     expect(digestWitDirectory(directory)).not.toBe(digest);
 });
 
+it('reports a pinned commit that has no WIT subdirectory', () => {
+    const directory = createLocalWitPin();
+    const lock = JSON.parse(fs.readFileSync(directory.lockFile, 'utf8'));
+    fs.writeFileSync(directory.lockFile, JSON.stringify({ ...lock, subdirectory: 'missing' }));
+
+    expect(() => ensurePumpkinWit({ lockFile: directory.lockFile, cacheRoot: directory.cacheRoot })).toThrow(
+        /does not contain WIT files under missing\//,
+    );
+});
+
 it('lets concurrent first builds fetch the same WIT pin', async () => {
     const directory = createLocalWitPin();
 
