@@ -29,10 +29,10 @@ resulting work through `tick`, so callers can make progress without blocking a g
 
 When both protocols are enabled, the UPnP SSDP search and device-description reads finish before
 NAT-PMP discovery starts. The UPnP SOAP and NAT-PMP requests then run together, and UPnP is preferred
-when both find a router. If you provide a router-identification `screen`, the library probes the
-router's web interface first, then checks UPnP descriptions before sending protocol requests. A
-screen can refuse routers it recognizes as unsupported; routers that cannot be identified are left
-alone.
+when both find a router. If you provide a router-identification `screen`, the library checks UPnP
+descriptions before sending protocol requests. When neither protocol finds a router, it probes the
+web interface at the usual router addresses so a recognized router can be named. A screen can refuse
+routers it recognizes as unsupported; routers that cannot be identified are left alone.
 
 The package includes fake network and router implementations for deterministic tests. They let you
 exercise discovery and mapping behavior without a live router.

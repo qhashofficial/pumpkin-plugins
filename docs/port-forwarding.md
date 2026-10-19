@@ -60,18 +60,21 @@ and name) and can return a reason to reject it. A rejected router is not used or
 mapping requests fail with that reason and `info().refused` is set. Without a `screen`, the engine
 does not identify routers. Screening happens in this order:
 
-1. The router's web interface. A router without UPnP can't describe itself, so `identify.ts` has a
-   short list of recognizable pages (`WEB_FINGERPRINTS`), currently Telekom's Speedport login
-   page. The engine probes port 80 at the first and last address of the local /24, or at the
-   configured NAT-PMP gateway, with a short timeout.
-2. UPnP device descriptions. The engine checks `manufacturer`, `modelName`, `modelNumber`, and
+1. UPnP device descriptions. The engine checks `manufacturer`, `modelName`, `modelNumber`, and
    `friendlyName` from each response before sending any SOAP action.
-3. Protocol requests. UPnP SOAP actions and NAT-PMP requests run side by side. NAT-PMP waits for
+2. Protocol requests. UPnP SOAP actions and NAT-PMP requests run side by side. NAT-PMP waits for
    the UPnP search and description-screening pass to finish, so discovery can take longer than the
    search window alone.
+3. The router's web interface, only when neither protocol found a router. A router without UPnP
+   can't describe itself, so `identify.ts` has a short list of recognizable pages
+   (`WEB_FINGERPRINTS`), currently Telekom's Speedport login page. The engine probes port 80 at the
+   first and last address of the local /24, or at the configured NAT-PMP gateway, with a short
+   timeout. A match turns the failure into a refusal that names the router.
 
-NAT-PMP has no identity query, so a NAT-PMP-only router can be recognized only through its web
-interface. The engine won't reject a router it can't identify.
+The probe runs last so that another device at one of those addresses, such as a Speedport used as
+an access point, can't hide the router that answers. NAT-PMP has no identity query, so a NAT-PMP
+router that answers is used without being identified. The engine won't reject a router it can't
+identify.
 
 UPnPumpkin's `screen` is its blocklist, see below.
 
