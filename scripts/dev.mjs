@@ -571,7 +571,7 @@ export function parseDevArgs(args) {
         .option('--no-hot-reload', 'Disable plugin rebuilds while files change')
         .option('--latest', 'Use the latest stable Pumpkin release instead of the pinned one')
         .option('--nightly', 'Use the latest Pumpkin nightly build')
-        .option('--release', 'Use the latest stable Pumpkin release')
+        .option('--release', 'Build plugins with release settings (includes Market update checks)')
         .option('--parse-ts', 'Use Hermes TypeScript parsing for plugin builds')
         .parse(devArgs, { from: 'user' });
     const options = program.opts();
