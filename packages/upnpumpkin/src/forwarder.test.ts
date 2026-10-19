@@ -1,6 +1,6 @@
 import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import { MemoryFiles, MemoryLogger } from '@pumpkin-plugins/plugin-kit/testing';
-import { FakeIgd, FakeNetwork } from '@pumpkin-plugins/port-mapping/testing';
+import { delayReplies, FakeIgd, FakeNetwork } from '@pumpkin-plugins/port-mapping/testing';
 import {
     decodeReply,
     encodeRequest,
@@ -31,35 +31,6 @@ function setup(config?: string, igd: FakeIgd | null = new FakeIgd()) {
     };
     const keys = () => [...(igd?.mappings.keys() ?? [])].sort();
     return { files, log, net, igd: igd ?? undefined, forwarder, settle, ask, keys };
-}
-
-function delayRouterReply(net: FakeNetwork, action = 'DeletePortMapping') {
-    const dial = net.dial.bind(net);
-    let blocked = true;
-    net.dial = (to) => {
-        const original = dial(to);
-        return {
-            abort: () => original.abort(),
-            poll: () => {
-                const connection = original.poll();
-                if (!connection) return undefined;
-                let delayed = false;
-                return {
-                    localAddress: connection.localAddress,
-                    writable: () => connection.writable(),
-                    close: () => connection.close(),
-                    write: (bytes) => {
-                        delayed ||= new TextDecoder().decode(bytes).includes(`#${action}`);
-                        connection.write(bytes);
-                    },
-                    read: (max) => (delayed && blocked ? null : connection.read(max)),
-                };
-            },
-        };
-    };
-    return () => {
-        blocked = false;
-    };
 }
 
 const web: PortRequest = { key: 'web', protocol: 'tcp', port: 8123, description: 'Packs' };
@@ -155,7 +126,7 @@ describe('PortForwarder', () => {
         );
         forwarder.start();
         settle(() => keys().length === 1);
-        const resume = delayRouterReply(net);
+        const resume = delayReplies(net, 'DeletePortMapping');
         files.put(CONFIG_FILE, '[router]\nnat_pmp = false\n[java]\nport = 25570\n[bedrock]\nenabled = false\n');
         net.autoAdvanceMs = 1;
         const before = net.time;
@@ -179,7 +150,7 @@ describe('PortForwarder', () => {
         );
         forwarder.start();
         settle(() => keys().length === 1);
-        const resume = delayRouterReply(net);
+        const resume = delayReplies(net, 'DeletePortMapping');
         net.autoAdvanceMs = 1;
         const before = net.time;
         const connections = net.connections.length;
@@ -208,7 +179,7 @@ describe('PortForwarder', () => {
         );
         forwarder.start();
         settle(() => keys().length === 1);
-        delayRouterReply(net);
+        delayReplies(net, 'DeletePortMapping');
         net.autoAdvanceMs = 1;
         files.put(CONFIG_FILE, '[router]\nnat_pmp = false\n[java]\nport = 25570\n[bedrock]\nenabled = false\n');
         forwarder.reload();
@@ -229,7 +200,7 @@ describe('PortForwarder', () => {
             '[bedrock]\nenabled = false\n',
             new FakeIgd({ natPmp: false }),
         );
-        const resume = delayRouterReply(net, 'AddPortMapping');
+        const resume = delayReplies(net, 'AddPortMapping');
         forwarder.start();
         settle(() => keys().length === 1);
         files.put(CONFIG_FILE, '[router]\nnat_pmp = false\n[java]\nport = 25570\n[bedrock]\nenabled = false\n');
@@ -250,7 +221,7 @@ describe('PortForwarder', () => {
         );
         forwarder.start();
         settle(() => keys().length === 1);
-        delayRouterReply(net);
+        delayReplies(net, 'DeletePortMapping');
         files.put(CONFIG_FILE, '[router]\nnat_pmp = false\n[bedrock]\nenabled = false\n');
         forwarder.reload();
         forwarder.tick();
@@ -456,7 +427,7 @@ describe('PortForwarder', () => {
         );
         forwarder.start();
         settle(() => keys().length === 1);
-        delayRouterReply(net);
+        delayReplies(net, 'DeletePortMapping');
         net.autoAdvanceMs = 1;
         const before = net.time;
         forwarder.stop();
@@ -471,7 +442,7 @@ describe('PortForwarder', () => {
         const { forwarder, settle, keys, net } = setup('[bedrock]\nenabled = false\n', new FakeIgd({ natPmp: false }));
         forwarder.start();
         settle(() => keys().length === 1);
-        delayRouterReply(net);
+        delayReplies(net, 'DeletePortMapping');
         net.autoAdvanceMs = 1;
         let paused = 0;
         const pause = net.pause.bind(net);

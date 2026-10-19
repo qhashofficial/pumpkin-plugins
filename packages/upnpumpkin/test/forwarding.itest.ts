@@ -1,22 +1,31 @@
+import * as dgram from 'node:dgram';
 import * as fs from 'node:fs/promises';
-import * as os from 'node:os';
 import * as path from 'node:path';
+import { isPublicIpv4, parseIpv4 } from '@pumpkin-plugins/port-mapping/ipv4';
 import { describe, expect, it } from 'vitest';
 import { PLUGIN_NAME, routerConfig, upnpServers } from './running.ts';
 
 const { router: startRouter, start } = upnpServers();
 
+/** The address this machine uses toward the internet, found the way the plugin finds it. No packet is sent. */
+async function defaultRouteAddress(): Promise<string | undefined> {
+    const socket = dgram.createSocket('udp4');
+    try {
+        await new Promise<void>((resolve, reject) => {
+            socket.once('error', reject);
+            socket.connect(9, '8.8.8.8', resolve);
+        });
+        return socket.address().address;
+    } catch {
+        return undefined;
+    } finally {
+        socket.close();
+    }
+}
+
 // A machine with a public address needs no mapping, which is the right behavior but not what these tests check.
-const hasPublicAddress = Object.values(os.networkInterfaces())
-    .flat()
-    .some(
-        (i) =>
-            i?.family === 'IPv4' &&
-            !i.internal &&
-            !/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|169\.254\.)/.test(
-                i.address,
-            ),
-    );
+const local = parseIpv4((await defaultRouteAddress()) ?? '');
+const hasPublicAddress = local !== undefined && isPublicIpv4(local);
 
 describe.skipIf(hasPublicAddress)('port forwarding', () => {
     it('opens the Java and Bedrock ports through UPnP and closes them when the server stops', async () => {
