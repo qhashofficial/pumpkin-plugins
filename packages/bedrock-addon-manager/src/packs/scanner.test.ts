@@ -1,7 +1,7 @@
+import { MemoryFiles } from '@pumpkin-plugins/plugin-kit/testing';
 import { strToU8, zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { makeMcpack, manifestJson, noise } from '../../test/fixtures.ts';
-import { MemoryFiles } from '../../test/memory-files.ts';
 import { readManifest } from './manifest.ts';
 import { PackScanner } from './scanner.ts';
 
