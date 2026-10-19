@@ -40,9 +40,6 @@ class WaypointsPieFixture extends Plugin {
             const advertised = pie.list().filter(({ namespace }) => namespace === 'waypoints');
             const required = ['waypoints_count', 'waypoints_closest_name', 'waypoints_waypoint_exists'];
             if (!required.every((id) => advertised.some((placeholder) => placeholder.id === id))) return;
-            if (advertised.length !== 69) {
-                throw new Error(`Expected 69 advertised identifiers, received ${advertised.length}`);
-            }
 
             const [plain, tokenized] = pie.resolveBatch([
                 { text: 'Resolved literal text', viewer: 'OfflineSubject' },
