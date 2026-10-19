@@ -323,7 +323,9 @@ The fixture runs on the harness's checksum-verified pinned server (or explicit `
 override), with no ABI upgrade. It fails if the harness release pin no longer matches the provider.
 Tests prove the published provider loads, resolves `%server_online%` from the console, and preserves
 unknown tokens and their unresolved identifiers. They also verify that the valid cache is reused
-without downloading. Unit tests exercise failed downloads and corrupt cached artifacts without
+without downloading. A compiled guest fixture in `test/fixtures/consumer` uses `PieClient` and
+`ExpansionRouter` over real host IPC: it pings, resolves `%server_online%`, registers an expansion
+and resolves its own placeholder, so the provider calls back into the guest. Unit tests exercise failed downloads and corrupt cached artifacts without
 network access; `pnpm test` and coverage select only the unit project.
 
 Additional integration files can use `inject('pieProviderPath')` from Vitest after this global setup
@@ -334,6 +336,6 @@ Integration tests in other workspace packages import `resolvePieProvider` and `P
 `@pumpkin-plugins/pumpkin-pie-api/testing/provider`. The subpath resolves only inside this
 repository: it depends on the private test harness and is removed from the published manifest.
 
-These provider tests verify release provenance, ABI loading and console behavior. Compiled consumer
-IPC, expansion callbacks, outage/recovery and per-subject mapping still require guest integration
-coverage. The targeted release is available to those tests through the shared provider path.
+Outage and recovery, and mapping placeholders to online players, are not covered here. The plugin
+integration tests in Waypoints, TabDisplay and Distant Horizons Support exercise their own
+expansions against the same provider.
