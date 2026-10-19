@@ -83,6 +83,15 @@ describe('readAddon', () => {
         expect(skipped[0]).toMatch(/^Broken: .*not valid JSON/);
     });
 
+    it('rejects a bundle whose files unpack to more than the limit', () => {
+        const addon = zipSync({
+            'RP/manifest.json': manifest(RP, ['resources']),
+            'RP/textures/a.png': new Uint8Array(10_000),
+        });
+        expect(() => readAddon(addon, 5_000)).toThrow(/too large/);
+        expect(readAddon(addon, 20_000).packs).toHaveLength(1);
+    });
+
     it('rejects something that is not a zip', () => {
         expect(() => readAddon(strToU8('nope'))).toThrow('not a valid zip archive');
     });
