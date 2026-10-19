@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { code, table } from '@pumpkin-plugins/docs/markdown';
 import type { DocumentSpec } from '@pumpkin-plugins/docs/node';
+import { parse } from 'yaml';
 
 interface PackageManifest {
     dependencies?: Record<string, string>;
@@ -13,6 +14,10 @@ interface PackageManifest {
 
 interface RootPackage {
     devEngines?: { packageManager?: { name?: string; version?: string } };
+}
+
+interface Workflow {
+    jobs?: Record<string, { 'runs-on'?: unknown }>;
 }
 
 interface PlatformRow {
@@ -31,17 +36,18 @@ function requiredString(value: unknown, label: string): string {
     return value.trim();
 }
 
+const WORKFLOW_FILE = '.github/workflows/external-consumer.yml';
+
 /** Reads the platform-to-runner map that the external consumer job's `runs-on` looks up. */
-function parsePlatformRunners(workflow: string): PlatformRow[] {
-    const map = workflow.match(
-        /^\s+runs-on:\s*\$\{\{\s*fromJSON\('(\{[^']+\})'\)\[matrix\.platform\]\s*\}\}\s*$/m,
-    )?.[1];
-    if (!map) throw new Error('.github/workflows/external-consumer.yml: runs-on platform map not found');
+function platformRunners(workflow: Workflow): PlatformRow[] {
+    const runsOn = requiredString(workflow.jobs?.['external-consumer']?.['runs-on'], `${WORKFLOW_FILE} runs-on`);
+    const map = runsOn.match(/^\$\{\{\s*fromJSON\('(\{[^']+\})'\)\[matrix\.platform\]\s*\}\}$/)?.[1];
+    if (!map) throw new Error(`${WORKFLOW_FILE}: runs-on platform map not found`);
     const rows = Object.entries(JSON.parse(map) as Record<string, unknown>).map(([platform, runner]) => ({
         platform,
-        runner: requiredString(runner, `.github/workflows/external-consumer.yml ${platform} runner`),
+        runner: requiredString(runner, `${WORKFLOW_FILE} ${platform} runner`),
     }));
-    if (rows.length === 0) throw new Error('.github/workflows/external-consumer.yml: runs-on platform map is empty');
+    if (rows.length === 0) throw new Error(`${WORKFLOW_FILE}: runs-on platform map is empty`);
     return rows;
 }
 
@@ -85,7 +91,7 @@ const nodePin = requiredString(
     fs.readFileSync(new URL('../../.node-version', import.meta.url), 'utf8'),
     '.node-version',
 );
-const workflow = fs.readFileSync(new URL('../../.github/workflows/external-consumer.yml', import.meta.url), 'utf8');
+const workflow = parse(fs.readFileSync(new URL(`../../${WORKFLOW_FILE}`, import.meta.url), 'utf8')) as Workflow;
 
 const templateRoot = fileURLToPath(new URL('./templates/', import.meta.url));
 const templateNames = fs
@@ -136,7 +142,7 @@ const supportRows = [
     ...nodeRequirementRows(nodeRequirements),
     ['CI Node.js pin', code(nodePin)],
     ['Packed-consumer package manager', `${code(packageManagerName)} ${code(packageManagerVersion)}`],
-    ...parsePlatformRunners(workflow).map(({ platform, runner }) => [`${platform} runner`, code(runner)]),
+    ...platformRunners(workflow).map(({ platform, runner }) => [`${platform} runner`, code(runner)]),
 ];
 
 const templateRows = templateNames.map((templateName) => {
