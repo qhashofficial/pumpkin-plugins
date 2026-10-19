@@ -187,6 +187,12 @@ describe('DynamicLightsPumpkin host lifecycle', () => {
         expect(env.player.sent).toEqual([]);
     });
 
+    it('lights players who are already online when loaded into a running server', () => {
+        const env = setup({ item: 'minecraft:torch' });
+
+        expect(env.player.sent).toEqual([{ x: 0, y: 64, z: 0, level: 14 }]);
+    });
+
     it('cancels a pending refresh when the player leaves', () => {
         const env = setup();
         env.event('player-join-event');
@@ -201,13 +207,13 @@ function entity(id: number, type: string, x: number) {
     return { getId: () => id, getType: () => type, getPosition: () => [x, 64, 0] };
 }
 
-function setup() {
+function setup(options: { item?: string } = {}) {
     const plugin = state.plugin;
     if (plugin === undefined) throw new Error('Plugin was not registered');
     // Test handles can omit Symbol.dispose even though generated declarations include it.
     const player = {
         online: true,
-        item: undefined as string | undefined,
+        item: options.item,
         worldId: 'overworld',
         entities: [] as ReturnType<typeof entity>[],
         sent: [] as { x: number; y: number; z: number; level: number }[],
@@ -226,6 +232,7 @@ function setup() {
     };
     const server = {
         getAllPlayers: () => [player],
+        getAllWorlds: () => [],
         getPlayerByName: () => (player.online ? player : null),
     } as unknown as Server;
     const context = { getServer: () => server } as Context;
