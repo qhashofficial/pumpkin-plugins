@@ -1,4 +1,5 @@
 import { loadConfig } from '@pumpkin-plugins/config';
+import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import type { DataFiles } from '@pumpkin-plugins/plugin-kit/files';
 import type { Logger } from '@pumpkin-plugins/plugin-kit/logger';
 import { strFromU8, strToU8 } from 'fflate';
@@ -15,6 +16,6 @@ export function readSettings(files: DataFiles, log: Logger): Settings {
         },
         renderOptions,
     );
-    for (const warning of result.warnings) log.warn(`${PLUGIN_NAME}: ${warning}`);
+    for (const warning of result.warnings) log.warn(`${ansi.named.name(PLUGIN_NAME)} ${warning}`);
     return { ...result.values.support, worlds: result.values.worlds };
 }

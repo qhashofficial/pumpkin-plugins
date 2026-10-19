@@ -61,6 +61,12 @@ describe('forced LOD generation', () => {
                 // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI color codes start with the ESC control character.
                 .replace(/\u001b\[[0-9;]*m/g, ''),
         ).toContain('Built forced LOD for Alice at world section 0, 0 (origin 0, 0 blocks)');
+        for (const line of f.logger.of('info')) {
+            expect(line).toMatch(/^\S*DistantHorizonsSupportPumpkin\S* /);
+            // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI color codes start with the ESC control character.
+            expect(line).toMatch(/\u001b\[[0-9;]*mAlice/);
+        }
+        expect(f.logger.of('info')).toHaveLength(2);
     });
 
     it('uses the full forced-work budget and reports partial progress during a capture', () => {
