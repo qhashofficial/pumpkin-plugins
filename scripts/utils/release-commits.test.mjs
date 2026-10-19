@@ -115,6 +115,15 @@ function pluginWorkspace() {
     });
 }
 
+async function inPluginWorkspace(test) {
+    const root = pluginWorkspace();
+    try {
+        await test(root, workspacePackages(root));
+    } finally {
+        rmSync(root, { recursive: true, force: true });
+    }
+}
+
 function introductionCommitApi(path, introductionSha) {
     return {
         repository: { owner: 'owner', repo: 'repo' },
@@ -482,23 +491,33 @@ describe('bundled release commits', () => {
     });
 
     it('supplies unfiltered shared commits to the public preconfigure hook', async () => {
-        const history = [
-            commit('update', ['tools/update-check/src/http.ts']),
-            commit('boundary', ['packages/plugin/package.json']),
-        ];
-        const github = {
-            async *mergeCommitIterator() {
-                yield* history;
-            },
-        };
-        const plugin = bundledChangesPlugin(github, 'master', packages, { 'packages/plugin': '0.0.1' });
-        const strategies = { 'packages/plugin': {} };
-        const scoped = { 'packages/plugin': [] };
-        assert.equal(
-            await plugin.preconfigure(strategies, scoped, { 'packages/plugin': { sha: 'boundary' } }),
-            strategies,
-        );
-        assert.deepEqual(scoped['packages/plugin'], [history[0]]);
+        await inPluginWorkspace(async (root, fixturePackages) => {
+            const history = [
+                commit('update', ['tools/build/src/index.ts']),
+                commit('boundary', ['packages/plugin/package.json']),
+            ];
+            const github = {
+                async *mergeCommitIterator() {
+                    yield* history;
+                },
+            };
+            const plugin = bundledChangesPlugin(
+                github,
+                'master',
+                fixturePackages,
+                { 'packages/plugin': '0.0.1' },
+                500,
+                () => {},
+                root,
+            );
+            const strategies = { 'packages/plugin': {} };
+            const scoped = { 'packages/plugin': [] };
+            assert.equal(
+                await plugin.preconfigure(strategies, scoped, { 'packages/plugin': { sha: 'boundary' } }),
+                strategies,
+            );
+            assert.deepEqual(scoped['packages/plugin'], [history[0]]);
+        });
     });
 
     it('defers a public tool release candidate until each public package dependency has released', async () => {
@@ -763,35 +782,45 @@ describe('bundled release commits', () => {
     });
 
     it('falls back to the latest published release below a missing manifest release', async () => {
-        const history = [
-            commit('after-release', ['packages/plugin/src/plugin.ts']),
-            commit('release-0.0.4', ['packages/plugin/package.json'], 'chore(master): release plugin 0.0.4'),
-            commit('published-0.0.3', ['packages/plugin/package.json'], 'chore(master): release plugin 0.0.3'),
-            commit('before-release', ['packages/plugin/src/old.ts']),
-        ];
-        const github = {
-            async *releaseIterator() {
-                yield { tagName: 'plugin-v0.0.3', sha: 'published-0.0.3' };
-            },
-            async *mergeCommitIterator() {
-                yield* history;
-            },
-        };
-        const plugin = bundledChangesPlugin(github, 'master', packages, { 'packages/plugin': '0.0.4' });
-        const strategies = { 'packages/plugin': {} };
-        const scoped = { 'packages/plugin': [] };
-        const releases = {
-            'packages/plugin': {
-                tag: new TestTagName('0.0.4'),
-                sha: '',
-            },
-        };
+        await inPluginWorkspace(async (root, fixturePackages) => {
+            const history = [
+                commit('after-release', ['packages/plugin/src/plugin.ts']),
+                commit('release-0.0.4', ['packages/plugin/package.json'], 'chore(master): release plugin 0.0.4'),
+                commit('published-0.0.3', ['packages/plugin/package.json'], 'chore(master): release plugin 0.0.3'),
+                commit('before-release', ['packages/plugin/src/old.ts']),
+            ];
+            const github = {
+                async *releaseIterator() {
+                    yield { tagName: 'plugin-v0.0.3', sha: 'published-0.0.3' };
+                },
+                async *mergeCommitIterator() {
+                    yield* history;
+                },
+            };
+            const plugin = bundledChangesPlugin(
+                github,
+                'master',
+                fixturePackages,
+                { 'packages/plugin': '0.0.4' },
+                500,
+                () => {},
+                root,
+            );
+            const strategies = { 'packages/plugin': {} };
+            const scoped = { 'packages/plugin': [] };
+            const releases = {
+                'packages/plugin': {
+                    tag: new TestTagName('0.0.4'),
+                    sha: '',
+                },
+            };
 
-        await plugin.preconfigure(strategies, scoped, releases);
+            await plugin.preconfigure(strategies, scoped, releases);
 
-        assert.equal(releases['packages/plugin'].sha, 'published-0.0.3');
-        assert.equal(releases['packages/plugin'].tag.version.toString(), '0.0.3');
-        assert.deepEqual(scoped['packages/plugin'], history.slice(0, 2));
+            assert.equal(releases['packages/plugin'].sha, 'published-0.0.3');
+            assert.equal(releases['packages/plugin'].tag.version.toString(), '0.0.3');
+            assert.deepEqual(scoped['packages/plugin'], history.slice(0, 2));
+        });
     });
 
     it('starts first-release notes at the package introduction when no earlier release is published', async () => {
@@ -840,34 +869,44 @@ describe('bundled release commits', () => {
     });
 
     it('routes an empty Release-As commit only to its matching component', async () => {
-        const history = [
-            commit('plugin-release-as', [], 'chore(plugin): recover release\n\nRelease-As: 0.0.5'),
-            commit('unscoped-release-as', [], 'chore: recover release\n\nRelease-As: 0.0.5'),
-            commit('boundary', ['packages/plugin/package.json']),
-        ];
-        const github = {
-            async *mergeCommitIterator() {
-                yield* history;
-            },
-        };
-        const plugin = bundledChangesPlugin(github, 'master', packages, {
-            'packages/plugin': '0.0.4',
-            'actions/sign-pumpkin-plugin': '0.0.0',
+        await inPluginWorkspace(async (root, fixturePackages) => {
+            const history = [
+                commit('plugin-release-as', [], 'chore(plugin): recover release\n\nRelease-As: 0.0.5'),
+                commit('unscoped-release-as', [], 'chore: recover release\n\nRelease-As: 0.0.5'),
+                commit('boundary', ['packages/plugin/package.json']),
+            ];
+            const github = {
+                async *mergeCommitIterator() {
+                    yield* history;
+                },
+            };
+            const plugin = bundledChangesPlugin(
+                github,
+                'master',
+                fixturePackages,
+                {
+                    'packages/plugin': '0.0.4',
+                    'actions/sign-pumpkin-plugin': '0.0.0',
+                },
+                500,
+                () => {},
+                root,
+            );
+            const strategies = { 'packages/plugin': {}, 'actions/sign-pumpkin-plugin': {} };
+            const commits = {
+                'packages/plugin': [],
+                'actions/sign-pumpkin-plugin': history.slice(0, 2),
+            };
+            const releases = { 'packages/plugin': { tag: {}, sha: 'boundary' } };
+
+            await plugin.preconfigure(strategies, commits, releases);
+
+            assert.deepEqual(
+                commits['packages/plugin'].map((entry) => entry.sha),
+                ['plugin-release-as'],
+            );
+            assert.deepEqual(commits['actions/sign-pumpkin-plugin'], []);
         });
-        const strategies = { 'packages/plugin': {}, 'actions/sign-pumpkin-plugin': {} };
-        const commits = {
-            'packages/plugin': [],
-            'actions/sign-pumpkin-plugin': history.slice(0, 2),
-        };
-        const releases = { 'packages/plugin': { tag: {}, sha: 'boundary' } };
-
-        await plugin.preconfigure(strategies, commits, releases);
-
-        assert.deepEqual(
-            commits['packages/plugin'].map((entry) => entry.sha),
-            ['plugin-release-as'],
-        );
-        assert.deepEqual(commits['actions/sign-pumpkin-plugin'], []);
     });
 
     it('leaves first-release action commits to Release Please', async () => {
@@ -887,43 +926,53 @@ describe('bundled release commits', () => {
     });
 
     it('limits first-release history to the commit that added the package', async () => {
-        const history = [
-            commit('after-addition', ['packages/plugin/src/plugin.ts']),
-            commit('added', ['packages/plugin/package.json', 'packages/plugin/src/plugin.ts']),
-            ...Array.from({ length: 500 }, (_, index) => commit(`older-${index}`, ['README.md'])),
-        ];
-        const github = {
-            getGitHubApi() {
-                return {
-                    repository: { owner: 'owner', repo: 'repo' },
-                    octokit: {
-                        rest: { repos: { listCommits: 'listCommits' } },
-                        async paginate(_endpoint, options) {
-                            assert.deepEqual(options, {
-                                owner: 'owner',
-                                repo: 'repo',
-                                sha: 'master',
-                                path: 'packages/plugin/package.json',
-                                per_page: 100,
-                            });
-                            return [{ sha: 'manifest-update' }, { sha: 'added' }];
+        await inPluginWorkspace(async (root, fixturePackages) => {
+            const history = [
+                commit('after-addition', ['packages/plugin/src/plugin.ts']),
+                commit('added', ['packages/plugin/package.json', 'packages/plugin/src/plugin.ts']),
+                ...Array.from({ length: 500 }, (_, index) => commit(`older-${index}`, ['README.md'])),
+            ];
+            const github = {
+                getGitHubApi() {
+                    return {
+                        repository: { owner: 'owner', repo: 'repo' },
+                        octokit: {
+                            rest: { repos: { listCommits: 'listCommits' } },
+                            async paginate(_endpoint, options) {
+                                assert.deepEqual(options, {
+                                    owner: 'owner',
+                                    repo: 'repo',
+                                    sha: 'master',
+                                    path: 'packages/plugin/package.json',
+                                    per_page: 100,
+                                });
+                                return [{ sha: 'manifest-update' }, { sha: 'added' }];
+                            },
                         },
-                    },
-                };
-            },
-            async *mergeCommitIterator(_branch, { maxResults }) {
-                yield* history.slice(0, maxResults);
-            },
-        };
-        const plugin = bundledChangesPlugin(github, 'master', packages, { 'packages/plugin': '0.0.0' });
-        const commits = { 'packages/plugin': [] };
+                    };
+                },
+                async *mergeCommitIterator(_branch, { maxResults }) {
+                    yield* history.slice(0, maxResults);
+                },
+            };
+            const plugin = bundledChangesPlugin(
+                github,
+                'master',
+                fixturePackages,
+                { 'packages/plugin': '0.0.0' },
+                500,
+                () => {},
+                root,
+            );
+            const commits = { 'packages/plugin': [] };
 
-        await plugin.preconfigure({ 'packages/plugin': {} }, commits, {});
+            await plugin.preconfigure({ 'packages/plugin': {} }, commits, {});
 
-        assert.deepEqual(
-            commits['packages/plugin'].map((entry) => entry.sha),
-            ['after-addition', 'added'],
-        );
+            assert.deepEqual(
+                commits['packages/plugin'].map((entry) => entry.sha),
+                ['after-addition', 'added'],
+            );
+        });
     });
 
     it('stops first-release history at the introduction commit when another component reaches further back', async () => {

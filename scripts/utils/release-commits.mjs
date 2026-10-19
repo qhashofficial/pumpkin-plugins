@@ -57,7 +57,7 @@ const SOURCE_IGNORED_DIRECTORIES = new Set([
     'test',
     'testing',
 ]);
-const SOURCE_TEST_PATTERN = /\.(?:spec|test|itest)\.[cm]?[jt]sx?$/;
+const TEST_FILE_PATTERN = /\.(?:spec|test|itest)\.[cm]?[jt]sx?$/;
 
 function workspacePath(file, root) {
     const absolutePath = existsSync(file) ? realpathSync(file) : resolve(file);
@@ -84,7 +84,7 @@ function sourceFilesIn(directory) {
         if (
             entry.isFile() &&
             SOURCE_EXTENSIONS.has(`.${entry.name.split('.').at(-1)}`) &&
-            !SOURCE_TEST_PATTERN.test(entry.name)
+            !TEST_FILE_PATTERN.test(entry.name)
         ) {
             files.push(file);
         }
@@ -104,8 +104,10 @@ function packageNameFromSpecifier(specifier) {
     return specifier.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0];
 }
 
+const DEPENDENCY_FIELDS = ['dependencies', 'optionalDependencies', 'peerDependencies', 'devDependencies'];
+
 function catalogEntryFor(importer, packageName) {
-    for (const field of ['dependencies', 'optionalDependencies', 'peerDependencies', 'devDependencies']) {
+    for (const field of DEPENDENCY_FIELDS) {
         const specifier = importer.manifest[field]?.[packageName];
         if (typeof specifier !== 'string' || !specifier.startsWith('catalog:')) continue;
         const catalog = specifier.slice('catalog:'.length) || 'default';
@@ -186,9 +188,7 @@ function collectSourceImports(file, packages, root, compilerOptions, inputs, vis
             !packageForWorkspacePath(dependencyPath, packages)
         )
             continue;
-        if (followWorkspaceImports) {
-            collectSourceImports(resolution.resolvedFileName, packages, root, compilerOptions, inputs, visited, true);
-        }
+        collectSourceImports(resolution.resolvedFileName, packages, root, compilerOptions, inputs, visited, true);
     }
 }
 
@@ -262,16 +262,7 @@ export function pluginReleaseInputs(packages, releasePath, root = DEFAULT_WORKSP
 }
 
 function packageReleaseInputs(packages, releasePath, root) {
-    if (releasePath.startsWith('packages/')) {
-        const plugin = [...packages.values()].find((pkg) => pkg.path === releasePath);
-        if (!plugin) throw new Error(`Unknown release package: ${releasePath}`);
-        if (plugin.manifest.pumpkinPlugin?.entry) return pluginReleaseInputs(packages, releasePath, root);
-        if (existsSync(resolve(root, releasePath, 'package.json'))) {
-            throw new Error(`Plugin entry is missing from ${releasePath}/package.json`);
-        }
-        // Preserve conservative dependency selection when the package source is outside this checkout.
-        return bundledPaths(packages, releasePath);
-    }
+    if (releasePath.startsWith('packages/')) return pluginReleaseInputs(packages, releasePath, root);
 
     if (releasePath.startsWith('tools/')) {
         const pkg = [...packages.values()].find((entry) => entry.path === releasePath);
@@ -291,23 +282,10 @@ function packageReleaseInputs(packages, releasePath, root) {
     }
 
     const paths = bundledPaths(packages, releasePath);
-    const inputs = {
-        paths,
-        catalogs: new Set(),
-        sharedFiles: new Set(['tsconfig.base.json']),
-    };
-    for (const pkg of packages.values()) {
-        if (!paths.has(pkg.path) || pkg.path !== releasePath) continue;
-        for (const field of ['dependencies', 'optionalDependencies', 'peerDependencies', 'devDependencies']) {
-            for (const [name, specifier] of Object.entries(pkg.manifest[field] ?? {})) {
-                if (typeof specifier === 'string' && specifier.startsWith('catalog:')) {
-                    const catalog = specifier.slice('catalog:'.length) || 'default';
-                    inputs.catalogs.add(`${catalog}:${name}`);
-                }
-            }
-        }
-    }
-    return inputs;
+    const pkg = [...packages.values()].find((entry) => entry.path === releasePath);
+    const dependencyNames = new Set(DEPENDENCY_FIELDS.flatMap((field) => Object.keys(pkg.manifest[field] ?? {})));
+    const catalogs = new Set([...dependencyNames].map((name) => catalogEntryFor(pkg, name)).filter(Boolean));
+    return { paths, catalogs, sharedFiles: new Set(['tsconfig.base.json']) };
 }
 
 // npm packs these root files whatever the `files` list says.
@@ -340,7 +318,8 @@ function shippedFile(file, inputs, commit, catalogChangesByCommit) {
     // Tool files npm packs ship as they are, including Markdown and test helpers exported to users.
     if (packedFiles?.(file)) return true;
     if (
-        /\.md$|(?:^|\/)(?:test|testing|__tests__)\/|^(?:packages|tools|extensions)\/[^/]+\/(?:build|dist|node_modules)\/|\.(?:spec|test|itest)\.[cm]?[jt]s$/.test(
+        TEST_FILE_PATTERN.test(file) ||
+        /\.md$|(?:^|\/)(?:test|testing|__tests__)\/|^(?:packages|tools|extensions)\/[^/]+\/(?:build|dist|node_modules)\//.test(
             file,
         )
     )
