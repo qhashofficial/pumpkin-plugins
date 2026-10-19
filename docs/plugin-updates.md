@@ -94,6 +94,7 @@ To test the real WASI transport, use `requestMarketJsonAsync` with a scheduler t
 in later tasks. The transport polls the HTTP response without blocking; a callback that runs inline
 is not supported. `requestMarketJson` is synchronous and blocks, so keep it out of plugin loading
 and server ticks. Run the transport integration test with
-`pnpm --filter @pumpkin-plugins/update-check test:integration`; it exercises delayed, chunked
-responses and HTTP and JSON failures against a local server. The
+`pnpm --filter @pumpkin-plugins/update-check test:integration`. Against a local server, it runs the
+scheduled check that registration starts after loading, and exercises delayed, chunked responses
+and HTTP and JSON failures. The
 [`@pumpkin-plugins/update-check` README](../tools/update-check/README.md) describes the direct APIs.
