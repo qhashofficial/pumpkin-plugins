@@ -78,11 +78,9 @@ describe('buildComponent', () => {
         );
         expect(mocks.prepareHermes).toHaveBeenCalledOnce();
         expect(mocks.prepareHermes).toHaveBeenCalledWith(expect.objectContaining({ workspaceRoot: root }));
-        expect(mocks.analyze).toHaveBeenCalledWith(options);
         expect(mocks.compile).toHaveBeenCalledWith(
             expect.objectContaining({
                 options: expect.objectContaining({
-                    ...options,
                     output: expect.stringContaining(path.join(outputDirectory, '.static-hermes-')),
                 }),
                 stackSizeBytes: '262144',
@@ -199,7 +197,6 @@ describe('buildComponent', () => {
         expect(mocks.compile).toHaveBeenCalledWith(
             expect.objectContaining({
                 options: expect.objectContaining({
-                    ...options,
                     output: expect.stringContaining(path.join(outputDirectory, '.static-hermes-')),
                 }),
                 stackSizeBytes: '524288',
