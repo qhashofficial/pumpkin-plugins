@@ -17,6 +17,10 @@ vi.mock('../platform/peers.ts', () => ({ withPlayerTerrain: platform.withPlayerT
 
 let activePeer: Peer | undefined;
 
+function plain(line: string): string {
+    return line.replace(/§./g, '');
+}
+
 function setup() {
     const files = new MemoryFiles();
     const logger = new MemoryLogger();
@@ -92,28 +96,28 @@ describe('the /dhs commands', () => {
 
     it('reports both cache tiers and their configured limits', () => {
         const { host, root } = setup();
-        expect(host.run(root, ['dhs', 'cache', 'status'])).toEqual([
-            '§3Memory cache§r: §61§r/§6512§r entries, §6100\u00a0B§r',
-            '§3Disk cache§r: §61§r/§64096§r entries, §6127\u00a0B§r.',
+        expect(host.run(root, ['dhs', 'cache', 'status']).map(plain)).toEqual([
+            'Memory cache: 1/512 entries, 100\u00a0B.',
+            'Disk cache: 1/4096 entries, 127\u00a0B.',
         ]);
     });
 
     it('clears both tiers or either tier independently', () => {
         const all = setup();
-        expect(all.host.run(all.root, ['dhs', 'cache', 'clear'])).toEqual([
-            'Cleared §61§r in-memory and §61§r disk cache entries.',
+        expect(all.host.run(all.root, ['dhs', 'cache', 'clear']).map(plain)).toEqual([
+            'Cleared 1 in-memory and 1 disk cache entries.',
         ]);
         expect(all.cache.stats()).toMatchObject({ memoryEntries: 0, diskEntries: 0 });
 
         const memory = setup();
-        expect(memory.host.run(memory.root, ['dhs', 'cache', 'memory', 'clear'])).toEqual([
-            'Cleared §61§r in-memory cache entries.',
+        expect(memory.host.run(memory.root, ['dhs', 'cache', 'memory', 'clear']).map(plain)).toEqual([
+            'Cleared 1 in-memory cache entries.',
         ]);
         expect(memory.cache.stats()).toMatchObject({ memoryEntries: 0, diskEntries: 1 });
 
         const disk = setup();
-        expect(disk.host.run(disk.root, ['dhs', 'cache', 'disk', 'clear'])).toEqual([
-            'Cleared §61§r disk cache entries.',
+        expect(disk.host.run(disk.root, ['dhs', 'cache', 'disk', 'clear']).map(plain)).toEqual([
+            'Cleared 1 disk cache entries.',
         ]);
         expect(disk.cache.stats()).toMatchObject({ memoryEntries: 1, diskEntries: 0 });
     });
@@ -185,16 +189,17 @@ describe('the /dhs commands', () => {
         const sender = { lines: [], errors: [], asPlayer: () => player };
 
         here.host.runAs(here.root, ['dhs', 'generate'], {}, sender as never);
-        expect(sender.lines[0]).toContain('section §61§r, §60§r (radius §60§r');
+        expect(plain(sender.lines[0] ?? '')).toContain('section 1, 0 (radius 0');
+        expect(plain(sender.lines[2] ?? '')).toContain('up to 32,768 block samples per tick');
         expect(here.sessions.status()).toContain('Forced LOD capture for Alice');
 
         const hereRadius = setup();
         hereRadius.host.runAs(hereRadius.root, ['dhs', 'generate', '<radius>'], { radius: 1 }, sender as never);
-        expect(sender.lines.at(-3)).toContain('section §61§r, §60§r (radius §61§r');
+        expect(plain(sender.lines.at(-3) ?? '')).toContain('section 1, 0 (radius 1');
 
         const at = setup();
         at.host.runAs(at.root, ['dhs', 'generate', '<x>', '<z>'], { x: -64, z: 128 }, sender as never);
-        expect(sender.lines.at(-3)).toContain('section §6-1§r, §62§r (radius §60§r');
+        expect(plain(sender.lines.at(-3) ?? '')).toContain('section -1, 2 (radius 0');
 
         const atRadius = setup();
         atRadius.host.runAs(
@@ -203,7 +208,7 @@ describe('the /dhs commands', () => {
             { x: 64, z: -64, radius: 2 },
             sender as never,
         );
-        expect(sender.lines.at(-3)).toContain('section §61§r, §6-1§r (radius §62§r');
+        expect(plain(sender.lines.at(-3) ?? '')).toContain('section 1, -1 (radius 2');
     });
 
     it('requires a player and rejects a second active forced capture', () => {
@@ -240,7 +245,7 @@ describe('the /dhs commands', () => {
 
     it('sends status details as separate chat-sized lines', () => {
         const { host, root } = setup();
-        const status = host.run(root, ['dhs', 'status']).map((line) => line.replace(/§./g, ''));
+        const status = host.run(root, ['dhs', 'status']).map(plain);
 
         expect(status).toHaveLength(7);
         expect(status[0]).toContain('0 Distant Horizons client(s), 0 pending LOD request(s)');

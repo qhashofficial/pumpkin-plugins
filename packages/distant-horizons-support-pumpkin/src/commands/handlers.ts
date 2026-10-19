@@ -28,7 +28,7 @@ export function commandHandlers(
         'dhs cache status': () => {
             const stats = cache.stats();
             return [
-                `${color.named.name('Memory cache')}: ${color.named.value(String(stats.memoryEntries))}/${formatLimit(stats.memoryLimit)} entries, ${color.named.value(prettyBytes(stats.memoryBytes, PRETTY_BYTES_OPTIONS))}`,
+                `${color.named.name('Memory cache')}: ${color.named.value(String(stats.memoryEntries))}/${formatLimit(stats.memoryLimit)} entries, ${color.named.value(prettyBytes(stats.memoryBytes, PRETTY_BYTES_OPTIONS))}.`,
                 `${color.named.name('Disk cache')}: ${color.named.value(String(stats.diskEntries))}/${formatLimit(stats.diskLimit)} entries, ${color.named.value(prettyBytes(stats.diskBytes, PRETTY_BYTES_OPTIONS))}.`,
             ];
         },
@@ -81,7 +81,7 @@ function generateLODs(
         return [
             `Started forced LOD capture at section ${color.named.value(String(started.centerX))}, ${color.named.value(String(started.centerZ))} (radius ${color.named.value(String(radius))}; ${color.named.value(String(started.sections))} sections requested).`,
             'Already-generated LOD sections and sections outside the world border will be skipped.',
-            `Capturing with up to ${color.named.value(FORCE_BLOCK_SAMPLES_PER_TICK.toLocaleString())} block samples per tick, fewer when the server is busy. Progress will be reported in chat.`,
+            `Capturing with up to ${color.named.value(FORCE_BLOCK_SAMPLES_PER_TICK.toLocaleString('en-US'))} block samples per tick, fewer when the server is busy. Progress will be reported in chat.`,
         ];
     } catch (err) {
         if (err instanceof CommandFailed) throw err;
