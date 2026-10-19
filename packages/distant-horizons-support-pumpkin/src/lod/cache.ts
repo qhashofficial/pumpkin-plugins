@@ -208,8 +208,10 @@ export class LodCache {
         }
     }
     private scanDiskFiles(): { name: string; modified: number; size: number }[] {
-        return this.files
-            .list('cache')
+        const names = this.files.list('cache');
+        // Writes are atomic through a temp sibling; a server killed mid-write leaves one behind.
+        for (const name of names) if (/^[0-9a-f]+\.lod\.tmp\.\d+$/.test(name)) this.files.remove(`cache/${name}`);
+        return names
             .filter((name) => /^[0-9a-f]+\.lod$/.test(name))
             .map((name) => ({ name, info: this.files.stat(`cache/${name}`) }))
             .filter((entry) => entry.info?.kind === 'file')
