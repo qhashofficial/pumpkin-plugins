@@ -38,7 +38,9 @@ The cache is reused while its source pin, patches, toolchain, and build settings
 input triggers a rebuild. Preparation refreshes the managed checkout when the source pin changes and
 rejects local Hermes source changes outside the managed patch set. Concurrent preparations lock the
 cache, source checkout, host build directory, and WASI build directory by resolved path, so separate
-workspaces that share any of those directories serialize.
+workspaces that share any of those directories serialize. Toolchain setup takes its own lock on
+`toolchain/` inside the cache and reuses valid cached tools without locking, so it does not wait for a
+Hermes build.
 
 Plugin builds prepare Hermes automatically when `engine` is omitted or set to `"static-hermes"`.
 Run the command above to prewarm Hermes or prepare it explicitly before a build. A full component

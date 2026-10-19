@@ -159,7 +159,8 @@ const DEFAULT_WASM_TOOLS_LOCK = JSON.parse(
  * @remarks
  * The WASI SDK and wit-bindgen are selected by default. `wasm-tools` is opt-in so callers that only need Hermes
  * preparation do not download it; component builds and WIT analysis enable it explicitly.
- * Invalid cached `wasm-tools` binaries are removed and reinstalled while holding the shared toolchain lock. A
+ * Valid cached tools are reused without a lock. Invalid cached `wasm-tools` binaries are removed and reinstalled
+ * while holding the toolchain directory lock, which is separate from the Hermes build lock. A
  * configured `WASM_TOOLS` override is validated separately and is never removed by cache recovery.
  *
  * @param options - Workspace, environment, platform, cache, and tool-selection settings.
@@ -274,6 +275,17 @@ export async function prepareStaticHermesBuild({
     if (env.PUMPKIN_PLUGINS_STATIC_HERMES_PREPARED !== '1') await prepare();
 }
 
+/**
+ * Serialize changes to the shared toolchain cache.
+ *
+ * @remarks
+ * The toolchain directory has its own lock, so setup never waits for a Hermes build that holds the cache root's
+ * `prepare.lock`.
+ */
+function withToolchainLock<T>(toolchainRoot: string, operation: () => Promise<T>): Promise<T> {
+    return withHermesBuildLock(toolchainRoot, operation);
+}
+
 /** Reuse a valid cached WASI SDK or serialize cache repair and installation. */
 async function resolveCachedWasiSdk({
     toolchainRoot,
@@ -296,7 +308,8 @@ async function resolveCachedWasiSdk({
     const sha256 = wasiSdkConfig.checksums[`${platform}/${arch}`];
     if (!sha256) throw new Error(`no pinned WASI SDK ${version} SHA-256 checksum for ${platform}/${arch}`);
     const destination = path.join(toolchainRoot, `wasi-sdk-${version}`);
-    return withHermesBuildLock(path.dirname(toolchainRoot), async () => {
+    if (isWasiSdk(destination, platform)) return destination;
+    return withToolchainLock(toolchainRoot, async () => {
         if (isWasiSdk(destination, platform)) return destination;
 
         // Repair only the managed cache path; user-configured SDK paths are validated separately.
@@ -340,7 +353,12 @@ async function resolveWitBindgen({
     );
     const installRoot = path.dirname(path.dirname(destination));
     const userInstall = executablePath(path.join(homeDirectory, '.cargo', 'bin'), 'wit-bindgen', platform);
-    return withHermesBuildLock(path.dirname(toolchainRoot), async () => {
+    if (fs.existsSync(destination)) {
+        try {
+            return validateWitBindgen(destination, witBindgenVersion, 'cached wit-bindgen');
+        } catch {}
+    }
+    return withToolchainLock(toolchainRoot, async () => {
         if (fs.existsSync(destination)) {
             try {
                 return validateWitBindgen(destination, witBindgenVersion, 'cached wit-bindgen');
@@ -400,8 +418,13 @@ async function resolveWasmTools({
     const binaryName = platform === 'win32' ? 'wasm-tools.exe' : 'wasm-tools';
     const executable = path.join(toolchainRoot, `wasm-tools-${version}`, 'bin', binaryName);
     const installRoot = path.dirname(path.dirname(executable));
+    if (fs.existsSync(executable)) {
+        try {
+            return validateWasmTools(executable, version, 'cached wasm-tools');
+        } catch {}
+    }
 
-    return withHermesBuildLock(path.dirname(toolchainRoot), async () => {
+    return withToolchainLock(toolchainRoot, async () => {
         if (fs.existsSync(executable)) {
             try {
                 return validateWasmTools(executable, version, 'cached wasm-tools');

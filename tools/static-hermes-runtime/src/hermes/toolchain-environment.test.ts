@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { beforeEach, expect, it, vi } from 'vitest';
+import { withHermesBuildLock } from './build.ts';
 import { type HermesToolchainSetupOptions, setupHermesToolchainEnvironment } from './toolchain-environment.ts';
 import {
     configuredExecutablePath,
@@ -15,7 +16,10 @@ const mocks = vi.hoisted(() => ({ execFileSync: vi.fn() }));
 
 vi.mock('node:child_process', () => ({ execFileSync: mocks.execFileSync }));
 
-beforeEach(() => mocks.execFileSync.mockReturnValue('wit-bindgen-cli 0.62.0 (test)'));
+// A block body keeps Vitest from calling the returned mock as a cleanup hook.
+beforeEach(() => {
+    mocks.execFileSync.mockReturnValue('wit-bindgen-cli 0.62.0 (test)');
+});
 
 function writeWasiSdk(directory: string): void {
     fs.mkdirSync(path.join(directory, 'bin'), { recursive: true });
@@ -124,6 +128,54 @@ it('shares one WASI SDK installation between concurrent toolchain setups', async
     }
 });
 
+it('reuses cached tools while another process holds the Hermes build lock', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'static-hermes-toolchain-during-build-'));
+    const cacheRoot = path.join(root, '.cache', 'hermes');
+    const { tools } = JSON.parse(fs.readFileSync(new URL('../../toolchain-versions.json', import.meta.url), 'utf8'));
+    const { version: wasiSdkVersion } = JSON.parse(
+        fs.readFileSync(new URL('../../wasi-sdk.lock.json', import.meta.url), 'utf8'),
+    );
+    const toolchainRoot = path.join(cacheRoot, 'toolchain');
+    const wasiSdk = path.join(toolchainRoot, `wasi-sdk-${wasiSdkVersion}`);
+    const bindgen = executablePath(
+        path.join(toolchainRoot, `wit-bindgen-${tools['wit-bindgen']}`, 'bin'),
+        'wit-bindgen',
+    );
+    const wasmTools = executablePath(
+        path.join(toolchainRoot, `wasm-tools-${tools['wasm-tools']}`, 'bin'),
+        'wasm-tools',
+    );
+    writeWasiSdk(wasiSdk);
+    for (const executable of [bindgen, wasmTools]) {
+        fs.mkdirSync(path.dirname(executable), { recursive: true });
+        fs.writeFileSync(executable, '');
+    }
+    mocks.execFileSync.mockImplementation((executable: string) =>
+        executable === bindgen
+            ? `wit-bindgen-cli ${tools['wit-bindgen']} (test)`
+            : `wasm-tools ${tools['wasm-tools']} (test)`,
+    );
+
+    try {
+        const environment = await withHermesBuildLock(cacheRoot, () =>
+            setupHermesToolchainEnvironment({
+                workspaceRoot: root,
+                homeDirectory: root,
+                env: {},
+                includeWasmTools: true,
+            }),
+        );
+
+        expect(environment).toMatchObject({
+            STATIC_HERMES_WASI_SDK_PATH: wasiSdk,
+            WIT_BINDGEN: bindgen,
+            WASM_TOOLS: wasmTools,
+        });
+    } finally {
+        fs.rmSync(root, { recursive: true, force: true });
+    }
+});
+
 it('rejects a configured wit-bindgen with a version different from the pin', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'static-hermes-wit-bindgen-version-'));
     const bindgen = path.join(root, 'wit-bindgen');
@@ -169,18 +221,21 @@ it('reinstalls a cached wit-bindgen when its version differs from the cache pin'
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'static-hermes-wit-bindgen-cache-'));
     const bindgen = path.join(root, '.cache/hermes/toolchain/wit-bindgen-0.62.0/bin/wit-bindgen');
     fs.mkdirSync(path.dirname(bindgen), { recursive: true });
-    fs.writeFileSync(bindgen, '');
+    fs.writeFileSync(bindgen, 'old binary');
     mocks.execFileSync
         .mockReset()
-        .mockReturnValueOnce('wit-bindgen-cli 0.61.0 (test)')
-        .mockReturnValue('wit-bindgen-cli 0.62.0 (test)');
-    const installWitBindgen: NonNullable<HermesToolchainSetupOptions['installWitBindgen']> = async ({
-        destination,
-    }) => {
-        fs.mkdirSync(path.dirname(destination), { recursive: true });
-        fs.writeFileSync(destination, '');
-        return destination;
-    };
+        .mockImplementation((executable: string) =>
+            fs.readFileSync(executable, 'utf8') === 'old binary'
+                ? 'wit-bindgen-cli 0.61.0 (test)'
+                : 'wit-bindgen-cli 0.62.0 (test)',
+        );
+    const installWitBindgen = vi.fn<NonNullable<HermesToolchainSetupOptions['installWitBindgen']>>(
+        async ({ destination }) => {
+            fs.mkdirSync(path.dirname(destination), { recursive: true });
+            fs.writeFileSync(destination, 'new binary');
+            return destination;
+        },
+    );
 
     try {
         const environment = await setupHermesToolchainEnvironment({
@@ -193,7 +248,8 @@ it('reinstalls a cached wit-bindgen when its version differs from the cache pin'
         });
 
         expect(environment.WIT_BINDGEN).toBe(bindgen);
-        expect(mocks.execFileSync).toHaveBeenCalledWith(bindgen, ['--version'], { encoding: 'utf8' });
+        expect(fs.readFileSync(bindgen, 'utf8')).toBe('new binary');
+        expect(installWitBindgen).toHaveBeenCalledOnce();
     } finally {
         fs.rmSync(root, { recursive: true, force: true });
     }
@@ -206,8 +262,11 @@ it('reinstalls cached wasm-tools when its version differs from the cache pin', a
     fs.writeFileSync(wasmTools, 'old binary');
     mocks.execFileSync
         .mockReset()
-        .mockReturnValueOnce('wasm-tools 1.0.0 (test)')
-        .mockReturnValue('wasm-tools 1.261.0 (test)');
+        .mockImplementation((executable: string) =>
+            fs.readFileSync(executable, 'utf8') === 'old binary'
+                ? 'wasm-tools 1.0.0 (test)'
+                : 'wasm-tools 1.261.0 (test)',
+        );
     let installCalls = 0;
     const installWasmTools: NonNullable<HermesToolchainSetupOptions['installWasmTools']> = async ({ destination }) => {
         installCalls += 1;
@@ -240,12 +299,10 @@ it('reinstalls cached wasm-tools when the cached executable cannot run', async (
     const wasmTools = path.join(root, '.cache/hermes/toolchain/wasm-tools-1.261.0/bin/wasm-tools');
     fs.mkdirSync(path.dirname(wasmTools), { recursive: true });
     fs.writeFileSync(wasmTools, 'corrupt binary');
-    mocks.execFileSync
-        .mockReset()
-        .mockImplementationOnce(() => {
-            throw new Error('not an executable');
-        })
-        .mockReturnValue('wasm-tools 1.261.0 (test)');
+    mocks.execFileSync.mockReset().mockImplementation((executable: string) => {
+        if (fs.readFileSync(executable, 'utf8') === 'corrupt binary') throw new Error('not an executable');
+        return 'wasm-tools 1.261.0 (test)';
+    });
     let installCalls = 0;
     const installWasmTools: NonNullable<HermesToolchainSetupOptions['installWasmTools']> = async ({ destination }) => {
         installCalls += 1;
