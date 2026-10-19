@@ -29,14 +29,9 @@ The active compatibility matrix follows the Pumpkin release in `tools/test-harne
 
 New, changed and removed WIT declarations are marked `review-required`; tests stay red until each has an explicit decision and migration note. Changed and removed declarations are recorded as breaking even when upstream reuses its existing release version. A Pumpkin release change starts a new active audit and keeps the previous release snapshot.
 
-The install commands below require the first public releases of both replacement packages. This
-repository configures the builder for public npm publication; wait for its release tag before
-installing it from npm. Repository maintainers must configure npm trusted publishers before the
-release workflow can publish packages; see [CI and releases](../../../docs/ci-and-releases.md#github-settings).
-
 ## 1. Choose How to Change the Package Name
 
-For a large existing plugin with many imports, use a [pnpm alias](https://pnpm.io/aliases) to install the new API package under the old dependency name. Existing `@pumpkinmc/pumpkin-api-ts` imports and re-exports then keep resolving without a source-wide rename. After both packages are available from your registry, run:
+For a large existing plugin with many imports, use a [pnpm alias](https://pnpm.io/aliases) to install the new API package under the old dependency name. Existing `@pumpkinmc/pumpkin-api-ts` imports and re-exports then keep resolving without a source-wide rename. Run:
 
 ```sh
 pnpm add '@pumpkinmc/pumpkin-api-ts@npm:@pumpkin-plugins/pumpkin-api@^0.1.0' @pumpkin-plugins/build
@@ -47,8 +42,7 @@ pnpm records the alias in `package.json` like this:
 ```json
 {
   "dependencies": {
-    "@pumpkinmc/pumpkin-api-ts": "npm:@pumpkin-plugins/pumpkin-api@^0.1.0",
-    "@pumpkin-plugins/build": "0.1.0"
+    "@pumpkinmc/pumpkin-api-ts": "npm:@pumpkin-plugins/pumpkin-api@^0.1.0"
   }
 }
 ```
@@ -87,17 +81,13 @@ Keep the `export *` in the plugin entry point so the facade's host callbacks are
 
 ## 3. Move the Build Command Into `package.json`
 
-The old [`pumpkin-plugin-build <entry-file.ts> <output-file.wasm>` command](https://github.com/Pumpkin-MC/pumpkin-api-ts#building-your-plugin) takes positional paths. The new builder reads them from the `pumpkinPlugin` field and accepts no positional entry or output arguments. Add or adapt these fields in your existing `package.json`. This example uses the direct package name; if you chose an alias, keep the alias dependency and specifier from step 1:
+The old [`pumpkin-plugin-build <entry-file.ts> <output-file.wasm>` command](https://github.com/Pumpkin-MC/pumpkin-api-ts#building-your-plugin) takes positional paths. The new builder reads them from the `pumpkinPlugin` field and accepts no positional entry or output arguments. Add or adapt these fields in your existing `package.json`, keeping the dependencies that step 1 added:
 
 ```json
 {
   "scripts": {
     "build": "pumpkin-plugins-build",
     "typecheck": "pumpkin-plugins-build --types-only && tsc --noEmit"
-  },
-  "dependencies": {
-    "@pumpkin-plugins/pumpkin-api": "0.1.0",
-    "@pumpkin-plugins/build": "0.1.0"
   },
   "pumpkinPlugin": {
     "entry": "src/plugin.ts",
