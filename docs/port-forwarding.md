@@ -36,9 +36,10 @@ them. `PortMapper` manages discovery and each requested mapping:
    cause by the address range: `100.64.0.0/10` is carrier-grade NAT, a private range such as
    `192.168.0.0/16` means another router sits in front (double NAT), and `0.0.0.0` means the router
    has no internet connection right now.
-4. Each mapping has a lease and is renewed halfway through it. If the requested public port is
-   taken, the engine tries another one. It closes the mapping when the request is released or the
-   plugin stops.
+4. Each mapping has a lease and is renewed halfway through it, or after five minutes if that
+   comes first, so a router reboot or a new WAN address is noticed quickly. If the requested public
+   port is taken, the engine tries another one. It closes the mapping when the request is released
+   or the plugin stops.
 5. After a failure, the engine searches again and retries with increasing delays, from 30 seconds
    up to 10 minutes. It logs a given failure once, then logs it again if the reason changes or after
    the mapping recovers and fails again.

@@ -14,11 +14,11 @@ the router cannot use the requested external port, the mapper tries another one.
 the port is no longer needed; the router is told to close it on a later tick. During shutdown, use
 `releaseAll` and let it finish so the mapper can clean up its open ports.
 
-The mapper renews a lease halfway through its lifetime. If discovery or a mapping operation fails,
-it retries with increasing delays and searches for the router again. A machine with its own public
-address does not need a router mapping; the mapper reports that address directly. If the router's
-internet-side address is not public, such as behind carrier-grade NAT, an inbound mapping cannot
-make the server reachable.
+The mapper renews a lease halfway through its lifetime, or after five minutes if that comes first.
+If discovery or a mapping operation fails, it retries with increasing delays and searches for the
+router again. A machine with its own public address does not need a router mapping; the mapper
+reports that address directly. If the router's internet-side address is not public, such as behind
+carrier-grade NAT, an inbound mapping cannot make the server reachable.
 
 ## Network adapter and router screening
 

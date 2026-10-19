@@ -40,7 +40,7 @@ export interface MapperInfo {
 
 /** Settings of a `PortMapper`. */
 export interface MapperOptions extends Omit<DiscoveryOptions, 'searchMs'> {
-    /** How long routers keep a mapping without a renewal. Renewed at half this time. */
+    /** How long routers keep a mapping without a renewal. Renewed at half this time, and at least every five minutes. */
     leaseSeconds: number;
     /**
      * Where messages for the server log go. Failures come with the level `warn`, and each is said
@@ -75,6 +75,9 @@ class OwnershipConflictError extends Error {}
 const RETRY_MS = 30_000;
 const MAX_RETRY_MS = 10 * 60_000;
 const LOCAL_CHECK_MS = 60_000;
+// Each renewal re-adds the mapping and re-reads the WAN address, so this bounds how long a router
+// reboot or a new WAN address goes unnoticed.
+const MAX_RENEW_MS = 5 * 60_000;
 const PORT_TRIES = 3;
 
 const sameSpec = (a: MappingSpec, b: MappingSpec) =>
@@ -430,7 +433,8 @@ export class PortMapper {
             this.warned.delete(`open:${key}`);
             // Permanent leases still need recovery after router reboot or WAN address changes.
             entry.renewAt =
-                this.net.now() + (result.leaseSeconds > 0 ? (result.leaseSeconds * 1000) / 2 : LOCAL_CHECK_MS);
+                this.net.now() +
+                (result.leaseSeconds > 0 ? Math.min((result.leaseSeconds * 1000) / 2, MAX_RENEW_MS) : LOCAL_CHECK_MS);
             if (!wasOpen) {
                 this.options.log?.(
                     `Opened ${entry.spec.protocol.toUpperCase()} port ${entry.spec.port} as ${formatIpv4(address)}:${result.externalPort} (${gateway.kind}).`,
