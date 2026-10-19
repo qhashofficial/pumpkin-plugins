@@ -30,11 +30,11 @@ function wait(milliseconds) {
  * @param {string} options.root - Repository root that contains the selected tool packages.
  * @param {string[]} options.selectedPaths - Released workspace paths from Release Please.
  * @param {Record<string, unknown>} options.releaseMetadata - Release Please outputs keyed by path and field.
- * @param {(packagePath: string, root: string) => Promise<object>} [options.packPackage] - Creates and inspects one package tarball.
+ * @param {(packagePath: string, root: string) => object | Promise<object>} [options.packPackage] - Creates and inspects one package tarball.
  * @param {(packageName: string, version: string) => Promise<string | null>} [options.getRegistryIntegrity] - Reads one exact version; null means it is not currently visible.
- * @param {(release: object) => Promise<void>} [options.publishPackage] - Publishes one verified tarball.
+ * @param {(release: object) => void | Promise<void>} [options.publishPackage] - Publishes one verified tarball.
  * @param {(message: string) => void} [options.log] - Receives progress messages.
- * @param options.waitForRegistry - Waits for a delay in milliseconds before retrying a missing prerequisite.
+ * @param {(milliseconds: number) => Promise<void>} [options.waitForRegistry] - Waits for a delay in milliseconds before retrying a missing prerequisite.
  * @returns {Promise<void>} Resolves after every selected package is published or verified as identical.
  * @throws {Error} When release metadata, package contents, dependencies, registry responses, or integrity disagree.
  */

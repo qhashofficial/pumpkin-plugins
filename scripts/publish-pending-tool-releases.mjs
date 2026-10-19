@@ -55,7 +55,13 @@ async function main() {
         await Promise.all(
             tools
                 .filter(({ path: packagePath }) => historicalReleases.some((release) => release.path === packagePath))
-                .map(async ({ path: packagePath, name }) => [packagePath, new Set(await getNpmRegistryVersions(name))]),
+                .map(
+                    async ({ path: packagePath, name }) =>
+                        /** @type {[string, Set<string>]} */ ([
+                            packagePath,
+                            new Set(await getNpmRegistryVersions(name)),
+                        ]),
+                ),
         ),
     );
     const pendingReleases = historicalReleases.filter(
