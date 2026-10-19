@@ -90,7 +90,16 @@ export function reconcileUpstreamPin(
         run('gh', ['pr', 'list', '--state', 'open', '--head', branch, '--json', 'number']),
     );
     const issue = parseJsonArray(
-        run('gh', ['issue', 'list', '--state', 'all', '--limit', '1000', '--json', 'number,body,state']),
+        run('gh', [
+            'issue',
+            'list',
+            '--state',
+            'all',
+            '--search',
+            `in:body "upstream-pin:${input.sourceId}"`,
+            '--json',
+            'number,body,state',
+        ]),
     ).find(({ body }) => (body ?? '').includes(marker));
 
     const closePullRequest = () => {

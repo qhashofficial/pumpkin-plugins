@@ -193,3 +193,25 @@ it('opens a new PR instead of reopening one closed after its branch was deleted'
         true,
     );
 });
+
+it('searches for the review issue by its marker instead of scanning recent issues', () => {
+    const state = runner({
+        issues: [
+            { number: 90, state: 'OPEN', body: 'Quoted in a discussion: upstream-pin:static-hermes' },
+            { number: 34, state: 'CLOSED', body: pinMarker },
+        ],
+    });
+
+    upstreamPins.reconcileUpstreamPin(input({ validationResult: 'failure' }), state);
+
+    const issueList = state.calls.find(
+        ({ program, args }) => program === 'gh' && args[0] === 'issue' && args[1] === 'list',
+    );
+    assert.equal(issueList.args[issueList.args.indexOf('--search') + 1], 'in:body "upstream-pin:static-hermes"');
+    assert.equal(issueList.args.includes('--limit'), false);
+    assert.equal(hasCall(state.calls, 'gh', ['issue', 'reopen', '34']), true);
+    assert.equal(
+        state.calls.some(({ args }) => args[0] === 'issue' && args.includes('90')),
+        false,
+    );
+});
