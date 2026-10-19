@@ -54,6 +54,7 @@ beforeEach(() => {
 
 afterEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
     for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
 });
 
@@ -563,8 +564,10 @@ describe('bundlePlugin', () => {
     });
 
     it.each(engineProfiles)(
-        'rejects oversized $name production components without replacing the previous artifact',
+        'rejects oversized $name production components without replacing the previous artifact when the size limit is enforced',
         async ({ options }) => {
+            // A project opts in to the size limit with this variable; without it the build only warns.
+            vi.stubEnv('PUMPKIN_PLUGINS_FAIL_ON_SIZE_LIMIT', '1');
             const { output } = buildAt();
             const limit = MAX_PRODUCTION_COMPONENT_BYTES;
             fs.writeFileSync(output, 'known-good artifact');
@@ -596,6 +599,36 @@ describe('bundlePlugin', () => {
             expect(fs.readdirSync(path.dirname(output))).toEqual(['plugin.wasm']);
         },
     );
+
+    it('warns about an oversized production component and still publishes it by default', async () => {
+        vi.stubEnv('PUMPKIN_PLUGINS_FAIL_ON_SIZE_LIMIT', '');
+        const { output } = buildAt();
+        const onOutput = vi.fn();
+        const size = MAX_PRODUCTION_COMPONENT_BYTES + 1;
+        componentize.mockImplementation((_file, args) => {
+            const staged = args?.[(args?.indexOf('--output') ?? -1) + 1];
+            if (!staged) throw new Error('missing componentizer output argument');
+            fs.writeFileSync(staged, '');
+            fs.truncateSync(staged, size);
+            return Buffer.alloc(0);
+        });
+
+        await expect(
+            bundlePlugin({
+                entry: 'src/plugin.ts',
+                output,
+                witDir: 'wit',
+                version: '1.0.0',
+                engine: 'quickjs',
+                onOutput,
+            }),
+        ).resolves.toBe(size);
+
+        expect(onOutput).toHaveBeenCalledWith(
+            expect.objectContaining({ type: 'warning', message: expect.stringContaining(`${size} bytes`) }),
+        );
+        expect(fs.statSync(output).size).toBe(size);
+    });
 
     it.each(engineProfiles)(
         'does not apply the production size limit to $name development components',
