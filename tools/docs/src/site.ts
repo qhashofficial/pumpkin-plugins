@@ -119,42 +119,42 @@ function isCataloguedComponentDoc(file: string): boolean {
 
 /**
  * Discover hand-written site pages and assign each page its canonical site route.
- * Direct children of `docs/` become Guides, deeper pages become Docs, and root pages plus generated API pages are omitted.
+ * Direct children of `docs/` become Guides and deeper pages become Docs. Root pages, generated API
+ * pages and the agent instructions in `docs/agents/` are omitted.
  * @param root - The repository root.
  * @returns Pages in stable source-path order.
  */
 export function discoverHandwrittenDocs(root: string): HandwrittenDocPage[] {
     const rootDocsDirectory = path.resolve(root, 'docs');
     const rootPages = new Set(Object.keys(rootPageRewrites).map((source) => source.slice('docs/'.length)));
-    const docsPages = walkMarkdown(rootDocsDirectory, { exclude: [path.join(rootDocsDirectory, 'api')] }).flatMap(
-        (file) => {
-            const relativePath = path.relative(rootDocsDirectory, file).split(path.sep).join('/');
-            if (relativePath === 'README.md' || rootPages.has(relativePath)) return [];
-            const section: HandwrittenDocPage['section'] = relativePath.includes('/') ? 'docs' : 'guides';
-            const routePath = relativePath.replace(/\.md$/, '');
-            const siteRoute =
-                section === 'guides'
-                    ? `/guides/${routePath}`
-                    : relativePath.endsWith('/index.md')
-                      ? `/docs/${routePath.slice(0, -'index'.length)}`
-                      : `/docs/${routePath}`;
-            const metadata = navigationOf(file);
-            return [
-                {
-                    file,
-                    relativePath,
-                    repositoryPath: path.relative(root, file).split(path.sep).join('/'),
-                    treePath: relativePath,
-                    section,
-                    siteRoute,
-                    rewritePath: `${section === 'guides' ? 'guides' : 'docs'}/${relativePath}`,
-                    title: titleOf(file, path.basename(file, '.md')),
-                    description: descriptionOf(file),
-                    ...metadata,
-                },
-            ];
-        },
-    );
+    const exclude = ['api', 'agents'].map((folder) => path.join(rootDocsDirectory, folder));
+    const docsPages = walkMarkdown(rootDocsDirectory, { exclude }).flatMap((file) => {
+        const relativePath = path.relative(rootDocsDirectory, file).split(path.sep).join('/');
+        if (relativePath === 'README.md' || rootPages.has(relativePath)) return [];
+        const section: HandwrittenDocPage['section'] = relativePath.includes('/') ? 'docs' : 'guides';
+        const routePath = relativePath.replace(/\.md$/, '');
+        const siteRoute =
+            section === 'guides'
+                ? `/guides/${routePath}`
+                : relativePath.endsWith('/index.md')
+                  ? `/docs/${routePath.slice(0, -'index'.length)}`
+                  : `/docs/${routePath}`;
+        const metadata = navigationOf(file);
+        return [
+            {
+                file,
+                relativePath,
+                repositoryPath: path.relative(root, file).split(path.sep).join('/'),
+                treePath: relativePath,
+                section,
+                siteRoute,
+                rewritePath: `${section === 'guides' ? 'guides' : 'docs'}/${relativePath}`,
+                title: titleOf(file, path.basename(file, '.md')),
+                description: descriptionOf(file),
+                ...metadata,
+            },
+        ];
+    });
     const componentDocs = (['packages', 'tools', 'actions', 'extensions'] as const).flatMap((group) => {
         return discoverComponents(root, group).flatMap(({ directory, slug }) => {
             const componentDocsDirectory = path.join(directory, 'docs');
