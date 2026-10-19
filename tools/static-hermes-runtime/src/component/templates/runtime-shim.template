@@ -1369,24 +1369,36 @@ bool exports_plugin_on_load(plugin_own_context_t context,
 
 bool exports_plugin_on_unload(plugin_own_context_t context,
                               plugin_string_t *error) {
-    jsRuntime->global().setProperty(
-        *jsRuntime, "__staticHermesPluginUnloading", Value(true));
-    auto state = std::make_shared<ResourceState>(
-        ResourceState{ResourceKind::Context, context.__handle, true});
-    auto contextObject = wrapResourceObject(
-        *jsRuntime, std::make_shared<ContextObject>(state));
-    try {
-        Value contextValue(std::move(contextObject));
-        callExport("onUnload", &contextValue, 1);
-        state->drop();
-        resetRuntime();
+    if (error)
+        std::memset(error, 0, sizeof(*error));
+    std::shared_ptr<ResourceState> state;
+    WitScopeGuard contextCleanup([&] {
+        if (state)
+            state->drop();
+        else
+            pumpkin_plugin_context_context_drop_own(
+                pumpkin_plugin_context_own_context_t{context.__handle});
+    });
+    // Pumpkin also unloads a plugin whose load failed, and then there may be no runtime.
+    if (!jsRuntime)
         return true;
+    bool unloaded = false;
+    try {
+        state = std::make_shared<ResourceState>(
+            ResourceState{ResourceKind::Context, context.__handle, true});
+        jsRuntime->global().setProperty(
+            *jsRuntime, "__staticHermesPluginUnloading", Value(true));
+        Value contextValue(wrapResourceObject(
+            *jsRuntime, std::make_shared<ContextObject>(state)));
+        callExport("onUnload", &contextValue, 1);
+        unloaded = true;
     } catch (const std::exception &exception) {
-        state->drop();
         setError(error, exception.what());
-        resetRuntime();
-        return false;
+    } catch (...) {
+        setError(error, "Unknown Static Hermes plugin unload failure");
     }
+    resetRuntime();
+    return unloaded;
 }
 
 void exports_plugin_handle_event(uint32_t event_id,
@@ -1403,6 +1415,7 @@ void exports_plugin_handle_event(uint32_t event_id,
                 pumpkin_plugin_server_own_server_t{server.__handle});
     });
     try {
+        initializeRuntime();
         serverState = std::make_shared<ResourceState>(
             ResourceState{ResourceKind::Server, server.__handle, true});
         auto serverObject = wrapResourceObject(
@@ -1620,6 +1633,7 @@ void exports_plugin_handle_task(uint32_t handler_id,
                 pumpkin_plugin_server_own_server_t{server.__handle});
     });
     try {
+        initializeRuntime();
         serverState = std::make_shared<ResourceState>(
             ResourceState{ResourceKind::Server, server.__handle, true});
         auto serverObject = wrapResourceObject(
@@ -1775,6 +1789,7 @@ void exports_plugin_handle_generate_phase(
     });
 
     try {
+        initializeRuntime();
         chunkState = makeOwnedWitCallbackResource(
             chunk.__handle, ResourceKind::ChunkBuffer, "world", "chunk-buffer");
         auto chunkObject = wrapResourceObject(

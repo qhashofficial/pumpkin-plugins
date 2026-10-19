@@ -77,4 +77,11 @@ describe('callback dispatch and resource ownership', () => {
             '/* GENERATED_NATIVE_RESOURCE */': templateFunction(shim, 'std::shared_ptr<HostObject> nativeResource('),
         });
     });
+
+    it('unloads a plugin without a runtime and survives any exception from onUnload', () => {
+        const shim = fs.readFileSync(runtimeShim, 'utf8');
+        compileFixture('plugin-on-unload.cpp', {
+            '/* GENERATED_PLUGIN_ON_UNLOAD */': templateFunction(shim, 'bool exports_plugin_on_unload('),
+        });
+    });
 });
