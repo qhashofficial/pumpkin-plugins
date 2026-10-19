@@ -77,6 +77,7 @@ describe('selectJobs', () => {
     it('tests and checks a shared action helper change without building plugins', () => {
         const selected = selectJobs({ ...nothing, actions_to_test: '["common"]' }, 'pull_request');
         assert.equal(selected.test, true);
+        assert.equal(selected.lint, true);
         assert.equal(selected.docs, true);
         assert.equal(selected.commits, true);
         assert.equal(selected.build, false);

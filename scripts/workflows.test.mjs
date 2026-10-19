@@ -230,7 +230,6 @@ describe('upstream pin workflow', () => {
 // Evaluate the actual workflow conditions and run the real result check against hosted outcome fixtures.
 describe('CI job selection and release prerequisites', () => {
     const ci = parse(fs.readFileSync(path.join(scripts, '../.github/workflows/ci.yml'), 'utf8'));
-    const actions = parse(fs.readFileSync(path.join(scripts, '../.github/workflows/actions.yml'), 'utf8'));
     const extensions = parse(fs.readFileSync(path.join(scripts, '../.github/workflows/extensions.yml'), 'utf8'));
     const startsWith = (searchString, searchValue) =>
         String(searchString ?? '')
@@ -376,28 +375,6 @@ describe('CI job selection and release prerequisites', () => {
             assert.equal(result.status, 0, `${scope}: ${result.stderr}`);
             assert.deepEqual(fs.readFileSync(argsFile, 'utf8').trim().split('\n'), expected, scope);
         }
-    });
-
-    it('passes the expanded matrix into the reusable action test workflow', () => {
-        assert.equal(ci.jobs['action-tests']?.uses, './.github/workflows/actions.yml');
-        assert.ok(actions.on.workflow_call.inputs.actions.required);
-        assert.equal(actions.on.workflow_call.inputs.actions.type, 'string');
-        const outputs = { actions: '[]', actions_to_test: '["common"]' };
-        assert.equal(evaluate(ci.jobs['action-tests'].with.actions, { needs: { changes: { outputs } } }), '["common"]');
-        const expression = actions.jobs.test.strategy.matrix.action;
-        const selected = [
-            'common',
-            'publish-to-pumpkin-market',
-            'sign-pumpkin-plugin',
-            'update-pumpkin-market-listing',
-            'verify-pumpkin-plugin',
-        ];
-        assert.deepEqual(
-            Array.from(evaluate(expression, { inputs: { actions: JSON.stringify(selected) }, fromJSON: JSON.parse })),
-            selected,
-        );
-        assert.equal(evaluate(actions.jobs.test.if, { inputs: { actions: '[]' } }), false);
-        assert.equal(evaluate(actions.jobs.test.if, { inputs: { actions: '["common"]' } }), true);
     });
 
     it('passes extensions into their own test and VSIX packaging workflow', () => {
