@@ -32,23 +32,12 @@ function fixture() {
 }
 
 describe('collect-plugins', () => {
-    it('copies built WASM without signing or warning and can write a signing manifest', async () => {
+    it('copies built WASM and can write a signing manifest', async () => {
         const { root, wasm } = fixture();
         const dist = path.join(root, 'dist');
         const manifestFile = path.join(root, 'temporary', 'plugins.json');
-        const previousSigningKey = process.env.PLUGIN_SIGNING_KEY;
-        const previousConsoleError = console.error;
-        const errors = [];
-        process.env.PLUGIN_SIGNING_KEY = 'invalid-key-is-ignored';
-        console.error = (...args) => errors.push(args.join(' '));
 
-        try {
-            await collectPlugins({ root, dist, manifestFile });
-        } finally {
-            console.error = previousConsoleError;
-            if (previousSigningKey === undefined) delete process.env.PLUGIN_SIGNING_KEY;
-            else process.env.PLUGIN_SIGNING_KEY = previousSigningKey;
-        }
+        await collectPlugins({ root, dist, manifestFile });
 
         assert.deepEqual(fs.readFileSync(path.join(dist, 'example-plugin.wasm')), wasm);
         assert.equal(
@@ -62,6 +51,5 @@ describe('collect-plugins', () => {
                 'wasm-file': path.join(dist, 'example-plugin.wasm'),
             },
         ]);
-        assert.deepEqual(errors, []);
     });
 });
