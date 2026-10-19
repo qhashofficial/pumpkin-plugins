@@ -375,6 +375,25 @@ describe('CI job selection and release prerequisites', () => {
         }
     });
 
+    it('tests macOS and Windows external consumers only when the classifier asks for every platform', () => {
+        const consumer = parse(
+            fs.readFileSync(path.join(scripts, '../.github/workflows/external-consumer.yml'), 'utf8'),
+        );
+        const job = consumer.jobs['external-consumer'];
+        const platforms = (full) =>
+            JSON.parse(
+                evaluate(ci.jobs['external-consumer'].with.platforms, {
+                    needs: { changes: { outputs: { external_consumer_full: full } } },
+                }),
+            );
+        assert.deepEqual(platforms('false'), ['Linux x64']);
+        assert.deepEqual(platforms('true'), JSON.parse(consumer.on.workflow_call.inputs.platforms.default));
+        for (const platform of platforms('true')) {
+            const runner = evaluate(job['runs-on'], { matrix: { platform } });
+            assert.ok(typeof runner === 'string' && runner.length > 0, `${platform} has no runner`);
+        }
+    });
+
     it('passes extensions into their own test and VSIX packaging workflow', () => {
         assert.equal(ci.jobs['extension-tests']?.uses, './.github/workflows/extensions.yml');
         assert.ok(extensions.on.workflow_call.inputs.extensions.required);
