@@ -32,7 +32,7 @@ Requires Node.js `>=24.21.0`.
 
 ## Run a migration
 
-After the first public npm release, list the available migrations from your plugin directory:
+List the available migrations from your plugin directory:
 
 ```sh
 pnpm dlx @pumpkin-plugins/codemod list
