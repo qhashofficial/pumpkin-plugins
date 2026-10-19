@@ -722,13 +722,33 @@ function configureAndBuildHermes(
     filesystem: HermesFileSystem,
     runner: HermesProcessRunner,
 ): void {
-    filesystem.mkdirSync(path.join(options.wasiSdk, 'share/wasi-sysroot/include/c++/v1'), { recursive: true });
+    ensureLibcxxIncludeMarker(options.wasiSdk, filesystem);
     filesystem.mkdirSync(options.hostBuild, { recursive: true });
     filesystem.mkdirSync(options.wasiBuild, { recursive: true });
     if (!filesystem.existsSync(options.toolchainFile)) {
         throw new Error(`WASI 2 Hermes toolchain file not found: ${options.toolchainFile}`);
     }
     for (const args of hermesCMakeCommands(options, environment)) runner.run('cmake', args);
+}
+
+/**
+ * Create the empty `include/c++/v1` directory in the WASI sysroot when it is missing.
+ *
+ * wasi-sdk 34 stores WASI libc++ headers under target-specific paths. Its Clang driver enables those paths only when
+ * this otherwise-empty marker exists. A read-only SDK that already has it is left untouched.
+ */
+function ensureLibcxxIncludeMarker(wasiSdk: string, filesystem: HermesFileSystem): void {
+    const marker = path.join(wasiSdk, 'share/wasi-sysroot/include/c++/v1');
+    if (filesystem.existsSync(marker)) return;
+    try {
+        filesystem.mkdirSync(marker, { recursive: true });
+    } catch (error) {
+        if (!['EACCES', 'EPERM', 'EROFS'].includes(errorCode(error) ?? '')) throw error;
+        throw new Error(
+            `Cannot create ${marker}: clang in wasi-sdk needs this empty directory to find the WASI libc++ headers. Create it once with write access to the SDK, or point STATIC_HERMES_WASI_SDK_PATH at a writable copy.`,
+            { cause: error },
+        );
+    }
 }
 
 /** Determine the configured compiler command and a stable identity for cache keys.

@@ -83,6 +83,30 @@ it('keeps Hades and malloc build artifacts cached independently', async () => {
     expect(cmakeCalls(calls)).toHaveLength(8);
 });
 
+it('builds with a read-only WASI SDK that already has the libc++ include marker', async () => {
+    const { options, calls } = fixture();
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const marker = path.join(options.wasiSdk, 'share/wasi-sysroot/include/c++/v1');
+    fs.mkdirSync(marker, { recursive: true });
+    options.filesystem = readOnlyBelow(options.wasiSdk);
+
+    await buildHermes(options);
+
+    expect(cmakeCalls(calls)).toHaveLength(4);
+});
+
+it('names the missing libc++ include marker when the WASI SDK is read-only', async () => {
+    const { options, calls } = fixture();
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    options.filesystem = readOnlyBelow(options.wasiSdk);
+
+    const failure = await buildHermes(options).catch((error: unknown) => error);
+
+    expect(String(failure)).toContain(path.join(options.wasiSdk, 'share/wasi-sysroot/include/c++/v1'));
+    expect(String(failure)).toMatch(/libc\+\+ headers/);
+    expect(cmakeCalls(calls)).toHaveLength(0);
+});
+
 it('releases the preparation lock when a CMake build fails', async () => {
     const { options, calls } = fixture({ failBuild: true });
     vi.spyOn(console, 'log').mockImplementation(() => undefined);
@@ -543,6 +567,21 @@ function fixture({ failBuild = false }: { failBuild?: boolean } = {}): {
         setPlatform(platform) {
             optionsPlatform = platform;
             options.platform = platform;
+        },
+    };
+}
+
+/** Return a filesystem that refuses to create directories inside the given directory, like a read-only mount. */
+function readOnlyBelow(directory: string): HermesFileSystem {
+    return {
+        ...hermesFileSystem,
+        mkdirSync(target, mkdirOptions) {
+            if (!path.relative(directory, String(target)).startsWith('..')) {
+                throw Object.assign(new Error(`EACCES: permission denied, mkdir '${String(target)}'`), {
+                    code: 'EACCES',
+                });
+            }
+            return hermesFileSystem.mkdirSync(target, mkdirOptions);
         },
     };
 }
