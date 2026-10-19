@@ -45,7 +45,7 @@ describe('checkEdit', () => {
     ].join('\n');
     const read = (file) => (file === 'packages/p/README.md' ? readme : undefined);
 
-    it('refuses the lockfile, build output, caches and release-please files', () => {
+    it('refuses the lockfile, build output, caches and release-please files', async () => {
         for (const file of [
             'pnpm-lock.yaml',
             'packages/p/build/p.wasm',
@@ -58,33 +58,36 @@ describe('checkEdit', () => {
             'tools/config/CHANGELOG.md',
             '.release-please-manifest.json',
         ]) {
-            assert.ok(checkEdit(file, {}, read), file);
+            assert.ok(await checkEdit(file, {}, read), file);
         }
-        assert.equal(checkEdit('packages/p/src/build.ts', {}, read), undefined);
-        assert.equal(checkEdit('tools/build/src/cli.ts', {}, read), undefined);
-        assert.equal(checkEdit('release-please-config.json', {}, read), undefined);
+        assert.equal(await checkEdit('packages/p/src/build.ts', {}, read), undefined);
+        assert.equal(await checkEdit('tools/build/src/cli.ts', {}, read), undefined);
+        assert.equal(await checkEdit('release-please-config.json', {}, read), undefined);
     });
 
-    it('refuses edits inside a generated README block and allows the rest', () => {
-        assert.match(checkEdit('packages/p/README.md', { oldString: '| Command | |' }, read) ?? '', /pnpm readme/);
+    it('refuses edits inside a generated README block and allows the rest', async () => {
         assert.match(
-            checkEdit('packages/p/README.md', { oldString: 'intro.\n\n<!-- docs:begin' }, read) ?? '',
+            (await checkEdit('packages/p/README.md', { oldString: '| Command | |' }, read)) ?? '',
             /pnpm readme/,
         );
-        assert.equal(checkEdit('packages/p/README.md', { oldString: 'Hand-written outro.' }, read), undefined);
+        assert.match(
+            (await checkEdit('packages/p/README.md', { oldString: 'intro.\n\n<!-- docs:begin' }, read)) ?? '',
+            /pnpm readme/,
+        );
+        assert.equal(await checkEdit('packages/p/README.md', { oldString: 'Hand-written outro.' }, read), undefined);
     });
 
-    it('refuses patch-style edits to READMEs with generated blocks', () => {
-        assert.match(checkEdit('packages/p/README.md', {}, read) ?? '', /pnpm readme/);
+    it('refuses patch-style edits to READMEs with generated blocks', async () => {
+        assert.match((await checkEdit('packages/p/README.md', {}, read)) ?? '', /pnpm readme/);
     });
 
-    it('refuses a rewrite that changes a generated block and allows one that keeps it', () => {
+    it('refuses a rewrite that changes a generated block and allows one that keeps it', async () => {
         const kept = readme.replace('Hand-written intro.', 'A better intro.');
-        assert.equal(checkEdit('packages/p/README.md', { content: kept }, read), undefined);
+        assert.equal(await checkEdit('packages/p/README.md', { content: kept }, read), undefined);
         const changed = readme.replace('| Command | |', '| Command | Notes |');
-        assert.match(checkEdit('packages/p/README.md', { content: changed }, read) ?? '', /pnpm readme/);
+        assert.match((await checkEdit('packages/p/README.md', { content: changed }, read)) ?? '', /pnpm readme/);
         const dropped = '# Plugin\n';
-        assert.match(checkEdit('packages/p/README.md', { content: dropped }, read) ?? '', /pnpm readme/);
+        assert.match((await checkEdit('packages/p/README.md', { content: dropped }, read)) ?? '', /pnpm readme/);
     });
 
     it('lists the files a patch touches', () => {
@@ -299,13 +302,19 @@ describe('parseStatus', () => {
     });
 });
 
-it('protects generated action sections and custom guide blocks', () => {
+it('protects generated action sections and custom guide blocks', async () => {
     const action = '<!-- action-inputs:start -->\nTable\n<!-- action-inputs:end -->';
-    assert.match(checkEdit('actions/example/README.md', { oldString: 'Table' }, () => action) ?? '', /pnpm readme/);
+    assert.match(
+        (await checkEdit('actions/example/README.md', { oldString: 'Table' }, () => action)) ?? '',
+        /pnpm readme/,
+    );
     const guide = '<!-- docs:begin limits -->\nLimits\n<!-- docs:end limits -->';
-    assert.match(checkEdit('tools/example/docs/index.md', { oldString: 'Limits' }, () => guide) ?? '', /pnpm readme/);
+    assert.match(
+        (await checkEdit('tools/example/docs/index.md', { oldString: 'Limits' }, () => guide)) ?? '',
+        /pnpm readme/,
+    );
     assert.equal(
-        checkEdit('tools/example/docs/index.md', { oldString: 'Written prose' }, () => `Written prose\n${guide}`),
+        await checkEdit('tools/example/docs/index.md', { oldString: 'Written prose' }, () => `Written prose\n${guide}`),
         undefined,
     );
 });
