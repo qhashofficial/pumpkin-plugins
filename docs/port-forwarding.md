@@ -32,9 +32,10 @@ them. `PortMapper` manages discovery and each requested mapping:
    search and reads device descriptions before starting NAT-PMP. UPnP SOAP and NAT-PMP requests then
    run side by side; UPnP is preferred if both succeed. NAT-PMP tries the first and last address of
    the local /24, or the configured gateway.
-3. If the router's internet-side address is not public, the mapping fails. This includes
-   carrier-grade NAT, where the router is behind another shared address and cannot make the server
-   reachable on its own.
+3. If the router's internet-side address is not public, the mapping fails. The reason names the
+   cause by the address range: `100.64.0.0/10` is carrier-grade NAT, a private range such as
+   `192.168.0.0/16` means another router sits in front (double NAT), and `0.0.0.0` means the router
+   has no internet connection right now.
 4. Each mapping has a lease and is renewed halfway through it. If the requested public port is
    taken, the engine tries another one. It closes the mapping when the request is released or the
    plugin stops.

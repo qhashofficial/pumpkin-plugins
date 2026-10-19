@@ -511,14 +511,20 @@ describe('PortMapper', () => {
         expect(net.sent.length).toBe(sent);
     });
 
-    it('refuses to map behind carrier-grade NAT, where nobody can connect in', () => {
-        const { mapper, settle, igd } = setup(new FakeIgd({ externalAddress: [100, 72, 3, 4] }));
+    it.each([
+        { range: 'carrier-grade NAT', address: [100, 72, 3, 4], cause: 'provider shares one address' },
+        { range: '10.0.0.0/8', address: [10, 0, 0, 2], cause: 'another router' },
+        { range: '172.16.0.0/12', address: [172, 20, 1, 1], cause: 'another router' },
+        { range: '192.168.0.0/16', address: [192, 168, 178, 1], cause: 'another router' },
+        { range: '0.0.0.0', address: [0, 0, 0, 0], cause: 'no internet connection' },
+    ] as const)('refuses to map behind a $range router address and names the cause', ({ address, cause }) => {
+        const { mapper, settle, igd } = setup(new FakeIgd({ externalAddress: address }));
         mapper.request('web', spec);
         settle(() => mapper.state('web')?.kind === 'failed');
-        expect(mapper.state('web')).toEqual({
-            kind: 'failed',
-            reason: expect.stringContaining('100.72.3.4, which is not public'),
-        });
+        const failed = mapper.state('web') as { kind: 'failed'; reason: string };
+        expect(failed.reason).toContain(`${address.join('.')}, which is not public`);
+        expect(failed.reason).toContain(cause);
+        if (address[0] !== 100) expect(failed.reason).not.toContain('provider');
         expect(igd?.mappings.size).toBe(0);
     });
 

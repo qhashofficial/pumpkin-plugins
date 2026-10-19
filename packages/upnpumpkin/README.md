@@ -35,8 +35,10 @@ It can't help when:
 - the router has UPnP and NAT-PMP turned off (many do by default; look for "UPnP" in its settings),
 - your provider shares one public address between customers (carrier-grade NAT), which the plugin
   detects and reports because nobody can connect in through it,
-- the machine sits behind a second router, or runs in a container on a network that doesn't pass
-  multicast (set `router.upnp_search` to the router's address in that case).
+- your router sits behind a second router, such as the provider's modem (double NAT). The plugin
+  reports this too; forward the ports on the outer router or put it in bridge mode,
+- the machine runs in a container on a network that doesn't pass multicast (set `router.upnp_search`
+  to the router's address in that case).
 
 Anyone on your network can use UPnP, so only run this where you trust the network.
 
