@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { LatestVersionOptions } from '@badisi/latest-version';
+import { parse } from 'jsonc-parser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CodemodDefinition } from './types.js';
 import { runUpdateBuild } from './update-build.js';
@@ -32,6 +33,14 @@ function lookup(latest: string, overrides: Record<string, unknown> = {}) {
 
 const resolveInstalledVersion = () => '0.1.0';
 
+/** Reads the builder range from each dependency section, in declaration order. */
+function builderRanges(source: string | undefined): unknown[] {
+    const manifest = parse(source ?? '') as Record<string, Record<string, unknown> | undefined>;
+    return Object.values(manifest)
+        .map((section) => section?.['@pumpkin-plugins/build'])
+        .filter((range) => range !== undefined);
+}
+
 describe('update-build workflow', () => {
     it('does a fresh bounded registry lookup and previews the latest package range by default', async () => {
         const root = await createProject('{\n    "dependencies": { "@pumpkin-plugins/build": "^0.1.0" }\n}\n');
@@ -46,8 +55,8 @@ describe('update-build workflow', () => {
         expect(registryLookup.mock.calls[0]?.[1]?.useCache).toBeUndefined();
         expect(registryLookup.mock.calls[0]?.[1]?.requestOptions?.timeout).toBeGreaterThan(0);
         expect(report.changedFiles).toHaveLength(1);
-        expect(await fs.readFile(path.join(root, 'package.json'), 'utf8')).toContain('^0.1.0');
-        expect(report.changedFiles[0]?.after).toContain('^0.2.0');
+        expect(builderRanges(await fs.readFile(path.join(root, 'package.json'), 'utf8'))).toEqual(['^0.1.0']);
+        expect(builderRanges(report.changedFiles[0]?.after)).toEqual(['^0.2.0']);
     });
 
     it('does not change an already-current project', async () => {
@@ -121,10 +130,7 @@ describe('update-build workflow', () => {
             resolveInstalledVersion,
         });
 
-        expect(report.changedFiles[0]?.after).toContain('"@pumpkin-plugins/build": "0.2.0"');
-        expect(report.changedFiles[0]?.after).toContain('"@pumpkin-plugins/build": "^0.2.0"');
-        expect(report.changedFiles[0]?.after).toContain('"@pumpkin-plugins/build": "~0.2.0"');
-        expect(report.changedFiles[0]?.after.match(/"@pumpkin-plugins\/build":/g)).toHaveLength(4);
+        expect(builderRanges(report.changedFiles[0]?.after)).toEqual(['0.2.0', '^0.2.0', '~0.2.0', '^0.2.0']);
     });
 
     it.each([
@@ -188,7 +194,7 @@ describe('update-build workflow', () => {
         });
 
         expect(report.changedFiles[0]?.after).toContain('// Keep this note with the dependency.');
-        expect(report.changedFiles[0]?.after).toContain('        "@pumpkin-plugins/build": "^0.2.0"');
+        expect(builderRanges(report.changedFiles[0]?.after)).toEqual(['^0.2.0']);
     });
 
     it('does not add a builder dependency when the package has none', async () => {
