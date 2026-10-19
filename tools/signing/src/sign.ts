@@ -107,23 +107,30 @@ export function generateKeyPair(): KeyPair {
  * @param metadata - What to embed; only the documented fields are written, in order.
  * @param secretKeyHex - The 32-byte seed as 64 hex characters.
  * @returns The binary with `pumpkin.metadata` and `wasm_signature` sections appended.
- * @throws {Error} When the key or bytes are invalid, or a metadata ID is unsafe or outside the s64 range.
+ * @throws {Error} When the key or bytes are invalid, a metadata field has the wrong type, or a metadata ID is
+ *   unsafe or outside the s64 range.
  */
 export function signWasm(wasm: Uint8Array, metadata: SigningMetadata, secretKeyHex: string): Buffer {
     const key = secretKey(secretKeyHex);
     const { clean } = stripSignature(wasm);
     const fields: [string, string][] = [
-        ['marketplace_url', jsonString(metadata.marketplace_url)],
+        ['marketplace_url', serializeString(metadata.marketplace_url, 'marketplace_url')],
         ['plugin_id', serializeMetadataId(metadata.plugin_id, 'plugin_id')],
-        ['plugin_name', jsonString(metadata.plugin_name)],
-        ['version', jsonString(metadata.version)],
+        ['plugin_name', serializeString(metadata.plugin_name, 'plugin_name')],
+        ['version', serializeString(metadata.version, 'version')],
         ['dev_id', serializeMetadataId(metadata.dev_id, 'dev_id')],
-        ['dev_name', jsonString(metadata.dev_name)],
-        ['is_paid', String(metadata.is_paid)],
+        ['dev_name', serializeString(metadata.dev_name, 'dev_name')],
+        ['is_paid', serializeBoolean(metadata.is_paid, 'is_paid')],
         ['user_id', serializeMetadataId(metadata.user_id, 'user_id')],
     ];
-    if (metadata.license_key !== undefined) fields.push(['license_key', jsonString(metadata.license_key)]);
-    fields.push(['issued_at', jsonString(metadata.issued_at)]);
+    if (metadata.license_key !== undefined) {
+        const licenseKey = metadata.license_key;
+        fields.push([
+            'license_key',
+            licenseKey === null ? 'null' : serializeString(licenseKey, 'license_key', 'a string or null'),
+        ]);
+    }
+    fields.push(['issued_at', serializeString(metadata.issued_at, 'issued_at')]);
     const metadataJson = Buffer.from(
         `{${fields.map(([name, value]) => `${JSON.stringify(name)}:${value}`).join(',')}}`,
         'utf8',
@@ -152,8 +159,15 @@ const ID_FIELDS = ['plugin_id', 'dev_id', 'user_id'];
 const MIN_I64 = -(1n << 63n);
 const MAX_I64 = (1n << 63n) - 1n;
 
-function jsonString(value: string | null): string {
-    return JSON.stringify(value) ?? 'null';
+// JS callers aren't type-checked, so check the types here rather than sign metadata the host can't parse.
+function serializeString(value: unknown, field: string, expected = 'a string'): string {
+    if (typeof value !== 'string') throw new Error(`metadata.${field} must be ${expected}`);
+    return JSON.stringify(value);
+}
+
+function serializeBoolean(value: unknown, field: string): string {
+    if (typeof value !== 'boolean') throw new Error(`metadata.${field} must be a boolean`);
+    return String(value);
 }
 
 function serializeMetadataId(value: SigningId, field: string): string {
