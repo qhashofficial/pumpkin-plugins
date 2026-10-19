@@ -30,9 +30,10 @@ const creatorTool = publicTools.find(({ packageJson }) =>
     Object.hasOwn(packageJson.bin ?? {}, 'create-pumpkin-plugin'),
 );
 const codemodTool = publicTools.find(({ packageJson }) => Object.hasOwn(packageJson.bin ?? {}, 'pumpkin-codemod'));
+const docsTool = publicTools.find(({ packageJson }) => Object.hasOwn(packageJson.bin ?? {}, 'pumpkin-plugins-docs'));
 const pumpkinApiTool = publicTools.find(({ packageJson }) => Object.hasOwn(packageJson.exports ?? {}, './wit'));
-if (!buildCliOnly && (!creatorTool || !codemodTool || !pumpkinApiTool)) {
-    throw new Error('Public tool manifests must declare the creator, codemod, and Pumpkin API capabilities');
+if (!buildCliOnly && (!creatorTool || !codemodTool || !docsTool || !pumpkinApiTool)) {
+    throw new Error('Public tool manifests must declare the creator, codemod, docs, and Pumpkin API capabilities');
 }
 const packagePaths = buildCliOnly ? dependencyClosure([buildTool], publicTools) : publicTools.map(({ path }) => path);
 const requiredNodeVersion = nodeVersion(repositoryRoot);
@@ -214,6 +215,22 @@ try {
             consumerDirectory,
             environment,
         );
+
+        const docsReadme = path.join(consumerDirectory, 'README.md');
+        fs.writeFileSync(docsReadme, '# Consumer\n\n<!-- docs:begin facts -->\n<!-- docs:end facts -->\n');
+        fs.writeFileSync(
+            path.join(consumerDirectory, 'docs.mjs'),
+            `import { code } from '${docsTool.name}/markdown';\nexport const documents = [{ file: 'README.md', blocks: { facts: code('packed') }, note: '' }];\n`,
+        );
+        await capture(
+            packageManager.command,
+            [...packageManager.args, 'exec', Object.keys(docsTool.packageJson.bin)[0], 'generate', 'docs.mjs'],
+            consumerDirectory,
+            environment,
+        );
+        if (!fs.readFileSync(docsReadme, 'utf8').includes('`packed`')) {
+            throw new Error('Packed docs CLI did not fill the generated README block');
+        }
 
         for (const name of packedPackages.keys()) {
             const installedPath = path.join(consumerDirectory, 'node_modules', ...name.split('/'));
