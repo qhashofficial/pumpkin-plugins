@@ -270,6 +270,7 @@ function sameArgument(left: CommandArgumentSpec, right: CommandArgumentSpec): bo
         return left.min === right.min && left.max === right.max;
     }
     if (left.type === 'players' && right.type === 'players') return true;
+    if (left.type === 'item' && right.type === 'item') return true;
     return left.type === 'string' && right.type === 'string' && left.mode === right.mode;
 }
 
