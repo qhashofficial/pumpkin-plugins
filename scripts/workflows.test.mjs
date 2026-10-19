@@ -64,6 +64,44 @@ describe('setup-static-hermes action', () => {
         assert.match(hermesCache.key, /steps\.versions\.outputs\.rust-toolchain-version/);
         assert.doesNotMatch(`${witBindgenCache.key} ${hermesCache.key}`, /wasi-sdk-34|wit-bindgen-0\.62|rust-1\.99/);
     });
+
+    it('reads every toolchain version from the config files', () => {
+        const workspace = repo({
+            'config/wasi-sdk.lock.json': JSON.stringify({ version: '99' }),
+            'config/toolchain-versions.json': JSON.stringify({
+                tools: { cmake: '9.8.7', ninja: '6.5.4', 'wit-bindgen': '3.2.1', rust: '1.2.3' },
+            }),
+        });
+        const outputFile = path.join(workspace, 'output');
+        const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', step('versions').run], {
+            encoding: 'utf8',
+            env: {
+                ...process.env,
+                GITHUB_WORKSPACE: workspace,
+                GITHUB_OUTPUT: outputFile,
+                TOOLCHAIN_CONFIG_ROOT: 'config',
+            },
+        });
+        assert.equal(result.status, 0, result.stderr);
+        const outputs = Object.fromEntries(
+            fs
+                .readFileSync(outputFile, 'utf8')
+                .trim()
+                .split('\n')
+                .map((line) => line.split('=')),
+        );
+        assert.deepEqual(outputs, {
+            'cmake-version': '9.8.7',
+            'ninja-version': '6.5.4',
+            'wasi-sdk-version': '99',
+            'wit-bindgen-version': '3.2.1',
+            'rust-toolchain-version': '1.2.3',
+        });
+        assert.match(
+            action.outputs['rust-toolchain-version'].value,
+            /steps\.versions\.outputs\.rust-toolchain-version/,
+        );
+    });
 });
 
 /** The publish-tools step that checks each release tag points at the commit this run built. */

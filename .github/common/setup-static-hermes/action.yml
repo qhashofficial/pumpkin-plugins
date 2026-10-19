@@ -35,11 +35,13 @@ runs:
           run: |
               config="$GITHUB_WORKSPACE/$TOOLCHAIN_CONFIG_ROOT"
               wasi_sdk_version="$(jq -er '.version' "$config/wasi-sdk.lock.json")"
+              cmake_version="$(jq -er '.tools.cmake' "$config/toolchain-versions.json")"
+              ninja_version="$(jq -er '.tools.ninja' "$config/toolchain-versions.json")"
               wit_bindgen_version="$(jq -er '.tools["wit-bindgen"]' "$config/toolchain-versions.json")"
               rust_toolchain_version="$(jq -er '.tools.rust' "$config/toolchain-versions.json")"
               {
-                  echo "cmake-version=4.4.4"
-                  echo "ninja-version=1.13.2"
+                  echo "cmake-version=$cmake_version"
+                  echo "ninja-version=$ninja_version"
                   echo "wasi-sdk-version=$wasi_sdk_version"
                   echo "wit-bindgen-version=$wit_bindgen_version"
                   echo "rust-toolchain-version=$rust_toolchain_version"
