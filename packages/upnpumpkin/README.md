@@ -22,7 +22,8 @@ Players outside your home network can only connect if your router forwards the s
 this machine. UPnPumpkin asks the router to do that, with UPnP or NAT-PMP, so you don't have to log
 in to it:
 
-- It opens the Java Edition port (TCP 25565) and the Bedrock Edition port (UDP 19132). Change them in
+- It opens the Java Edition port (TCP 25565) and the Bedrock Edition port (19132, both TCP and UDP:
+  Bedrock players join over TCP and see the server in their list over UDP). Change them in
   `config.toml` if your server listens elsewhere.
 - Ports are leased and renewed at half the lease time or every five minutes, whichever comes first,
   and they are closed again when the server stops. If the server dies, the router drops them when
