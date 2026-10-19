@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
+import * as http from 'node:http';
+import type { AddressInfo } from 'node:net';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -538,6 +540,30 @@ describe('ensureWasiWit', () => {
         const result = ensureWasiWit({ cacheDir: tmp(), lock, fetchFile });
         await expect(result).rejects.toBeInstanceOf(BuildError);
         await expect(result).rejects.toThrow(/first build needs network access/);
+    });
+
+    it('gives up on a download that never answers and says it timed out', async () => {
+        const stalled = http.createServer(() => undefined);
+        await new Promise<void>((resolve) => stalled.listen(0, '127.0.0.1', resolve));
+        const { port } = stalled.address() as AddressInfo;
+        const timeout = AbortSignal.timeout.bind(AbortSignal);
+        vi.spyOn(AbortSignal, 'timeout').mockImplementation(() => timeout(50));
+
+        try {
+            await expect(
+                ensureWasiWit({
+                    cacheDir: tmp(),
+                    lock: {
+                        version: lock.version,
+                        files: { 'io/poll.wit': sha(FILES['io/poll.wit']) },
+                        sources: { 'io/poll.wit': `http://127.0.0.1:${port}/io/poll.wit` },
+                    },
+                }),
+            ).rejects.toThrow(/could not download .*timed out/);
+        } finally {
+            stalled.closeAllConnections();
+            await new Promise((resolve) => stalled.close(resolve));
+        }
     });
 });
 

@@ -99,10 +99,19 @@ function validateWasiWitLock(lock: WasiWitLock): void {
     }
 }
 
+const DOWNLOAD_TIMEOUT_MS = 30_000;
+
 const defaultFetch: Fetcher = async (url) => {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return new Uint8Array(await res.arrayBuffer());
+    try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS) });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return new Uint8Array(await res.arrayBuffer());
+    } catch (error) {
+        if (error instanceof Error && error.name === 'TimeoutError') {
+            throw new Error(`timed out after ${DOWNLOAD_TIMEOUT_MS / 1000} s`);
+        }
+        throw error;
+    }
 };
 
 /**
