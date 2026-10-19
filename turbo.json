@@ -91,7 +91,7 @@
             "outputs": ["dist/**"]
         },
         "typecheck": {
-            "dependsOn": ["transit", "@pumpkin-plugins/build#build"]
+            "dependsOn": ["transit"]
         },
         "test": {
             "dependsOn": ["transit"]
