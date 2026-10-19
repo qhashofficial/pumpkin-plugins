@@ -21,6 +21,7 @@ import { ADMIN_PERMISSION, type commands } from './spec.ts';
 const NOT_ADMIN = 'You do not have permission to manage waypoints.';
 const PLAYER_ONLY = 'This command can only be used by a player.';
 const INACCESSIBLE = 'Waypoint not found or you do not have access.';
+const REVOKE_PLAYER_INPUT = /^\/?wp\s+access\s+revoke\s+player\s+("(?:[^"\\]|\\.)*"|\S+)\s/i;
 const STORAGE_ERROR =
     'Waypoint storage is unavailable or the change could not be saved; check the server log. No changes were made.';
 /** Host APIs and canonical data used by command handlers. */
@@ -175,16 +176,24 @@ export function commandHandlers(runtime: WaypointCommandRuntime): CommandHandler
         'wp access grant group <name> <group>': (sender, { name, group }) =>
             withAdmin(runtime, sender, () => updateGrant(runtime, name, { type: 'group', slug: group }, true)),
         'wp access revoke player <name> <player>': (sender, { name, player }) =>
-            withAdmin(runtime, sender, () =>
-                withOnlinePlayer(runtime, player, (target) =>
-                    updateGrant(
-                        runtime,
-                        name,
-                        { type: 'player', playerId: runtime.uuidToString(target.getId()).toLowerCase() },
-                        false,
-                    ),
-                ),
-            ),
+            withAdmin(runtime, sender, () => {
+                // An offline player can only be named by UUID, which `/wp access list` shows.
+                if (runtime.uuidFromString(player) !== undefined) {
+                    return updateGrant(runtime, name, { type: 'player', playerId: player.toLowerCase() }, false);
+                }
+                return withOnlinePlayer(
+                    runtime,
+                    player,
+                    (target) =>
+                        updateGrant(
+                            runtime,
+                            name,
+                            { type: 'player', playerId: runtime.uuidToString(target.getId()).toLowerCase() },
+                            false,
+                        ),
+                    'That player is not online; use the UUID shown by /wp access list.',
+                );
+            }),
         'wp access revoke permission <name> <permission>': (sender, { name, permission }) =>
             withAdmin(runtime, sender, () =>
                 updateGrant(runtime, name, { type: 'permission', node: permission }, false),
@@ -259,21 +268,34 @@ export function waypointNameSuggestions(runtime: WaypointCommandRuntime): Comman
     };
 }
 
-/** Suggests matching online player names to admins managing waypoint access. */
+/**
+ * Suggests matching online player names to admins managing waypoint access. For a revoke, it also
+ * suggests the UUIDs of the waypoint's player grants, so grants of offline players can be removed.
+ */
 export function onlinePlayerNameSuggestions(runtime: WaypointCommandRuntime): CommandSuggestionHandler<CommandSender> {
     return (sender, request) => {
         if (!isAdmin(runtime, sender)) return [];
         const prefix = suggestionPrefix(request.remaining);
         const players = runtime.server.getAllPlayers();
+        let names: string[];
         try {
-            return players
-                .map((player) => player.getName())
-                .filter((name) => name.toLowerCase().normalize('NFC').startsWith(prefix))
-                .sort((left, right) => left.toLowerCase().localeCompare(right.toLowerCase()));
+            names = players.map((player) => player.getName());
         } finally {
             for (const player of players) disposeWasiResource(player);
         }
+        return [...names, ...grantedPlayerIds(runtime, request.input)]
+            .filter((name) => name.toLowerCase().normalize('NFC').startsWith(prefix))
+            .sort((left, right) => left.toLowerCase().localeCompare(right.toLowerCase()));
     };
+}
+
+function grantedPlayerIds(runtime: WaypointCommandRuntime, input: string): string[] {
+    const token = REVOKE_PLAYER_INPUT.exec(input.trimStart())?.[1];
+    if (token === undefined || !runtime.catalog.isAvailable) return [];
+    const name = token.startsWith('"') ? token.slice(1, -1).replace(/\\(["\\])/g, '$1') : token;
+    return (runtime.catalog.getByName(name)?.access.grants ?? []).flatMap((grant) =>
+        grant.type === 'player' ? [grant.playerId] : [],
+    );
 }
 
 /** Suggests each property that `/wp reset` can reset, narrowed to the typed prefix. */
@@ -462,9 +484,10 @@ function withOnlinePlayer<T extends readonly CommandLine[]>(
     runtime: WaypointCommandRuntime,
     name: string,
     run: (player: Player) => T,
+    offline = 'That player must be online.',
 ): CommandLine[] {
     const player = runtime.server.getPlayerByName(name) ?? undefined;
-    if (player === undefined) return [errorLine('That player must be online.')];
+    if (player === undefined) return [errorLine(offline)];
     try {
         return [...run(player)];
     } finally {

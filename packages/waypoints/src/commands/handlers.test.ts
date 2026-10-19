@@ -56,7 +56,7 @@ function setup(isOperator = false, pendingItemIconInput?: string, isAdmin = isOp
         catalog,
         createWaypointId: () => waypointId,
         uuidToString: () => playerId,
-        uuidFromString: () => ({ high: 1n, low: 2n }) as never,
+        uuidFromString: (id: string) => (/^[0-9a-f-]{36}$/i.test(id) ? ({ high: 1n, low: 2n } as never) : undefined),
         consumePendingItemIconInput: () => pendingItemIconInput,
         validateItemIcon: () => true,
     };
@@ -157,6 +157,61 @@ describe('/wp handlers', () => {
         ).toEqual(['Alex', 'Alice']);
         expect(alex[Symbol.dispose]).toHaveBeenCalledOnce();
         expect(alice[Symbol.dispose]).toHaveBeenCalledOnce();
+    });
+
+    it('revokes a player grant by UUID while that player is offline', () => {
+        const { catalog, handlers, sender } = setup(true);
+        const offlineId = '55555555-5555-4555-8555-555555555555';
+        catalog.create({
+            id: waypointId,
+            name: 'Base',
+            dimension: 'world',
+            position: { x: 0, y: 64, z: 0 },
+            access: { mode: 'restricted', grants: [{ type: 'player', playerId: offlineId }] },
+        });
+
+        expect(
+            handlers['wp access revoke player <name> <player>'](sender, {
+                name: 'Base',
+                player: offlineId.toUpperCase(),
+            }),
+        ).toEqual(['Access grant removed.']);
+        expect(catalog.getByName('Base')?.access.grants).toEqual([]);
+    });
+
+    it('points to the UUID when revoking by the name of an offline player', () => {
+        const { catalog, handlers, sender } = setup(true);
+        catalog.create({ id: waypointId, name: 'Base', dimension: 'world', position: { x: 0, y: 64, z: 0 } });
+
+        expect(handlers['wp access revoke player <name> <player>'](sender, { name: 'Base', player: 'Steve' })).toEqual([
+            {
+                text: 'That player is not online; use the UUID shown by /wp access list.',
+                tone: 'error',
+            },
+        ]);
+    });
+
+    it('suggests the granted player UUIDs of the waypoint being revoked', () => {
+        const { catalog, getAllPlayers, runtime, sender } = setup(true);
+        getAllPlayers.mockReturnValue([]);
+        const grantedId = '55555555-5555-4555-8555-555555555555';
+        catalog.create({
+            id: waypointId,
+            name: 'Home Base',
+            dimension: 'world',
+            position: { x: 0, y: 64, z: 0 },
+            access: { mode: 'restricted', grants: [{ type: 'player', playerId: grantedId }] },
+        });
+        const input = '/wp access revoke player "Home Base" 5';
+
+        expect(
+            onlinePlayerNameSuggestions(runtime)(sender, {
+                input,
+                cursor: input.length,
+                start: input.length - 1,
+                remaining: '5',
+            }),
+        ).toEqual([grantedId]);
     });
 
     it('refuses waypoint management without the admin permission, even for operators', () => {

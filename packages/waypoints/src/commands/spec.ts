@@ -98,7 +98,7 @@ export const commands = defineCommands(PLUGIN_NAME, {
                     revoke: {
                         description: 'Remove an access grant',
                         subcommands: {
-                            player: admin('Revoke an online player grant', [name, player]),
+                            player: admin('Revoke a player grant by online name or UUID', [name, player]),
                             permission: admin('Revoke a permission node grant', [name, permission]),
                             group: admin('Revoke a permission marker group grant', [name, group]),
                         },
