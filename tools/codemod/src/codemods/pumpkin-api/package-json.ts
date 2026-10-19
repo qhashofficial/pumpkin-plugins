@@ -17,11 +17,16 @@ import { inferWasiCapabilities } from './wasi-capabilities.ts';
 
 /** Migrates dependencies and build settings while preserving JSONC comments and formatting. */
 export async function migratePackageJson(source: string, projectRoot: string): Promise<TransformResult> {
-    const original = parseJsonObject(source);
-    if (!original.value) return { source, messages: [original.error ?? 'Skipped an invalid package.json.'] };
+    const manifest = parseManifest(source);
+    if (!manifest) {
+        return {
+            source,
+            messages: ['Skipped package.json because it is not a JSON object; npm and pnpm cannot read it.'],
+        };
+    }
 
-    const initialDependencies = dependencyObjects(original.value);
-    const scripts = recordOf(original.value.scripts);
+    const initialDependencies = dependencyObjects(manifest);
+    const scripts = recordOf(manifest.scripts);
     const buildScript = typeof scripts?.build === 'string' ? scripts.build : undefined;
     const legacyApiUsed = initialDependencies.some((section) => Object.hasOwn(section, LEGACY_API_PACKAGE));
     const legacyBuildUsed = buildScript?.includes(LEGACY_BUILD_COMMAND) === true;
@@ -32,7 +37,7 @@ export async function migratePackageJson(source: string, projectRoot: string): P
     const buildVersion = existingDependencyVersion(initialDependencies, BUILD_PACKAGE) ?? BUILD_VERSION_RANGE;
 
     for (const sectionName of DEPENDENCY_SECTIONS) {
-        if (Object.hasOwn(recordOf(original.value[sectionName]) ?? {}, LEGACY_API_PACKAGE)) {
+        if (Object.hasOwn(recordOf(manifest[sectionName]) ?? {}, LEGACY_API_PACKAGE)) {
             migrated = setJsonValue(migrated, [sectionName, LEGACY_API_PACKAGE], undefined, source);
         }
     }
@@ -160,6 +165,15 @@ export async function migratePackageJson(source: string, projectRoot: string): P
     }
     if (migrated !== source) messages.push(...MIGRATION_NOTES);
     return { source: migrated, messages: [...new Set(messages)] };
+}
+
+/** Parses package.json strictly, because npm and pnpm reject comments and trailing commas in it. */
+function parseManifest(source: string): Record<string, unknown> | undefined {
+    try {
+        return recordOf(JSON.parse(source));
+    } catch {
+        return undefined;
+    }
 }
 
 /** Places a package in dependencies, moving an existing version from another section if present. */

@@ -32,7 +32,7 @@ export function setJsonValue(
     );
 }
 
-/** Merges string values into a JSONC array while preserving comments and existing layout. */
+/** Appends string values missing from a JSONC array while preserving comments and existing layout. */
 export function mergeJsonStringArray(
     source: string,
     propertyPath: Array<string | number>,
@@ -43,58 +43,10 @@ export function mergeJsonStringArray(
     const array = root && findNodeAtLocation(root, propertyPath);
     if (array?.type !== 'array') return source;
 
-    const children = array.children ?? [];
-    const seen = new Set<string>();
-    const duplicateIndices = new Set<number>();
-    for (const [index, child] of children.entries()) {
-        if (child.type !== 'string' || typeof child.value !== 'string') continue;
-        if (seen.has(child.value)) duplicateIndices.add(index);
-        else seen.add(child.value);
-    }
-
-    const values = [...new Set(valuesToAdd)].filter((value) => !seen.has(value));
-    let migrated = source;
-    if (duplicateIndices.size > 0) {
-        const edits: Edit[] = [];
-        const lastIndex = children.length - 1;
-        for (const index of duplicateIndices) {
-            const child = children[index];
-            if (!child) continue;
-            edits.push({ offset: child.offset, length: child.length, content: '' });
-
-            const isRunStart = index === 0 || !duplicateIndices.has(index - 1);
-            if (!isRunStart) continue;
-
-            let runEnd = index;
-            while (duplicateIndices.has(runEnd + 1)) runEnd++;
-            if (runEnd === lastIndex) {
-                const previous = children[index - 1];
-                if (previous) {
-                    const comma = commaBetween(source, previous.offset + previous.length, child.offset);
-                    if (comma) edits.push(comma);
-                }
-                for (let current = index; current < runEnd; current++) {
-                    const currentChild = children[current];
-                    const nextChild = children[current + 1];
-                    if (!currentChild || !nextChild) continue;
-                    const comma = commaBetween(source, currentChild.offset + currentChild.length, nextChild.offset);
-                    if (comma) edits.push(comma);
-                }
-            } else {
-                for (let current = index; current <= runEnd; current++) {
-                    const currentChild = children[current];
-                    const nextChild = children[current + 1];
-                    if (!currentChild || !nextChild) continue;
-                    const comma = commaBetween(source, currentChild.offset + currentChild.length, nextChild.offset);
-                    if (comma) edits.push(comma);
-                }
-            }
-        }
-        migrated = applySortedEdits(source, edits);
-    }
-
-    if (values.length === 0) return migrated;
-    return appendJsonArrayValues(migrated, propertyPath, values, formattingSource);
+    const existing = new Set((array.children ?? []).map((child) => child.value));
+    const values = [...new Set(valuesToAdd)].filter((value) => !existing.has(value));
+    if (values.length === 0) return source;
+    return appendJsonArrayValues(source, propertyPath, values, formattingSource);
 }
 
 /** Finds a comma token between two parsed JSON values. */

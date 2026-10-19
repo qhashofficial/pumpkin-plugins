@@ -224,6 +224,21 @@ describe('package.json migration', () => {
         expect(engineNotes(kept.messages)).toEqual([]);
     });
 
+    it('skips a package.json that package managers would reject', async () => {
+        const source =
+            '{\n    // npm and pnpm reject comments here.\n    "dependencies": { "@pumpkinmc/pumpkin-api-ts": "^0.1.1" }\n}\n';
+
+        const result = await migratePumpkinApiTs.transform({
+            absolutePath: '/project/package.json',
+            projectRoot: '/project',
+            relativePath: 'package.json',
+            source,
+        });
+
+        expect(result.source).toBe(source);
+        expect(result.messages).toEqual([expect.stringContaining('package.json')]);
+    });
+
     it('leaves custom build scripts intact and reports paths that need manual migration', async () => {
         const source = JSON.stringify({
             name: 'example-plugin',
