@@ -15,8 +15,8 @@ scan them. Use `/baddon list` to see discovered packs and their effective settin
 keeps its configuration in its own data folder and does not modify `pumpkin.toml`.
 
 Choose a URL Bedrock clients can reach. Set `web.public_url` when serving packs through a known
-address or reverse proxy. If it is empty, `web.bind` is `0.0.0.0`, and `web.port_forwarding` is on,
-the plugin asks UPnPumpkin to forward `web.port`. If forwarding does not succeed, it uses a loopback
+address or reverse proxy. If it is empty, `web.bind` is `0.0.0.0`, and you set
+`web.port_forwarding = true`, the plugin asks UPnPumpkin to forward `web.port`. If forwarding does not succeed, it uses a loopback
 address that works only on the server machine. See [setup](setup.md) for network and pack-format
 details, or [troubleshooting](troubleshooting.md) if clients cannot download a pack.
 
