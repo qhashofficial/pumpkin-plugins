@@ -1,5 +1,5 @@
 // Classifies changed files for CI: plugin/repo code, action directories, extension directories, and documentation.
-// Plugin code jobs, action tests, extension tests, integration suites, and the generator smoke test have separate gates.
+// scripts/ci-gate.mjs turns these outputs into the list of CI jobs the change needs.
 // See the Jobs table in docs/ci-and-releases.md.
 import { spawnSync } from 'node:child_process';
 import { appendFileSync, readFileSync } from 'node:fs';
@@ -355,9 +355,9 @@ if (diff.status !== 0) {
     console.error(`Could not diff ${base}...${head}: ${diff.stderr.trim()}`);
     process.exit(1);
 }
+const changedFiles = diff.stdout.split('\n').filter(Boolean);
+const configOnly = changedFiles.length > 0 && changedFiles.every((file) => LABEL_CONFIGURATION.has(file));
 if (configOnlyMode) {
-    const changedFiles = diff.stdout.split('\n').filter(Boolean);
-    const configOnly = changedFiles.length > 0 && changedFiles.every((file) => LABEL_CONFIGURATION.has(file));
     console.log(`Label configuration only: ${configOnly}`);
     if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `config_only=${configOnly}\n`);
     process.exit(0);
@@ -507,6 +507,6 @@ if (integrationPackages.size) console.log(`Integration packages: ${[...integrati
 if (process.env.GITHUB_OUTPUT) {
     appendFileSync(
         process.env.GITHUB_OUTPUT,
-        `code=${code.length > 0}\nactions=${JSON.stringify(actions)}\nactions_to_test=${JSON.stringify(actionsToTest)}\nextensions=${JSON.stringify(extensions)}\nextensions_to_test=${JSON.stringify(extensionsToTest)}\ngenerated_readmes=${generatedReadmes}\ngenerator=${generator}\nintegration_scope=${integrationScope}\nskip_expensive_checks=${skipExpensiveChecks}\nintegration_extra=${integrationExtra}\n${integrationPackages.size ? `integration_packages=${JSON.stringify([...integrationPackages].sort())}\n` : ''}`,
+        `code=${code.length > 0}\nconfig_only=${configOnly}\nactions=${JSON.stringify(actions)}\nactions_to_test=${JSON.stringify(actionsToTest)}\nextensions=${JSON.stringify(extensions)}\nextensions_to_test=${JSON.stringify(extensionsToTest)}\ngenerated_readmes=${generatedReadmes}\ngenerator=${generator}\nintegration_scope=${integrationScope}\nskip_expensive_checks=${skipExpensiveChecks}\nintegration_extra=${integrationExtra}\n${integrationPackages.size ? `integration_packages=${JSON.stringify([...integrationPackages].sort())}\n` : ''}`,
     );
 }

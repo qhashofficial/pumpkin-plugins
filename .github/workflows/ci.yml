@@ -78,7 +78,7 @@ jobs:
         runs-on: ubuntu-26.04
         outputs:
             code: ${{ steps.classify.outputs.code }}
-            config_only: ${{ steps.label-config-scope.outputs.config_only }}
+            config_only: ${{ steps.classify.outputs.config_only }}
             skip_expensive_checks: ${{ steps.classify.outputs.skip_expensive_checks }}
             actions: ${{ steps.classify.outputs.actions }}
             actions_to_test: ${{ steps.classify.outputs.actions_to_test }}
@@ -89,6 +89,7 @@ jobs:
             integration_scope: ${{ steps.classify.outputs.integration_scope }}
             integration_extra: ${{ steps.classify.outputs.integration_extra }}
             integration_packages: ${{ steps.classify.outputs.integration_packages }}
+            jobs: ${{ steps.select.outputs.jobs }}
         steps:
             - name: 🕶️ Checkout repository
               id: checkout-repository
@@ -103,12 +104,11 @@ jobs:
                   BASE: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
               run: git fetch --no-tags origin "$BASE"
 
-            - name: 🧭 Check whether the change only updates label configuration
-              id: label-config-scope
-              env:
-                  BASE: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
-                  HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-              run: node scripts/changed-areas.mjs --config-only "$BASE" "$HEAD"
+            - name: 🟢 Setup Node
+              id: setup-node
+              uses: actions/setup-node@v7.1.0
+              with:
+                  node-version-file: .node-version
 
             # Everything else keys off this: a change that touches only documentation can't break a
             # build, a test or a plugin, so it skips the jobs that would tell us otherwise.
@@ -118,6 +118,13 @@ jobs:
                   BASE: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
                   HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
               run: node scripts/changed-areas.mjs "$BASE" "$HEAD"
+
+            # Every job's `if:` reads this selection, and ci-result checks results against it.
+            - name: 🧭 Select CI jobs
+              id: select
+              env:
+                  CHANGES: ${{ toJSON(steps.classify.outputs) }}
+              run: node scripts/ci-gate.mjs select
 
             - name: 📋 Selected checks
               id: selected-checks
@@ -131,18 +138,7 @@ jobs:
     commits:
         name: 💬 Commit messages
         needs: [changes]
-        if: >-
-            ${{
-              github.event_name == 'pull_request' &&
-              (
-                needs.changes.outputs.code == 'true' ||
-                needs.changes.outputs.actions != '[]' ||
-                needs.changes.outputs.actions_to_test != '[]' ||
-                needs.changes.outputs.extensions != '[]' ||
-                needs.changes.outputs.extensions_to_test != '[]' ||
-                needs.changes.outputs.generated_readmes == 'true'
-              )
-            }}
+        if: fromJSON(needs.changes.outputs.jobs).commits
         timeout-minutes: 5
         runs-on: ubuntu-26.04
         permissions:
@@ -160,7 +156,7 @@ jobs:
     lint:
         name: 📋 Lint
         needs: [changes]
-        if: needs.changes.outputs.code == 'true'
+        if: fromJSON(needs.changes.outputs.jobs).lint
         timeout-minutes: 15
         runs-on: ubuntu-26.04
         steps:
@@ -187,7 +183,7 @@ jobs:
     typecheck:
         name: ✅ Typecheck
         needs: [changes]
-        if: needs.changes.outputs.code == 'true'
+        if: fromJSON(needs.changes.outputs.jobs).typecheck
         timeout-minutes: 15
         runs-on: ubuntu-26.04
         steps:
@@ -214,11 +210,7 @@ jobs:
     test:
         name: 🧪 Test
         needs: [changes]
-        if: >-
-            ${{
-              (needs.changes.outputs.code == 'true' || needs.changes.outputs.actions_to_test != '[]') &&
-              needs.changes.outputs.skip_expensive_checks != 'true'
-            }}
+        if: fromJSON(needs.changes.outputs.jobs).test
         timeout-minutes: 15
         runs-on: ubuntu-26.04
         steps:
@@ -270,104 +262,25 @@ jobs:
     action-tests:
         name: 🧪 Action tests
         needs: [changes]
-        if: needs.changes.outputs.actions_to_test != '[]'
+        if: fromJSON(needs.changes.outputs.jobs)['action-tests']
         uses: ./.github/workflows/actions.yml
         with:
             actions: ${{ needs.changes.outputs.actions_to_test }}
         secrets:
             CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-    action-gate:
-        name: 🛡️ Action test gate
-        needs: [changes, action-tests]
-        if: >-
-            ${{
-              always() &&
-              needs.changes.outputs.config_only != 'true' &&
-              !startsWith(github.head_ref, 'release-please--branches--')
-            }}
-        timeout-minutes: 5
-        runs-on: ubuntu-26.04
-        steps:
-            - name: 🛡️ Require selected action suites to pass
-              env:
-                  CHANGES_RESULT: ${{ needs.changes.result }}
-                  ACTIONS: ${{ needs.changes.outputs.actions_to_test }}
-                  TEST_RESULT: ${{ needs['action-tests'].result }}
-              run: |
-                  if [[ "$CHANGES_RESULT" != 'success' ]]; then
-                      echo 'Change classification failed.' >&2
-                      exit 1
-                  fi
-                  if [[ "$ACTIONS" == '[]' && "$TEST_RESULT" == 'skipped' ]]; then
-                      exit 0
-                  fi
-                  if [[ "$ACTIONS" != '[]' && "$TEST_RESULT" == 'success' ]]; then
-                      exit 0
-                  fi
-                  echo "Required action verification did not pass: $TEST_RESULT" >&2
-                  exit 1
-
     extension-tests:
         name: 🧪 Extension tests
         needs: [changes]
-        if: needs.changes.outputs.extensions_to_test != '[]'
+        if: fromJSON(needs.changes.outputs.jobs)['extension-tests']
         uses: ./.github/workflows/extensions.yml
         with:
             extensions: ${{ needs.changes.outputs.extensions_to_test }}
 
-    extension-gate:
-        name: 🛡️ Extension test gate
-        needs: [changes, extension-tests]
-        if: >-
-            ${{
-              always() &&
-              needs.changes.outputs.config_only != 'true' &&
-              !startsWith(github.head_ref, 'release-please--branches--')
-            }}
-        timeout-minutes: 5
-        runs-on: ubuntu-26.04
-        steps:
-            - name: 🛡️ Require selected extension suites to pass
-              env:
-                  CHANGES_RESULT: ${{ needs.changes.result }}
-                  EXTENSIONS: ${{ needs.changes.outputs.extensions_to_test }}
-                  TEST_RESULT: ${{ needs['extension-tests'].result }}
-              run: |
-                  if [[ "$CHANGES_RESULT" != 'success' ]]; then
-                      echo 'Change classification failed.' >&2
-                      exit 1
-                  fi
-                  if [[ "$EXTENSIONS" == '[]' && "$TEST_RESULT" == 'skipped' ]]; then
-                      exit 0
-                  fi
-                  if [[ "$EXTENSIONS" != '[]' && "$TEST_RESULT" == 'success' ]]; then
-                      exit 0
-                  fi
-                  echo "Required extension verification did not pass: $TEST_RESULT" >&2
-                  exit 1
-
     docs:
         name: 📝 Docs and config
         needs: [changes]
-        if: >-
-            ${{
-              needs.changes.outputs.code == 'true' ||
-              needs.changes.outputs.actions != '[]' ||
-              needs.changes.outputs.actions_to_test != '[]' ||
-              needs.changes.outputs.extensions != '[]' ||
-              needs.changes.outputs.extensions_to_test != '[]' ||
-              needs.changes.outputs.generated_readmes == 'true' ||
-              (
-                github.event_name == 'push' &&
-                needs.changes.outputs.code != 'true' &&
-                needs.changes.outputs.actions == '[]' &&
-                needs.changes.outputs.actions_to_test == '[]' &&
-                needs.changes.outputs.extensions == '[]' &&
-                needs.changes.outputs.extensions_to_test == '[]' &&
-                needs.changes.outputs.config_only != 'true'
-              )
-            }}
+        if: fromJSON(needs.changes.outputs.jobs).docs
         timeout-minutes: 10
         runs-on: ubuntu-26.04
         steps:
@@ -399,7 +312,7 @@ jobs:
     build:
         name: 🔨 Build
         needs: [changes]
-        if: needs.changes.outputs.code == 'true'
+        if: fromJSON(needs.changes.outputs.jobs).build
         timeout-minutes: 60
         runs-on: ubuntu-26.04
         steps:
@@ -536,34 +449,19 @@ jobs:
     external-consumer:
         name: 📦 External consumer
         needs: [changes]
-        if: >-
-            ${{
-              needs.changes.outputs.code == 'true' &&
-              needs.changes.outputs.skip_expensive_checks != 'true'
-            }}
+        if: fromJSON(needs.changes.outputs.jobs)['external-consumer']
         uses: ./.github/workflows/external-consumer.yml
 
     engine-comparison:
         name: 📊 Engine comparison
         needs: [changes, build]
-        if: >-
-            ${{
-              needs.changes.outputs.code == 'true' &&
-              needs.changes.outputs.skip_expensive_checks != 'true'
-            }}
+        if: fromJSON(needs.changes.outputs.jobs)['engine-comparison']
         uses: ./.github/workflows/engine-comparison.yml
 
     integration:
         name: 🎃 Integration (real Pumpkin)
         needs: [changes, build]
-        if: >-
-            ${{
-              needs.changes.outputs.skip_expensive_checks != 'true' &&
-              (
-                needs.changes.outputs.integration_scope == 'affected' ||
-                needs.changes.outputs.integration_scope == 'all'
-              )
-            }}
+        if: fromJSON(needs.changes.outputs.jobs).integration
         timeout-minutes: 60
         runs-on: ubuntu-26.04
         steps:
@@ -649,52 +547,11 @@ jobs:
                   steps: ${{ toJSON(steps) }}
                   tests: 'true'
 
-    integration-gate:
-        name: 🛡️ Integration gate
-        needs: [changes, integration]
-        if: >-
-            ${{
-              always() &&
-              needs.changes.outputs.config_only != 'true' &&
-              !startsWith(github.head_ref, 'release-please--branches--')
-            }}
-        timeout-minutes: 5
-        runs-on: ubuntu-26.04
-        steps:
-            - name: 🛡️ Require integration tests when relevant changes are selected
-              env:
-                  CHANGES_RESULT: ${{ needs.changes.result }}
-                  INTEGRATION_SCOPE: ${{ needs.changes.outputs.integration_scope }}
-                  SKIP_EXPENSIVE_CHECKS: ${{ needs.changes.outputs.skip_expensive_checks }}
-                  INTEGRATION_RESULT: ${{ needs.integration.result }}
-              run: |
-                  if [[ "$CHANGES_RESULT" != 'success' ]]; then
-                      echo 'Change classification failed.' >&2
-                      exit 1
-                  fi
-                  if [[ "$SKIP_EXPENSIVE_CHECKS" == 'true' && "$INTEGRATION_RESULT" == 'skipped' ]]; then
-                      exit 0
-                  fi
-                  if [[ "$INTEGRATION_SCOPE" == 'none' || "$INTEGRATION_SCOPE" == 'benchmark' ]]; then
-                      if [[ "$INTEGRATION_RESULT" == 'skipped' ]]; then
-                          exit 0
-                      fi
-                  fi
-                  if [[ ("$INTEGRATION_SCOPE" == 'affected' || "$INTEGRATION_SCOPE" == 'all') && "$INTEGRATION_RESULT" == 'success' ]]; then
-                      exit 0
-                  fi
-                  echo "Required integration verification for scope $INTEGRATION_SCOPE did not pass: $INTEGRATION_RESULT" >&2
-                  exit 1
-
     generator:
         name: 🧬 Generator
         # Build saves the prepared Static Hermes cache that this job restores.
         needs: [changes, lint, build]
-        if: >-
-            ${{
-              needs.changes.outputs.generator == 'true' &&
-              needs.changes.outputs.skip_expensive_checks != 'true'
-            }}
+        if: fromJSON(needs.changes.outputs.jobs).generator
         timeout-minutes: 60
         runs-on: ubuntu-26.04
         steps:
@@ -776,44 +633,39 @@ jobs:
                   steps: ${{ toJSON(steps) }}
                   tests: 'true'
 
-    generator-gate:
-        name: 🛡️ Generator gate
-        needs: [changes, generator]
-        if: >-
-            ${{
-              always() &&
-              needs.changes.outputs.config_only != 'true' &&
-              !startsWith(github.head_ref, 'release-please--branches--')
-            }}
+    # The single required status check: it fails when a job the change needs did not pass, or when
+    # any job failed. scripts/ci-gate.mjs holds the selection table that every job's `if:` reads.
+    ci-result:
+        name: 🛡️ CI result
+        needs: [changes, commits, lint, typecheck, test, action-tests, extension-tests, docs, build, external-consumer, integration, generator]
+        if: ${{ always() && !startsWith(github.head_ref, 'release-please--branches--') }}
         timeout-minutes: 5
         runs-on: ubuntu-26.04
         steps:
-            - name: 🛡️ Require the generator smoke test when selected
+            - name: 🕶️ Checkout repository
+              id: checkout-repository
+              uses: actions/checkout@v7.0.1
+              with:
+                  sparse-checkout: |
+                      .node-version
+                      scripts/ci-gate.mjs
+                  sparse-checkout-cone-mode: false
+
+            - name: 🟢 Setup Node
+              id: setup-node
+              uses: actions/setup-node@v7.1.0
+              with:
+                  node-version-file: .node-version
+
+            - name: 🛡️ Require every selected job to pass
+              id: check-results
               env:
-                  CHANGES_RESULT: ${{ needs.changes.result }}
-                  GENERATOR: ${{ needs.changes.outputs.generator }}
-                  SKIP_EXPENSIVE_CHECKS: ${{ needs.changes.outputs.skip_expensive_checks }}
-                  GENERATOR_RESULT: ${{ needs.generator.result }}
-              run: |
-                  if [[ "$CHANGES_RESULT" != 'success' ]]; then
-                      echo 'Change classification failed.' >&2
-                      exit 1
-                  fi
-                  if [[ "$SKIP_EXPENSIVE_CHECKS" == 'true' && "$GENERATOR_RESULT" == 'skipped' ]]; then
-                      exit 0
-                  fi
-                  if [[ "$GENERATOR" != 'true' && "$GENERATOR_RESULT" == 'skipped' ]]; then
-                      exit 0
-                  fi
-                  if [[ "$GENERATOR" == 'true' && "$GENERATOR_RESULT" == 'success' ]]; then
-                      exit 0
-                  fi
-                  echo "Required generator verification did not pass: $GENERATOR_RESULT" >&2
-                  exit 1
+                  NEEDS: ${{ toJSON(needs) }}
+              run: node scripts/ci-gate.mjs check
 
     release:
         name: 🚢 Release
-        needs: [changes, lint, typecheck, build, external-consumer, test, docs, integration-gate, action-gate, extension-gate, generator-gate]
+        needs: [ci-result]
         if: >-
             ${{
               always() &&
@@ -823,57 +675,7 @@ jobs:
                   github.ref == 'refs/heads/master' &&
                   inputs.release_commit != ''
                 ) ||
-                (
-                  github.event_name == 'push' &&
-                  needs.changes.result == 'success' &&
-                  needs.docs.result == 'success' &&
-                  needs['action-gate'].result == 'success' &&
-                  needs['extension-gate'].result == 'success' &&
-                  needs['integration-gate'].result == 'success' &&
-                  needs['generator-gate'].result == 'success' &&
-                  (
-                    (
-                      needs.changes.outputs.code == 'true' &&
-                      needs.lint.result == 'success' &&
-                      needs.typecheck.result == 'success' &&
-                      needs.build.result == 'success' &&
-                      (
-                        needs['external-consumer'].result == 'success' ||
-                        (
-                          needs.changes.outputs.skip_expensive_checks == 'true' &&
-                          needs['external-consumer'].result == 'skipped'
-                        )
-                      ) &&
-                      (
-                        needs.test.result == 'success' ||
-                        (
-                          needs.changes.outputs.skip_expensive_checks == 'true' &&
-                          needs.test.result == 'skipped'
-                        )
-                      )
-                    ) ||
-                    (
-                      needs.changes.outputs.code != 'true' &&
-                      (
-                        needs.changes.outputs.actions_to_test == '[]' ||
-                        needs.test.result == 'success' ||
-                        (
-                          needs.changes.outputs.skip_expensive_checks == 'true' &&
-                          needs.test.result == 'skipped'
-                        )
-                      ) &&
-                      (
-                        needs.changes.outputs.actions != '[]' ||
-                        needs.changes.outputs.extensions != '[]' ||
-                        (
-                          needs.changes.outputs.actions_to_test == '[]' &&
-                          needs.changes.outputs.extensions_to_test == '[]' &&
-                          needs.changes.outputs.config_only != 'true'
-                        )
-                      )
-                    )
-                  )
-                )
+                (github.event_name == 'push' && needs['ci-result'].result == 'success')
               )
             }}
         permissions:
