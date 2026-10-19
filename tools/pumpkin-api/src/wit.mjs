@@ -14,7 +14,7 @@ const upstreamGitPinSchema =
  * checkout and the checkout is removed before the cache is published. Cached WIT files are
  * verified against their SHA-256 manifest before reuse, so a modified cache cannot change API bindings.
  *
- * @param {{ lockFile: string, cacheRoot: string }} options Lockfile path and consumer-owned cache root.
+ * @param options - Lockfile path and consumer-owned cache root.
  * @returns The cached WIT package directory selected by the lockfile.
  * @throws {Error} If the lock is invalid, Git cannot fetch its commit, or the commit lacks WIT files.
  */
@@ -110,9 +110,9 @@ function publishCache(stagingDirectory, cacheDirectory, cacheParent, isCached) {
 
 /**
  * Validate the lockfile fields described by the upstream Git pin schema.
- * @param {string} source Lockfile JSON text.
- * @param {string} lockFile Lockfile path for diagnostics.
- * @returns {{ repository: string, branch: string, commit: string, subdirectory: string }} The normalized pin.
+ * @param source - Lockfile JSON text.
+ * @param lockFile - Lockfile path for diagnostics.
+ * @returns The normalized pin.
  */
 export function parsePumpkinWitPin(source, lockFile) {
     let value;

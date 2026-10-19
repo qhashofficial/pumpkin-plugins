@@ -21,7 +21,7 @@ export interface EnsurePumpkinWitOptions {
 /**
  * Fetches the lockfile-selected Pumpkin WIT package on first use and when its lockfile changes.
  *
- * @param options Lockfile path and consumer-owned cache root.
+ * @param options - Lockfile path and consumer-owned cache root.
  * @returns The cached WIT package directory selected by the lockfile.
  * @throws {Error} If the lock is invalid, Git cannot fetch its commit, or the commit lacks WIT files.
  */
@@ -30,8 +30,8 @@ export function ensurePumpkinWit(options: EnsurePumpkinWitOptions): string;
 /**
  * Validates and normalizes the lockfile fields described by the upstream Git pin schema.
  *
- * @param source Lockfile JSON text.
- * @param lockFile Lockfile path for diagnostics.
+ * @param source - Lockfile JSON text.
+ * @param lockFile - Lockfile path for diagnostics.
  * @returns The normalized upstream Git pin.
  */
 export function parsePumpkinWitPin(source: string, lockFile: string): PumpkinWitPin;
