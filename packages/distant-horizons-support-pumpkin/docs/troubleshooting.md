@@ -7,6 +7,9 @@ running it. If the protocol versions differ, the plugin closes the session and l
 the client's and the server's protocol numbers. Only Java Edition players can open Distant Horizons
 sessions.
 
+Worlds in a custom dimension need a height in the plugin config. Without one, the plugin closes DH
+sessions in that world and logs the `[worlds."<world>"]` key to add once per world.
+
 ## Requests stay pending because terrain is unavailable
 
 The plugin can read only chunks Pumpkin has loaded; it cannot load or generate them. If the requested

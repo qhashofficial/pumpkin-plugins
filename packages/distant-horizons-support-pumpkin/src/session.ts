@@ -114,6 +114,7 @@ export class Sessions {
     private readonly refreshes = new Map<string, Refresh>();
     private readonly revisions = new Map<string, number>();
     private readonly protocolWarnings = new Set<string>();
+    private readonly heightWarnings = new Set<string>();
     private readonly workBudget = new AdaptiveWorkBudget({ initialUnits: 8192 });
     private readonly forcedGeneration: ForcedLodGeneration;
     private buffer = 1;
@@ -662,6 +663,17 @@ export class Sessions {
             this.revisions.delete(key);
     }
     private announce(peer: Peer): void {
+        if (peer.terrain.height <= 0) {
+            if (!this.heightWarnings.has(peer.level)) {
+                this.heightWarnings.add(peer.level);
+                this.log.warn(
+                    `${logTag} World ${ansi.named.identifier(peer.level)} (${ansi.named.identifier(peer.dimension)}) has no known height, so DH sessions there are closed. Set height under [worlds."${peer.level}"] in config.toml.`,
+                );
+            }
+            peer.send(closeSession(`${PLUGIN_NAME}: no world height is configured for ${peer.level}.`));
+            this.removeClient(peer.name);
+            return;
+        }
         const existing = this.clients.get(peer.name);
         if (existing?.level === peer.level && existing.dimension === peer.dimension) {
             peer.send(levelInit(peer.dimension, this.settings.server_key, peer.level, this.now()));
