@@ -28,7 +28,7 @@ const witLockFile = path.join(apiRoot, 'wit.lock.json');
 const sourceWit = parsePumpkinWitPin(fs.readFileSync(witLockFile, 'utf8'), witLockFile);
 const apiWitDir = ensurePumpkinWit({
     lockFile: witLockFile,
-    cacheRoot: process.env.PUMPKIN_PLUGINS_CACHE_DIR ?? path.join(repositoryRoot, '.cache'),
+    cacheRoot: process.env.PUMPKIN_PLUGINS_CACHE_DIR || path.join(repositoryRoot, '.cache'),
 });
 const api = readWitPackage(apiWitDir);
 
