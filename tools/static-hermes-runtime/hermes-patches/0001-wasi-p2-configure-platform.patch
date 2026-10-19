@@ -1,9 +1,10 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -62,3 +62,3 @@
+@@ -62,3 +62,4 @@
 -if (WIN32)
-+if (WIN32 AND NOT CMAKE_TOOLCHAIN_FILE MATCHES "wasi-sdk-hermes-p2.cmake")
++# This runs before project(), so CMAKE_SYSTEM_NAME is not set yet; the WASI build passes HERMES_WASI_TARGET=ON.
++if (WIN32 AND NOT HERMES_WASI_TARGET)
  add_definitions(-D_WINDOWS)
  endif()
 
