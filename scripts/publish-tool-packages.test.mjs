@@ -147,15 +147,14 @@ describe('publishToolPackages', () => {
         assert.deepEqual(args, ['publish', tarballPath, '--access', 'public', '--provenance']);
     });
 
-    it('returns missing only for an exact-version 404 after confirming the npm package exists', async () => {
+    it('reads an exact version integrity from one npm packument request', async () => {
         const packageName = API_NAME;
         const packageUrl = 'https://registry.npmjs.org/%40example%2Fapi';
-        const versionUrl = `${packageUrl}/1.2.3`;
-        const packageExists = {
+        const packument = (versions) => ({
             status: 200,
             ok: true,
-            json: async () => ({ name: packageName }),
-        };
+            json: async () => ({ name: packageName, versions }),
+        });
         const queuedFetch = (...responses) => {
             const requestedUrls = [];
             return {
@@ -167,54 +166,37 @@ describe('publishToolPackages', () => {
             };
         };
 
-        const missingVersion = queuedFetch(packageExists, { status: 404 });
+        const missingVersion = queuedFetch(packument({ '1.2.2': {} }));
         assert.equal(await getNpmRegistryIntegrity(packageName, '1.2.3', missingVersion.fetch), null);
-        assert.deepEqual(missingVersion.requestedUrls, [packageUrl, versionUrl]);
+        assert.deepEqual(missingVersion.requestedUrls, [packageUrl]);
 
-        const existingVersion = queuedFetch(packageExists, {
-            status: 200,
-            ok: true,
-            json: async () => ({
-                name: packageName,
-                version: '1.2.3',
-                dist: { integrity: 'sha512-existing' },
-            }),
-        });
+        const existingVersion = queuedFetch(
+            packument({ '1.2.3': { name: packageName, version: '1.2.3', dist: { integrity: 'sha512-existing' } } }),
+        );
         assert.equal(await getNpmRegistryIntegrity(packageName, '1.2.3', existingVersion.fetch), 'sha512-existing');
-        assert.deepEqual(existingVersion.requestedUrls, [packageUrl, versionUrl]);
+        assert.deepEqual(existingVersion.requestedUrls, [packageUrl]);
 
         const missingPackage = queuedFetch({ status: 404 });
         await assert.rejects(
             getNpmRegistryIntegrity(packageName, '1.2.3', missingPackage.fetch),
             /package .* was not found.*refusing to publish/i,
         );
-        assert.deepEqual(missingPackage.requestedUrls, [packageUrl]);
 
         for (const status of [401, 403, 429, 500]) {
-            const failedLookup = queuedFetch(packageExists, { status, ok: false, statusText: 'Failure' });
+            const failedLookup = queuedFetch({ status, ok: false, statusText: 'Failure' });
             await assert.rejects(
                 getNpmRegistryIntegrity(packageName, '1.2.3', failedLookup.fetch),
                 new RegExp(`HTTP ${status}`),
             );
         }
-        const malformedVersion = queuedFetch(packageExists, {
-            status: 200,
-            ok: true,
-            json: async () => ({ name: packageName, version: '1.2.3', dist: {} }),
-        });
+        const malformedVersion = queuedFetch(packument({ '1.2.3': { name: packageName, version: '1.2.3', dist: {} } }));
         await assert.rejects(
             getNpmRegistryIntegrity(packageName, '1.2.3', malformedVersion.fetch),
             /no valid dist\.integrity/,
         );
-        const mismatchedVersion = queuedFetch(packageExists, {
-            status: 200,
-            ok: true,
-            json: async () => ({
-                name: packageName,
-                version: '9.9.9',
-                dist: { integrity: 'sha512-some-bytes' },
-            }),
-        });
+        const mismatchedVersion = queuedFetch(
+            packument({ '1.2.3': { name: packageName, version: '9.9.9', dist: { integrity: 'sha512-some-bytes' } } }),
+        );
         await assert.rejects(
             getNpmRegistryIntegrity(packageName, '1.2.3', mismatchedVersion.fetch),
             /registry response identifies .* rather than @example\/api@1\.2\.3/,
