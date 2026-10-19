@@ -1,4 +1,6 @@
 ---
+navigation:
+    category: Getting started
 title: "Creating a VS Code extension"
 description: "Scaffold, build, test, and release a VS Code extension"
 ---

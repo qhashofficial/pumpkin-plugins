@@ -1,4 +1,6 @@
 ---
+navigation:
+    category: Repository maintenance
 title: "Benchmarking"
 description: "QuickJS and the Static Hermes profile, collector and parser matrix"
 ---
