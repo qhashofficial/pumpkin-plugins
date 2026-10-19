@@ -146,16 +146,6 @@ export function closeSession(reason: string): Uint8Array {
 export function unchanged(tracker: number): Uint8Array {
     return packet(8).int(tracker).bool(false).finish();
 }
-/** Splits an LOD payload before the response points the client at its buffer. */
-export function transfer(tracker: number, buffer: number, lod: Uint8Array): Uint8Array[] {
-    const packets: Uint8Array[] = [];
-    for (let offset = 0; offset < lod.length; offset += TRANSFER_PACKET_BYTES) {
-        packets.push(transferFragment(buffer, lod, offset));
-    }
-    packets.push(transferResponse(tracker, buffer));
-    return packets;
-}
-
 /** Encodes one bounded transfer fragment. */
 export function transferFragment(
     buffer: number,

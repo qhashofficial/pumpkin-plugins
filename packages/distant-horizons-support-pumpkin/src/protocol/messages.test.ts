@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { Reader, Writer } from './bytes.ts';
-import { decode, levelInit, packet, readSection, sessionConfig, transfer } from './messages.ts';
+import {
+    decode,
+    levelInit,
+    packet,
+    readSection,
+    sessionConfig,
+    TRANSFER_PACKET_BYTES,
+    transferFragment,
+    transferResponse,
+} from './messages.ts';
 
 describe('Distant Horizons protocol', () => {
     it('encodes a UTF-8 level announcement with a millisecond timestamp', () => {
@@ -134,7 +143,11 @@ describe('Distant Horizons protocol', () => {
     });
     it('splits data before sending its tracked response', () => {
         const bytes = new Uint8Array(60001).fill(9);
-        const messages = transfer(42, 17, bytes);
+        const messages: Uint8Array[] = [];
+        for (let offset = 0; offset < bytes.length; offset += TRANSFER_PACKET_BYTES) {
+            messages.push(transferFragment(17, bytes, offset));
+        }
+        messages.push(transferResponse(42, 17));
         const restored: number[] = [];
         for (let i = 0; i < 3; i++) {
             const input = new Reader(messages[i] ?? new Uint8Array());
