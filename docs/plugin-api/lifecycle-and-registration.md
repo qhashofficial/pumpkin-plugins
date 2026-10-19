@@ -56,6 +56,21 @@ event, command, suggestion, AI-goal, and chunk-generator callbacks. Register the
 and rethrows the error. A command resource may still hold its assigned handler ID if the host call
 fails after the ID was assigned.
 
+## Event and command handlers
+
+`registerEvent` registers a blocking handler unless you pass `blocking = false`. The difference
+matters when a handler wants to change the event. Pumpkin runs every blocking handler for an event
+before any non-blocking one, whatever their priority, so `priority` only orders handlers within each
+group. Only a blocking handler can modify or cancel the event by returning it; Pumpkin ignores the
+value a non-blocking handler returns.
+
+A command handler returns a result code when the command succeeds. To fail the command, throw a
+`command-error` variant from the WIT `command` interface, such as
+`{ tag: 'command-failed', val: message }` where `message` is a text component. Pumpkin shows that
+text to the sender as the command's error. The command helpers in `@pumpkin-plugins/plugin-kit` do this for you. A plain
+`Error` isn't a command error: Static Hermes reports its message as an `invalid-consumption` error
+instead.
+
 ## Static Hermes callbacks
 
 The Static Hermes adapter dispatches all five AI-goal methods—`canStart`, `shouldContinue`, `start`,
