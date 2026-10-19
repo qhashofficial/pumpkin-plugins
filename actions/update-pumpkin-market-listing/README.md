@@ -27,8 +27,9 @@ of plugin releases and other actions.
 
 ## Metadata sources
 
-Choose the existing listing with exactly one of `plugin-name` or `plugin-id`. A name lookup must
-match the full listing name, ignoring case; `plugin-id` accepts a numeric database ID or public ID.
+Choose the existing listing with exactly one of `plugin-name` or `plugin-id`. A name lookup reads up
+to 10 pages of Market search results and must match the full listing name, ignoring case;
+`plugin-id` accepts a numeric database ID or public ID.
 
 The metadata file must be a JSON object that uses Market field names. You can provide direct inputs
 on their own or layer them over the file; when both sources set the same field, the direct input wins.
