@@ -80,7 +80,9 @@ state, so spyglass and modded zoom enlarge the labels. Other Java protocol versi
 HUD; the server log notes each such player once per session.
 This HUD supports Java clients only. Waypoints does not currently render Bedrock HUDs.
 Icons use vanilla atlas textures; block items use a representative model texture, and custom item IDs
-require the corresponding `item/<path>` sprite in the client's resource pack.
+require the corresponding `item/<path>` sprite in the client's resource pack. The map of block item
+sprites comes from a Minecraft client JAR; after a Minecraft update, regenerate it with
+`pnpm --filter @pumpkin-plugins/waypoints icons <client.jar>`.
 
 Malformed or unsupported storage is preserved and disables writes. Fix the file before expecting
 changes to persist.
