@@ -21,8 +21,8 @@ const WASI_CAPABILITY_HINT = 'Declare the WASI capability the plugin needs in "p
 export interface BundleOptions {
     /** Whether this is a development build. */
     developmentMode?: boolean;
-    /** Runtime used for the component. Defaults to Static Hermes. */
-    engine?: PluginEngine;
+    /** Runtime used for the component. */
+    engine: PluginEngine;
     /** Source file to bundle. */
     entry: string;
     /** Receives build messages for formatting by the build command. */
@@ -61,7 +61,7 @@ export async function bundlePlugin(options: BundleOptions): Promise<number> {
     activeTemporaryDirectories.add(temporaryDir);
     const bundle = path.join(temporaryDir, 'bundle.js');
     const component = path.join(temporaryDir, 'plugin.wasm');
-    const engine = options.engine ?? 'static-hermes';
+    const engine = options.engine;
     const quietRuntimeOutput = options.quietRuntimeOutput ?? false;
     const projectRoot = path.resolve(options.projectRoot ?? process.cwd());
     const resolvedWasiImports = new Set<string>();
@@ -122,7 +122,7 @@ export async function bundlePlugin(options: BundleOptions): Promise<number> {
                 ...(options.staticHermesRuntime === undefined ? {} : { runtimeVariant: options.staticHermesRuntime }),
                 ...(options.staticHermesGc === undefined ? {} : { gcVariant: options.staticHermesGc }),
                 ...(options.parseTypeScript ? { parseTypeScript: true } : {}),
-                ...(engine === 'static-hermes' && !quietRuntimeOutput
+                ...(!quietRuntimeOutput
                     ? {
                           selections: {
                               wasiImports: [...resolvedWasiImports],

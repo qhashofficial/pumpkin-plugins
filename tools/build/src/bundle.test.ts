@@ -24,7 +24,7 @@ const apiWitDir = path.join(os.tmpdir(), 'pumpkin-api-wit-fixture');
 const MAX_PRODUCTION_COMPONENT_BYTES = 5 * 1024 * 1024;
 const engineProfiles = [
     { name: 'QuickJS', options: { engine: 'quickjs' } },
-    { name: 'default engine and runtime', options: {} },
+    { name: 'Static Hermes default runtime', options: { engine: 'static-hermes' } },
     { name: 'Static Hermes full runtime', options: { engine: 'static-hermes', staticHermesRuntime: 'full' } },
     { name: 'Static Hermes lean runtime', options: { engine: 'static-hermes', staticHermesRuntime: 'lean' } },
     { name: 'Static Hermes malloc collector', options: { engine: 'static-hermes', staticHermesGc: 'malloc' } },
@@ -87,7 +87,7 @@ describe('bundlePlugin', () => {
             ...options,
         });
 
-        const engine = 'engine' in options ? options.engine : 'static-hermes';
+        const engine = options.engine;
         const runtimeVariant = 'staticHermesRuntime' in options ? options.staticHermesRuntime : undefined;
         const gcVariant = 'staticHermesGc' in options ? options.staticHermesGc : undefined;
         expect(componentize.mock.calls[0]?.[2]).toEqual({
@@ -165,7 +165,7 @@ describe('bundlePlugin', () => {
         ).rejects.toThrow('QuickJS componentizer failed:\nlink failed');
     });
 
-    it('defaults to Static Hermes componentization', async () => {
+    it('passes the bundle, WIT and workspace root to the Static Hermes componentizer', async () => {
         const { dir, output } = buildAt();
         esbuild.mockImplementationOnce((options) => {
             if (!options.outfile) throw new Error('missing JavaScript bundle output');
@@ -179,6 +179,7 @@ describe('bundlePlugin', () => {
             output,
             witDir: apiWitDir,
             version: '1.0.0',
+            engine: 'static-hermes',
         });
 
         expect(esbuild).toHaveBeenCalledWith(expect.objectContaining({ format: 'iife' }));
