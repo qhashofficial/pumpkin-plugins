@@ -157,6 +157,22 @@ describe('planChecks', () => {
         );
     });
 
+    it('checks generated READMEs only for changed plugins when nothing else changed', () => {
+        const readme = (files) => plan(files).find((s) => s.name === 'Generated READMEs')?.args;
+        const scoped = readme(['packages/upnpumpkin/src/forwarder.ts']);
+        assert.equal(scoped?.[0], 'turbo');
+        assert.ok(scoped?.includes('--filter=...@pumpkin-plugins/upnpumpkin'));
+        for (const files of [
+            ['packages/upnpumpkin/package.json'],
+            ['packages/upnpumpkin/docs/usage.md'],
+            ['tools/config/src/load.ts'],
+            ['packages/upnpumpkin/src/forwarder.ts', 'docs/testing.md'],
+            ['packages/upnpumpkin/src/forwarder.ts', 'tsconfig.base.json'],
+        ]) {
+            assert.deepEqual(readme(files), ['readme:check'], files.join(', '));
+        }
+    });
+
     it('checks the dependents of a changed tool', () => {
         assert.ok(turbo(plan(['tools/config/src/load.ts']))?.includes('--filter=...@pumpkin-plugins/config'));
     });
