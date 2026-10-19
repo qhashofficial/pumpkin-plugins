@@ -63,5 +63,6 @@ action gets a new release. In this repository's own release workflows, the actio
 Give `api-token` a GitHub secret with the `plugins:update` and `plugins:versions:upload` scopes. By
 default, an empty token or a missing or unpublished listing fails the step. Set `warn: true` when
 you want those cases to produce a warning and skip the upload instead. Lookup and upload errors
-still fail the action. When GitHub provides a step summary, the action adds a result for both
+still fail the action. If the listing already has `version`, the action skips the upload and
+reports `status: success`. When GitHub provides a step summary, the action adds a result for both
 successful uploads and skipped uploads.

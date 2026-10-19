@@ -432,6 +432,36 @@ describe('publish-to-market action', () => {
         }
     });
 
+    it('skips the upload and reports success when the listing already has the version', async () => {
+        let uploads = 0;
+        const market = await server((request, response) => {
+            if (request.method === 'PUT') {
+                uploads++;
+                response.statusCode = 409;
+                response.end('{}');
+            } else response.end('[{"id":42,"name":"Published plugin","version":"1.2.3"}]');
+        });
+        try {
+            const dir = fixture();
+            const outputFile = path.join(dir, 'outputs.txt');
+            const result = await run(
+                dir,
+                inputs({ 'INPUT_API-TOKEN': 'test-token', 'INPUT_API-URL': market.url, GITHUB_OUTPUT: outputFile }),
+            );
+            assert.equal(result.status, 0, result.stderr);
+            assert.equal(uploads, 0, 'a retried job must not upload the same version again');
+            assert.match(result.stdout, /already/);
+            assert.deepEqual(readOutputs(outputFile), {
+                'listing-id': '42',
+                'listing-name': 'Published plugin',
+                status: 'success',
+                'published-version': '1.2.3',
+            });
+        } finally {
+            market.instance.close();
+        }
+    });
+
     it('does not upload a name search match whose version is null', async () => {
         let uploads = 0;
         const market = await server((request, response) => {
