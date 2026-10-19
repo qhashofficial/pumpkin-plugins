@@ -46,7 +46,7 @@ Checks don't apply fixes. If you need to fix lint issues, use the scoped `pnpm e
 | Package code | Typecheck and unit tests for that package and workspace dependents |
 | Shared root build inputs or lockfile | Typecheck and unit tests for all packages |
 | Deleted package | All package typechecks and unit tests, to catch remaining imports |
-| Scripts or hook code | `pnpm test:scripts` |
+| Scripts, hook code, generators, `.github/`, `.codex/`, root `package.json` or `turbo.json`, release-please config | `pnpm test:scripts` |
 | Any non-generated change | `pnpm readme:check` |
 | No-path run with non-generated changes | `pnpm check`, plus the applicable file and package checks |
 | Only generated output | No checks |
