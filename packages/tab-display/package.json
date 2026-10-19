@@ -9,8 +9,7 @@
         "plugin",
         "tab-display",
         "tab-list",
-        "bedrock",
-        "geyser"
+        "bedrock"
     ],
     "homepage": "https://github.com/filiphsps/pumpkin-plugins/tree/master/packages/tab-display#readme",
     "bugs": {
