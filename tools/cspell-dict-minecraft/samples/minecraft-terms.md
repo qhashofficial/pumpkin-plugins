@@ -8,3 +8,6 @@ Endermen picked up blocks while piglins, hoglins, ghasts and shulkers guarded th
 illager raid ended when the player switched the hotbar slot, threw an `ender_pearl` and set the
 respawn point with a `respawnAnchor`. An operator changed the gamemode, toggled a gamerule, put a
 nametag on a mob and opened the enderchest next to a noteblock.
+
+Mobs despawn far from the player. The server sends clientbound packets with the heightmap, and
+items can be enchantable, equippable or compostable.
