@@ -16,9 +16,9 @@ work outside this monorepo.
 After the `🛡️ CI result` check passes, `.github/workflows/release.yml` handles releases. The reusable
 `.github/workflows/extensions.yml` checks changed extensions. `.github/workflows/docs.yml` checks the documentation and publishes the
 VitePress site, then mirrors it to `gh-pages`. GitHub workflow validation runs separately in
-`.github/workflows/actionlint.yml`. `.github/workflows/issue-forms.yml` validates the chooser and
-required fields; `.github/workflows/issue-intake.yml` checks new and edited issue bodies and manages
-`status: needs info` and `status: needs triage` for incomplete submissions.
+`.github/workflows/actionlint.yml`. `.github/workflows/issue-forms.yml` validates the chooser, the
+issue forms and the label catalog; `.github/workflows/issue-intake.yml` checks new and edited issue
+bodies and manages `status: needs info` and `status: needs triage` for incomplete submissions.
 
 Most jobs use the shared setup in `.github/common/bootstrap` for pnpm, Node, dependencies and the
 Turborepo cache. Most CI jobs run on `ubuntu-26.04`; external-consumer checks also run on `macos-15`
@@ -176,13 +176,17 @@ skipped too, and CI result reports each of them.
 ## Label management
 
 `.github/labels.yml` is the full label catalog for the repository. Add `ai_apply_when` only to labels
-CodeRabbit is allowed to apply. Before syncing labels, the label-sync workflow removes this custom
-field and leaves labels outside the catalog untouched.
+CodeRabbit is allowed to apply.
 
-After a catalog change reaches `master`, the workflow updates the CodeRabbit label instructions and
-commits `.coderabbit.yaml` directly with the Release GitHub App token. CodeRabbit applies labels
-using those instructions. The `ready-for-agent` and `ready-for-human` labels remain outside its
-eligible set.
+`reviews.labeling_instructions` in `.coderabbit.yaml` is generated from the catalog. After editing
+`.github/labels.yml`, run `node .github/scripts/coderabbit-labels.mjs` and commit both files.
+Issue form validation runs the same script with `--check` on pull requests and fails when the
+catalog is invalid or `.coderabbit.yaml` is out of date.
+CodeRabbit applies labels using those instructions. The `ready-for-agent` and `ready-for-human`
+labels remain outside its eligible set.
+
+After a catalog change reaches `master`, the label-sync workflow drops `ai_apply_when`, syncs the
+labels to GitHub and leaves labels outside the catalog untouched.
 
 ## Updating upstream runtime pins
 

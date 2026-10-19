@@ -1,4 +1,4 @@
-name: Issue form validation
+name: Issue form and label validation
 
 on:
     pull_request:
@@ -8,6 +8,7 @@ on:
             - '.github/workflows/issue-forms.yml'
             - '.github/common/bootstrap/**'
             - '.github/labels.yml'
+            - '.coderabbit.yaml'
     push:
         branches:
             - master
@@ -17,6 +18,7 @@ on:
             - '.github/workflows/issue-forms.yml'
             - '.github/common/bootstrap/**'
             - '.github/labels.yml'
+            - '.coderabbit.yaml'
     workflow_dispatch:
 
 permissions:
@@ -39,5 +41,8 @@ jobs:
             - name: ✅ Validate issue form definitions
               run: node .github/scripts/validate-issue-forms.mjs
 
-            - name: 🧪 Test issue intake rules
+            - name: 🏷️ Check label catalog and CodeRabbit label guidance
+              run: node .github/scripts/coderabbit-labels.mjs --check
+
+            - name: 🧪 Test issue intake and label scripts
               run: node --test .github/scripts/*.test.mjs
