@@ -188,11 +188,11 @@ export class PackManager {
         this.announce();
     }
 
-    /** Logs the selected pack count. This plugin does not send pack offers to players. */
+    /** Logs the selected pack count and how to get them offered: Pumpkin only offers the packs listed in `pumpkin.toml`. */
     private announce(): void {
         const count = this.index.entries.length;
         this.log.info(
-            `Found ${ansi.named.number(count)} Bedrock pack${count === 1 ? '' : 's'}. This plugin does not send pack offers to players.`,
+            `Found ${ansi.named.number(count)} Bedrock pack${count === 1 ? '' : 's'}. To offer them to Bedrock players, run /baddon export on the server console and paste its output into pumpkin.toml.`,
         );
     }
 

@@ -2,7 +2,7 @@
     "name": "@pumpkin-plugins/bedrock-addon-manager",
     "version": "0.0.0",
     "private": true,
-    "description": "Hosts Bedrock packs over HTTP; it does not offer them to players",
+    "description": "Hosts Bedrock packs over HTTP and exports their pumpkin.toml entries",
     "keywords": [
         "minecraft",
         "pumpkin",

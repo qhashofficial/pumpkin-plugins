@@ -13,7 +13,7 @@ export interface ScannedPack {
     size: number;
 }
 
-/** One pack as it goes into `resource_pack.bedrock.packs`. */
+/** One listed pack, with the fields `/baddon export` writes into `resource_pack.bedrock.packs`. */
 export interface PackEntry {
     addonPack: boolean;
     contentId?: string;
