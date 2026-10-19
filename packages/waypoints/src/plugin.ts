@@ -1,4 +1,4 @@
-import type { CommandSender, ConsumedArgs } from 'pumpkin:plugin/command@0.1.0';
+import type { CommandSender } from 'pumpkin:plugin/command@0.1.0';
 import type { Context } from 'pumpkin:plugin/context@0.1.0';
 import type {
     PlayerChangedWorldEventData,
@@ -14,11 +14,10 @@ import type { Server } from 'pumpkin:plugin/server@0.1.0';
 import * as uuid from 'pumpkin:plugin/uuid@0.1.0';
 import { now as monotonicNow } from 'wasi:clocks/monotonic-clock@0.2.3';
 import { WasiDataDir } from '@pumpkin-plugins/plugin-kit/data-dir';
-import { cancelTask, runCommand, scheduleRepeating } from '@pumpkin-plugins/plugin-kit/host';
+import { cancelTask, scheduleRepeating } from '@pumpkin-plugins/plugin-kit/host';
 import { PluginBase, registerPlugin } from '@pumpkin-plugins/plugin-kit/plugin';
 import { registerCommands } from '@pumpkin-plugins/plugin-kit/register-commands';
 import { disposeWasiResource } from '@pumpkin-plugins/plugin-kit/wasi-resource';
-import { handleCommand as apiHandleCommand } from '@pumpkin-plugins/pumpkin-api';
 import {
     commandHandlers,
     onlinePlayerNameSuggestions,
@@ -208,11 +207,6 @@ function monotonicMilliseconds(): number {
     return Number(monotonicNow() / 1_000_000n);
 }
 
-export { handleTask } from '@pumpkin-plugins/plugin-kit/plugin';
-
-/** Dispatches waypoint command handlers before delegating to Pumpkin's API package. */
-export function handleCommand(id: number, sender: CommandSender, server: Server, args: ConsumedArgs): number {
-    return runCommand(id, sender, args) ?? apiHandleCommand(id, sender, server, args);
-}
+export { handleCommand, handleTask } from '@pumpkin-plugins/plugin-kit/plugin';
 
 export * from '@pumpkin-plugins/pumpkin-api';
