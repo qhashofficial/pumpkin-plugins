@@ -1,6 +1,11 @@
 import type { BenchmarkWorkload } from '../src/benchmark-workloads.ts';
-import { formatInteger } from './benchmark-results.ts';
-import type { EngineResult } from './engine-comparison-report.ts';
+import {
+    type EngineResult,
+    formatInteger,
+    indexWorkloads,
+    median,
+    sameWorkloadDefinition,
+} from './benchmark-results.ts';
 
 export type BenchmarkChangeStatus = 'regression' | 'improvement' | 'within-jitter';
 export type BenchmarkCommentStatus = 'warning' | 'celebration' | 'regular';
@@ -73,7 +78,7 @@ export function compareBenchmarkResults(
     for (const engine of current) {
         const baselineEngine = baselineEngines.get(engine.id);
         if (!baselineEngine) {
-            skippedWorkloads.push(`${engine.id}: engine is not present in baseline`);
+            if (baseline.length > 0) skippedWorkloads.push(`${engine.id}: engine is not present in baseline`);
             continue;
         }
 
@@ -85,7 +90,7 @@ export function compareBenchmarkResults(
                 skippedWorkloads.push(`${engine.id}/${workload.name}: workload is not present in baseline`);
                 continue;
             }
-            if (!hasMatchingDefinition(workload, baselineWorkload)) {
+            if (!sameWorkloadDefinition(workload, baselineWorkload)) {
                 skippedWorkloads.push(`${engine.id}/${workload.name}: workload definition changed`);
                 continue;
             }
@@ -637,30 +642,6 @@ function indexEngines(engines: readonly EngineResult[], revision: string): Map<s
         indexed.set(engine.id, engine);
     }
     return indexed;
-}
-
-function indexWorkloads(engine: EngineResult): Map<string, BenchmarkWorkload> {
-    const indexed = new Map<string, BenchmarkWorkload>();
-    for (const workload of engine.workloads) {
-        if (indexed.has(workload.name)) throw new Error(`${engine.label} contains duplicate workload ${workload.name}`);
-        if (workload.samplesMs.length === 0) throw new Error(`${engine.label}/${workload.name} has no timing samples`);
-        indexed.set(workload.name, workload);
-    }
-    return indexed;
-}
-
-function hasMatchingDefinition(current: BenchmarkWorkload, baseline: BenchmarkWorkload): boolean {
-    return (
-        current.area === baseline.area &&
-        current.operationsPerSample === baseline.operationsPerSample &&
-        current.provenance === baseline.provenance &&
-        current.checksum === baseline.checksum
-    );
-}
-
-function median(samples: number[]): number {
-    const ordered = [...samples].sort((left, right) => left - right);
-    return ordered[Math.floor(ordered.length / 2)] ?? 0;
 }
 
 function compareLargestFirst(left: BenchmarkChange, right: BenchmarkChange): number {
