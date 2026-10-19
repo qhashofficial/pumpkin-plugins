@@ -1173,7 +1173,19 @@ describe('DH sessions', () => {
         f.sessions.endSession('Alice');
         expect(f.sessions.status()).toContain('0 Distant Horizons client');
     });
-    it('enforces work and transfer budgets and prevents obsolete captures after changes', () => {
+    it('serves a queued request after a block change in its section without rejecting it', () => {
+        const f = fixture();
+        f.sessions.receive(f.peer, f.request());
+        f.sessions.changed('world', 10, 10);
+
+        f.sessions.tick(f.peers);
+        f.sessions.tick(f.peers);
+
+        expect(f.ids()).not.toContain(6);
+        expect(f.ids()).toContain(10);
+        expect(f.sessions.status()).toContain('1 served, 0 rejected');
+    });
+    it('enforces work and transfer budgets and restarts captures after changes', () => {
         const f = fixture();
         f.settings.blocks_per_tick = 64;
         f.sessions.receive(f.peer, f.request());
@@ -1185,9 +1197,10 @@ describe('DH sessions', () => {
             { x: 63, z: 63 },
         ]);
         f.sessions.tick(f.peers);
-        expect(f.ids()).toEqual([6]);
+        expect(f.sent).toHaveLength(0);
+        expect(f.sessions.status()).toContain('Capturing world 0, 0: 1.6%');
         expect(f.files.list('cache')).toHaveLength(0);
-        f.sent.length = 0;
+        f.sessions.receive(f.peer, packet(5).int(1).finish());
         f.settings.blocks_per_tick = 16384;
         f.settings.packets_per_tick = 1;
         f.sessions.receive(f.peer, f.request(2));

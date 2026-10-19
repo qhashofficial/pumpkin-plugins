@@ -308,8 +308,14 @@ export class Sessions {
                         this.drop(request);
                         return;
                     }
-                    if ((this.revisions.get(request.key) ?? 0) !== request.revision)
-                        throw new Error('Terrain changed while building; retry this request');
+                    const revision = this.revisions.get(request.key) ?? 0;
+                    if (revision !== request.revision) {
+                        // A block changed in this section; start again from current terrain.
+                        request.builder = undefined;
+                        request.cacheChecked = false;
+                        request.cached = undefined;
+                        request.revision = revision;
+                    }
                     if (!request.builder) {
                         if (!request.cacheChecked) {
                             if (cacheChecks >= this.settings.cached_requests_per_tick) return;
@@ -510,7 +516,7 @@ export class Sessions {
         this.forcedGeneration.left(name);
         this.removeClient(name);
     }
-    /** Invalidates a known changed section and cancels its obsolete captures. */
+    /** Invalidates a known changed section so pending captures of it start again. */
     changed(level: string, x: number, z: number): void {
         const key = sectionKey(level, Math.floor(x / SECTION_SIZE_BLOCKS), Math.floor(z / SECTION_SIZE_BLOCKS));
         this.cache.remove(key);
