@@ -2,13 +2,11 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
-import { buildStaticHermesComponent, staticHermesImportsPlugin } from '@pumpkin-plugins/static-hermes-runtime';
 import * as esbuild from 'esbuild';
 import { BuildError, runtimeBuildError } from './errors.ts';
 import type { BuildOutputMessage } from './output.ts';
 import type { PluginEngine, StaticHermesGc, StaticHermesRuntime } from './plugin-config.ts';
 import { generateTypes } from './types.ts';
-import { findUsedWitMethods } from './wit-method-usage.ts';
 
 const require = createRequire(import.meta.url);
 const MAX_PRODUCTION_COMPONENT_BYTES = 5 * 1024 * 1024;
@@ -66,6 +64,9 @@ export async function bundlePlugin(options: BundleOptions): Promise<number> {
     const projectRoot = path.resolve(options.projectRoot ?? process.cwd());
     const resolvedWasiImports = new Set<string>();
     let preserveTemporaryDir = false;
+    // Load the Static Hermes runtime and the TypeScript compiler only for builds that use them.
+    const staticHermes =
+        engine === 'static-hermes' ? await import('@pumpkin-plugins/static-hermes-runtime') : undefined;
     try {
         let buildResult: esbuild.BuildResult;
         try {
@@ -75,11 +76,11 @@ export async function bundlePlugin(options: BundleOptions): Promise<number> {
                 outfile: bundle,
                 metafile: engine === 'static-hermes',
                 format: engine === 'quickjs' ? 'esm' : 'iife',
-                ...(engine === 'static-hermes'
+                ...(staticHermes
                     ? {
                           globalName: '__pumpkinPlugin',
                           plugins: [
-                              staticHermesImportsPlugin({
+                              staticHermes.staticHermesImportsPlugin({
                                   resolveDir: path.dirname(path.resolve(options.entry)),
                                   workspaceRoot: projectRoot,
                                   witDir: options.witDir,
@@ -102,7 +103,8 @@ export async function bundlePlugin(options: BundleOptions): Promise<number> {
         } catch (error) {
             throw bundleError(error, options.entry);
         }
-        if (engine === 'static-hermes') {
+        if (staticHermes) {
+            const { findUsedWitMethods } = await import('./wit-method-usage.ts');
             const source = fs.readFileSync(bundle, 'utf8');
             const unsupportedWasiImports = staticHermesWasiImports(buildResult.metafile).filter(
                 (specifier) => !resolvedWasiImports.has(specifier),
@@ -140,7 +142,7 @@ export async function bundlePlugin(options: BundleOptions): Promise<number> {
                     : {}),
             });
             try {
-                buildStaticHermesComponent({
+                staticHermes.buildStaticHermesComponent({
                     bundle,
                     witDir: options.witDir,
                     output: component,
