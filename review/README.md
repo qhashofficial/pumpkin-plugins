@@ -11,10 +11,10 @@ Fixes were grouped into topic branches. Each branch was tested on its own, then 
 ## Numbers
 
 - Findings: 419 (critical 1, high 15, medium 168, low 233 after verification).
-- Fixed: 239
-- Not started: 105
+- Fixed: 314
 - Deferred: 40
-- Partly fixed: 31
+- Partly fixed: 39
+- Not started (out of time or budget): 22
 - Left for the maintainer: 2
 - Refuted in verification: 2
 
@@ -55,3 +55,19 @@ Fixes were grouped into topic branches. Each branch was tested on its own, then 
 | [#26](https://github.com/qhashofficial/pumpkin-plugins/pull/26) | `docs/contributor-guides` | docs: fix the testing policy, API pin locations and runtime caveats |
 | [#27](https://github.com/qhashofficial/pumpkin-plugins/pull/27) | `fix/build-wasi-wit-pin` | fix(build): check the WASI WIT version against wasi-capabilities and simplify cache writes |
 | [#28](https://github.com/qhashofficial/pumpkin-plugins/pull/28) | `fix/shr-package-and-readme` | fix(static-hermes-runtime): publish declarations and correct the README coverage text |
+| [#29](https://github.com/qhashofficial/pumpkin-plugins/pull/29) | `docs/waypoints-placeholder-guide` | docs(waypoints): fix the placeholder table and move guide prose back into Markdown |
+| [#30](https://github.com/qhashofficial/pumpkin-plugins/pull/30) | `fix/port-mapping-nat-reasons` | fix(port-mapping): name the real cause of non-public WAN addresses |
+| [#31](https://github.com/qhashofficial/pumpkin-plugins/pull/31) | `fix/npm-publish-scripts` | fix(release): share one pack-and-inspect helper and tag backfill publishes |
+| [#32](https://github.com/qhashofficial/pumpkin-plugins/pull/32) | `fix/port-mapping-discovery` | fix(port-mapping): skip idle WAN services and probe the router web page last |
+| [#33](https://github.com/qhashofficial/pumpkin-plugins/pull/33) | `fix/market-actions-lookup` | fix(actions): share Market listing lookup and skip re-uploading an existing version |
+| [#34](https://github.com/qhashofficial/pumpkin-plugins/pull/34) | `build/turbo-typecheck-outputs` | build(turbo): declare typecheck outputs only where declarations are generated |
+| [#35](https://github.com/qhashofficial/pumpkin-plugins/pull/35) | `fix/release-first-release-history` | fix(release): cut first-release history at the introduction commit |
+| [#36](https://github.com/qhashofficial/pumpkin-plugins/pull/36) | `ci/labels-and-issue-intake` | ci: generate CodeRabbit labels in Node and test issue intake |
+| [#37](https://github.com/qhashofficial/pumpkin-plugins/pull/37) | `fix/minecraft-colors-nesting` | fix(minecraft-colors): reopen the outer style after nested formatting |
+| [#42](https://github.com/qhashofficial/pumpkin-plugins/pull/42) | `test/shr-retarget-oracle-suites` | test(static-hermes-runtime): test the production WIT generator instead of the legacy oracle |
+| [#43](https://github.com/qhashofficial/pumpkin-plugins/pull/43) | `fix/plugin-release-scripts` | fix(scripts): absolutize Market README links and share plugin info loading |
+| [#38](https://github.com/qhashofficial/pumpkin-plugins/pull/38) | `fix/test-harness-robustness` | fix(test-harness): pin binary checksums and handle musl and signals |
+| [#39](https://github.com/qhashofficial/pumpkin-plugins/pull/39) | `refactor/shr-component-api` | refactor(static-hermes-runtime): clean up the component build API and its tests |
+| [#40](https://github.com/qhashofficial/pumpkin-plugins/pull/40) | `fix/agent-hooks` | fix(hooks): run script tests for the files they validate and lazy-load workspace imports |
+| [#41](https://github.com/qhashofficial/pumpkin-plugins/pull/41) | `fix/create-pumpkin-plugin-scaffold` | fix(create-pumpkin-plugin): simplify project creation and use the detected package manager |
+| [#44](https://github.com/qhashofficial/pumpkin-plugins/pull/44) | `fix/config-toml-del` | fix(config): escape DEL in TOML strings and table headers |
