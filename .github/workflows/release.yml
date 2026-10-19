@@ -264,6 +264,11 @@ jobs:
             - name: 🚀 Bootstrap
               uses: ./.github/common/bootstrap
 
+            - name: 🤖 Configure the commit author
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
             # The first-release pin forces version 0.0.1, then must be removed before merge so the
             # release config check passes and Release Please can handle subsequent versions.
             - name: 🎉 Retire first-release pins
@@ -273,11 +278,8 @@ jobs:
                       echo "Nothing to retire"
                       exit 0
                   fi
-                  git config user.name "github-actions[bot]"
-                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
                   git add -- release-please-config.json
                   git commit -m "chore: retire first-release pins"
-                  git push
 
             - name: 🔧 Sync starter API and builder ranges
               run: node scripts/sync-tool-template-versions.mjs
@@ -291,14 +293,11 @@ jobs:
                       echo "Starter dependency ranges are already current"
                       exit 0
                   fi
-                  git config user.name "github-actions[bot]"
-                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
                   git add -- \
                       tools/create-pumpkin-plugin/templates/typescript/package.json \
                       tools/create-pumpkin-plugin/templates/javascript/package.json \
                       tools/create-pumpkin-plugin/README.md
                   git commit -m "fix(create-pumpkin-plugin): sync starter tool versions"
-                  git push
 
             - name: 🏷️ Update action README version examples
               run: pnpm exec pumpkin-plugins-docs action-versions
@@ -309,8 +308,6 @@ jobs:
                       echo "READMEs are already up to date"
                       exit 0
                   fi
-                  git config user.name "github-actions[bot]"
-                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
                   git add -- README.md \
                       'packages/*/README.md' \
                       'tools/*/README.md' \
@@ -318,6 +315,14 @@ jobs:
                       'actions/*/README.md' \
                       'extensions/*/README.md'
                   git commit -m "docs: update generated READMEs"
+
+            # Push the preparation commits together so the branch triggers workflows once.
+            - name: 📤 Push the release PR preparation
+              run: |
+                  if [ -z "$(git log --oneline '@{upstream}..HEAD')" ]; then
+                      echo "Nothing to push"
+                      exit 0
+                  fi
                   git push
 
     publish-tools:
