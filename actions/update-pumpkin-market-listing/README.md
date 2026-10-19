@@ -79,7 +79,7 @@ and `commands`.
 | `commands` | No |  | JSON array of listing commands with names, optional aliases and permissions, localized descriptions, display order, and IDs |
 | `update-mode` | No | `patch` | Metadata validation mode, patch or full; full requires all listing metadata fields |
 | `api-token` | Yes |  | Market API token with listing update permission |
-| `api-url` | No | `https://market.pumpkinmc.org` | Pumpkin Market base URL |
+| `api-url` | No | `https://market.pumpkinmc.org` | Pumpkin Market base URL; must use https |
 <!-- action-inputs:end -->
 
 ## Outputs

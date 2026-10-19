@@ -238,7 +238,7 @@ describe('update-pumpkin-market-listing action', () => {
         }
     });
 
-    it('uses the publisher name lookup and sends full metadata from a file', async () => {
+    it('resolves a name through search and sends full metadata from a file', async () => {
         const dir = fixture();
         const metadataFile = path.join(dir, 'metadata.json');
         fs.writeFileSync(
@@ -278,16 +278,48 @@ describe('update-pumpkin-market-listing action', () => {
                 'INPUT_API-URL': market.url,
             });
             assert.equal(result.status, 0, result.stderr);
-            assert.equal(requests[0].url, '/api/v1/rest/plugins/Test%20Listing');
-            assert.equal(requests[1].url, '/api/v1/rest/plugins?q=Test+Listing&limit=20');
-            assert.equal(requests[2].url, '/api/plugins/17');
             assert.deepEqual(
-                readMetadataFromMultipart(requests[2], requests[2].body),
+                requests.map((request) => request.method),
+                ['GET', 'PUT'],
+                'a name resolves through search alone',
+            );
+            assert.match(requests[0].url, /^\/api\/v1\/rest\/plugins\?q=Test\+Listing&/);
+            assert.equal(requests[1].url, '/api/plugins/17');
+            assert.deepEqual(
+                readMetadataFromMultipart(requests[1], requests[1].body),
                 JSON.parse(fs.readFileSync(metadataFile)),
             );
         } finally {
             market.instance.close();
         }
+    });
+
+    it('reports a missing listing ID without uploading metadata', async () => {
+        const dir = fixture();
+        let uploads = 0;
+        const market = await server((request, response) => {
+            if (request.method === 'PUT') uploads++;
+            response.statusCode = 404;
+            response.end('not found');
+        });
+
+        try {
+            const result = await run(dir, inputs({ INPUT_DESCRIPTION: 'Description', 'INPUT_API-URL': market.url }));
+            assert.equal(result.status, 1);
+            assert.match(result.stderr, /No Market listing with ID "public-test-id" exists/);
+            assert.equal(uploads, 0);
+        } finally {
+            market.instance.close();
+        }
+    });
+
+    it('refuses to send the token to a plain HTTP Market URL', async () => {
+        const result = await run(
+            fixture(),
+            inputs({ INPUT_DESCRIPTION: 'Description', 'INPUT_API-URL': 'http://market.example.test' }),
+        );
+        assert.equal(result.status, 1);
+        assert.match(result.stderr, /api-url must use https/);
     });
 
     it('rejects incomplete full metadata before making API calls', async () => {

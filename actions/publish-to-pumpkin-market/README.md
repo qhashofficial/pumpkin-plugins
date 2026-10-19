@@ -43,7 +43,7 @@ action gets a new release. In this repository's own release workflows, the actio
 | `version` | Yes |  | Plugin version to publish, without a leading v |
 | `wasm-file` | Yes |  | Path to the plugin .wasm file |
 | `api-token` | No |  | Market API token with plugins:update and plugins:versions:upload scopes; required unless warn is true |
-| `api-url` | No | `https://market.pumpkinmc.org` | Pumpkin Market base URL |
+| `api-url` | No | `https://market.pumpkinmc.org` | Pumpkin Market base URL; must use https |
 | `track` | No | `stable` | Release track |
 | `release-notes` | No | `""` | Release notes to include in Market version metadata |
 | `warn` | No | `false` | Warn instead of failing when credentials or the Market listing are unavailable |
