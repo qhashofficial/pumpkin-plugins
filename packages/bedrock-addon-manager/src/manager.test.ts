@@ -61,6 +61,16 @@ describe('PackManager', () => {
         ]);
     });
 
+    it('logs the pack count once per scan, also when the download address changes', () => {
+        const { files, upnp, log, manager, wait } = setup(FORWARDING);
+        files.put('packs/a.mcpack', pack(1));
+        manager.start();
+        upnp.status = OPEN;
+        wait(1000);
+        expect(log.of('info').filter((line) => line.startsWith('Found '))).toHaveLength(1);
+        expect(log.of('info').filter((line) => line.includes('/baddon export'))).toHaveLength(2);
+    });
+
     it('does not warn once public_url is set or when there are no packs', () => {
         const withUrl = setup('[web]\npublic_url = "https://packs.example.com"\n');
         withUrl.files.put('packs/a.mcpack', pack(1));
