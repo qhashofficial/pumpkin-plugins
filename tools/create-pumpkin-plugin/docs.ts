@@ -31,19 +31,11 @@ function requiredString(value: unknown, label: string): string {
     return value.trim();
 }
 
-function workflowNodeVersion(workflow: string): string {
-    const versions = [...workflow.matchAll(/^\s+node-version:\s*([^\s#]+)\s*$/gm)].map((match) => match[1]);
-    if (versions.length !== 1) {
-        throw new Error(
-            `.github/workflows/external-consumer.yml: expected one node-version pin, found ${versions.length}`,
-        );
-    }
-    return requiredString(versions[0], '.github/workflows/external-consumer.yml node-version');
-}
-
 /** Reads the platform-to-runner map that the external consumer job's `runs-on` looks up. */
 function parsePlatformRunners(workflow: string): PlatformRow[] {
-    const map = workflow.match(/^\s+runs-on:\s*\$\{\{\s*fromJSON\('(\{[^']+\})'\)\[matrix\.platform\]\s*\}\}\s*$/m)?.[1];
+    const map = workflow.match(
+        /^\s+runs-on:\s*\$\{\{\s*fromJSON\('(\{[^']+\})'\)\[matrix\.platform\]\s*\}\}\s*$/m,
+    )?.[1];
     if (!map) throw new Error('.github/workflows/external-consumer.yml: runs-on platform map not found');
     const rows = Object.entries(JSON.parse(map) as Record<string, unknown>).map(([platform, runner]) => ({
         platform,
@@ -110,10 +102,6 @@ const nodePin = requiredString(
     '.node-version',
 );
 const workflow = fs.readFileSync(new URL('../../.github/workflows/external-consumer.yml', import.meta.url), 'utf8');
-const workflowNode = workflowNodeVersion(workflow);
-if (workflowNode !== nodePin) {
-    throw new Error(`External-consumer Node pin (${workflowNode}) does not match .node-version (${nodePin})`);
-}
 
 const templateRoot = fileURLToPath(new URL('./templates/', import.meta.url));
 const templateNames = fs
@@ -146,8 +134,8 @@ const nodeRequirements = [
 
 for (const { name, version } of nodeRequirements) {
     const minimum = version.match(/^>=(\d+\.\d+\.\d+)$/)?.[1];
-    const satisfies = minimum ? isAtLeast(workflowNode, minimum) : undefined;
-    if (satisfies === false) throw new Error(`${name} requires Node ${version}, but CI pins ${workflowNode}`);
+    const satisfies = minimum ? isAtLeast(nodePin, minimum) : undefined;
+    if (satisfies === false) throw new Error(`${name} requires Node ${version}, but CI pins ${nodePin}`);
 }
 
 const packageManagerName = requiredString(
@@ -162,7 +150,7 @@ const packageManagerVersion = requiredString(
 
 const supportRows = [
     ...nodeRequirementRows(nodeRequirements),
-    ['CI Node.js pin', code(workflowNode)],
+    ['CI Node.js pin', code(nodePin)],
     ['Packed-consumer package manager', `${code(packageManagerName)} ${code(packageManagerVersion)}`],
     ...parsePlatformRunners(workflow).map(({ platform, runner }) => [`${platform} runner`, code(runner)]),
 ];

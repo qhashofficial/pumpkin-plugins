@@ -33,12 +33,6 @@ jobs:
               id: bootstrap
               uses: ./.github/common/bootstrap
 
-            - name: 🟢 Pin external consumer Node
-              id: pin-external-consumer-node
-              uses: actions/setup-node@v7.1.0
-              with:
-                  node-version: 24.21.0
-
             - name: 📂 Prepare external consumer caches
               id: prepare-external-consumer-caches
               shell: bash
@@ -87,6 +81,7 @@ jobs:
               env:
                   CMAKE_VERSION: ${{ steps.setup-static-hermes.outputs.cmake-version }}
                   NINJA_VERSION: ${{ steps.setup-static-hermes.outputs.ninja-version }}
+                  RUST_VERSION: ${{ steps.setup-static-hermes.outputs.rust-toolchain-version }}
               shell: bash
               run: |
                   test "$(cmake --version | head -n 1)" = "cmake version $CMAKE_VERSION"
@@ -95,9 +90,8 @@ jobs:
                       "$NINJA_VERSION"|"$NINJA_VERSION".*|"$NINJA_VERSION"+*|"$NINJA_VERSION"-*) ;;
                       *) echo "Expected Ninja $NINJA_VERSION, got '$ninja_version'" >&2; exit 1 ;;
                   esac
-                  rustup toolchain install 1.99.0 --profile minimal
-                  rustc +1.99.0 --version
-                  cargo +1.99.0 --version
+                  rustc "+$RUST_VERSION" --version
+                  cargo "+$RUST_VERSION" --version
                   if [[ "$RUNNER_OS" == Windows ]]; then
                       printf 'int main(void) { return 0; }\n' > "$RUNNER_TEMP/cl-smoke.c"
                       MSYS_NO_PATHCONV=1 cl /Bv /nologo /c "$RUNNER_TEMP/cl-smoke.c" /Fo"$RUNNER_TEMP/cl-smoke.obj"

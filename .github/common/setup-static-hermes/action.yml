@@ -20,6 +20,9 @@ outputs:
     ninja-version:
         description: Pinned Ninja version for Static Hermes builds
         value: ${{ steps.versions.outputs.ninja-version }}
+    rust-toolchain-version:
+        description: Pinned Rust toolchain version from toolchain-versions.json
+        value: ${{ steps.versions.outputs.rust-toolchain-version }}
 
 runs:
     using: composite
