@@ -20,7 +20,7 @@ The generated `config.toml` lists the built-in item sources. Remove an entry or 
 hand can provide light; when both qualify, the brighter one wins. See [Configure light sources](configuration.md)
 for the item and entity settings.
 
-Entity lighting is enabled by default. Every 10 ticks, the plugin checks configured entity types in
+Entity lighting is enabled by default and also covers dropped items. Every 10 ticks, the plugin checks configured entity types in
 a 15-block cube around each player, then sends changes when a light moves, changes level, or leaves
 range. You can change the refresh interval in the configuration; longer intervals mean less frequent
 checks and less smooth movement. Dropped items use the matching held-item level when the plugin sees
