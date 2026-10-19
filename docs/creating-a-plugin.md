@@ -48,7 +48,9 @@ The new `packages/<folder>/` directory contains the files you need to begin:
   metadata, starter command, and behavior. The plugin name and command permission each have one
   source declaration.
 - `test/plugin.itest.ts` loads the built plugin on a real Pumpkin server and checks that its starter
-  `/plugin` command works. The integration-test task builds the package first.
+  command works. The command and its permission are named after the folder, such as `/my-plugin`
+  with `MyPlugin:command.my-plugin`, so they don't clash with Pumpkin's built-in commands. The
+  integration-test task builds the package first.
 - `README.md` starts with the plugin title and generated-content markers, including the component
   reference marker.
 
