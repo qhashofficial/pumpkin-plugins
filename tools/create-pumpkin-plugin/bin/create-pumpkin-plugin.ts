@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import { stdin, stdout } from 'node:process';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { Command } from '@commander-js/extra-typings';
+import { Command, CommanderError } from '@commander-js/extra-typings';
 
 /** Starter language written into a generated plugin project. */
 type Language = 'typescript' | 'javascript';
@@ -430,8 +430,11 @@ async function main(args: string[] = process.argv): Promise<void> {
     try {
         await createProgram().parseAsync(args);
     } catch (error) {
-        const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined;
-        if (code === 'commander.helpDisplayed' || code === 'commander.help') return;
+        // Commander has already printed its own message and help.
+        if (error instanceof CommanderError) {
+            process.exitCode = error.exitCode;
+            return;
+        }
         const message = error instanceof Error ? error.message : String(error);
         console.error(`create-pumpkin-plugin: ${message}`);
         process.exitCode = 1;
