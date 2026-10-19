@@ -4,6 +4,7 @@ import type {
     CommandSender,
     CommandSuggestions,
     ConsumedArgs,
+    CommandError as PumpkinCommandError,
     SuggestionRequest,
 } from 'pumpkin:plugin/command@0.1.0';
 import type { Context } from 'pumpkin:plugin/context@0.1.0';
@@ -32,7 +33,21 @@ export type EventHandler<T = Event['val']> = (server: Server, event: T) => T | u
  */
 export type EventPayload<T extends EventType> = Extract<Event, { tag: T }>['val'];
 
-/** Handles a registered command and returns its command result code. */
+/**
+ * Error value a command handler throws to fail a command.
+ *
+ * Pumpkin's `handle-command` export returns `result<s32, command-error>`, and the runtime turns a thrown value of this
+ * type into the `err` case. Throw `{ tag: 'command-failed', val }` with a text component to show that text to the
+ * sender.
+ */
+export type CommandError = PumpkinCommandError;
+
+/**
+ * Handles a registered command and returns its command result code.
+ *
+ * To fail the command, throw a {@link CommandError}. The runtime converts any other thrown value into an error itself,
+ * and that conversion differs between engines.
+ */
 export type CommandHandler = (sender: CommandSender, server: Server, args: ConsumedArgs) => number;
 
 /** Produces suggestions for a registered command suggestion handler. */
