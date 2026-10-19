@@ -1,4 +1,4 @@
-import type { ResolvedLine, SessionState } from '@pumpkin-plugins/pumpkin-pie-api';
+import { encodeRequest, LIMITS, type ResolvedLine, type SessionState } from '@pumpkin-plugins/pumpkin-pie-api';
 import { strToU8 } from 'fflate';
 import { type ConfigValidation, type TabDisplayConfig, type TemplateLineConfig, validateConfig } from './config.ts';
 import type { ApplyResult, PlayerSnapshot, RenderedLine, TabDisplayStatus } from './model.ts';
@@ -42,6 +42,7 @@ export const MAX_JOBS_PER_TICK = 256;
 /** Maximum time a previous placeholder frame is retained during provider outages. */
 export const STALE_FRAME_MS = 30_000;
 const RESET_FAILURE = 'Could not restore plugin-owned tab fields';
+const EMPTY_BATCH_BYTES = encodeRequest({ op: 'set_placeholders_batch', requests: [] }).length;
 
 interface RenderTarget {
     readonly style: Omit<RenderedLine, 'text'>;
@@ -496,15 +497,13 @@ function jobKey(player: PlayerSnapshot, template: string): string {
 
 function fitBatch(jobs: readonly PlaceholderJob[], offset: number, countLimit: number): readonly PlaceholderJob[] {
     const result: PlaceholderJob[] = [];
-    let bytes = strToU8('{"op":"set_placeholders_batch","requests":[]}').length;
+    let bytes = EMPTY_BATCH_BYTES;
     for (let index = offset; index < jobs.length && result.length < countLimit; index += 1) {
         const job = jobs[index];
         if (job === undefined) break;
-        const single =
-            strToU8(JSON.stringify({ op: 'set_placeholders_batch', requests: [job.request] })).length -
-            strToU8('{"op":"set_placeholders_batch","requests":[]}').length;
-        const extra = single + (result.length > 0 ? 1 : 0);
-        if (bytes + extra > 1_048_576) break;
+        // Each request adds its JSON plus a comma separator inside the batch's request array.
+        const extra = strToU8(JSON.stringify(job.request)).length + (result.length > 0 ? 1 : 0);
+        if (bytes + extra > LIMITS.message) break;
         result.push(job);
         bytes += extra;
     }
