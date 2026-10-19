@@ -22,7 +22,7 @@ export interface ProviderOptions {
 
 /** Resolve the exact release asset, verifying downloaded and cached bytes. */
 export async function resolvePieProvider(options: ProviderOptions = {}): Promise<string> {
-    const cacheDir = options.cacheDir ?? fileURLToPath(new URL('../../../.cache/pumpkin-pie/', import.meta.url));
+    const cacheDir = options.cacheDir ?? fileURLToPath(new URL('../../../../.cache/pumpkin-pie/', import.meta.url));
     const target = path.join(cacheDir, `${PIE_RELEASE.tag}-${PIE_RELEASE.asset}`);
     let cached: Uint8Array | undefined;
     try {
