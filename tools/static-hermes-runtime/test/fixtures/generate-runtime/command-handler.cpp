@@ -1,6 +1,7 @@
 #include <cassert>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -51,12 +52,22 @@ void pumpkin_plugin_server_server_drop_own(plugin_own_server_instance_t) {}
 void pumpkin_plugin_command_consumed_args_drop_own(plugin_own_consumed_args_t) {}
 void initializeRuntime() {}
 
+Value commandResult(19);
 std::string invokedExport;
 std::vector<Value> receivedArgs;
 Value callExport(const char *name, Value *args, std::size_t count) {
     invokedExport = name;
     receivedArgs.assign(args, args + count);
-    return Value(19);
+    return commandResult;
+}
+template <typename Integer>
+Integer wasiInputInteger(Runtime &runtime, const Value &value, const char *witType) {
+    const double number = value.asNumber();
+    if (number != static_cast<double>(static_cast<long long>(number)) ||
+        number < static_cast<double>(std::numeric_limits<Integer>::lowest()) ||
+        number > static_cast<double>(std::numeric_limits<Integer>::max()))
+        throw JSError(runtime, std::string("Expected an integral value in the WIT ") + witType + " range");
+    return static_cast<Integer>(number);
 }
 bool setCommandFailure(plugin_command_error_t *, const JSError &) { return false; }
 void setCommandError(plugin_command_error_t *error, const std::string &message) {
@@ -88,4 +99,13 @@ int main() {
     assert(server && server->state->handle == 42);
     assert(args && args->state->handle == 43);
     assert(senderDrops == 1 && serverDrops == 1 && argsDrops == 1);
+
+    // A result outside the WIT s32 range fails the command instead of being truncated.
+    commandResult = Value(1e12);
+    result = -1;
+    error = {};
+    assert(!exports_plugin_handle_command(24, {51}, {52}, {53}, &result, &error));
+    assert(result == 0);
+    assert(std::string(error.message).find("s32") != std::string::npos);
+    assert(senderDrops == 2 && serverDrops == 2 && argsDrops == 2);
 }
