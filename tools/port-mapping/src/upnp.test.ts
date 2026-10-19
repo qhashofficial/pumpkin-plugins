@@ -21,6 +21,17 @@ describe('parseIdentity', () => {
         });
     });
 
+    it('keeps what a device says about itself to one short line without chat formatting', () => {
+        const hostile = `§4Router\n[12:00:00 WARN]: forged line\u2028${'x'.repeat(200)}`;
+        const xml = `<root><device><friendlyName>${hostile}</friendlyName><manufacturer>§kAVM</manufacturer></device></root>`;
+        const identity = parseIdentity(xml);
+        expect(identity?.manufacturer).toContain('AVM');
+        expect(identity?.manufacturer).not.toContain('§');
+        expect(identity?.name).toContain('Router [12:00:00 WARN]: forged line x');
+        expect(identity?.name).not.toMatch(/[§\n\u2028]/);
+        expect(identity?.name?.length).toBeLessThanOrEqual(64);
+    });
+
     it('is undefined when the device says nothing about itself or the document is not a description', () => {
         expect(parseIdentity(new FakeIgd().handleHttp('GET', '/rootDesc.xml', {}, '').body)).toBeUndefined();
         expect(parseIdentity('<root><device><manufacturer>  </manufacturer></device></root>')).toBeUndefined();
