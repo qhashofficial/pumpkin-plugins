@@ -313,3 +313,33 @@ describe('custom document CLI', { timeout: 15000 }, () => {
         }
     });
 });
+
+describe('docs index CLI', { timeout: 15000 }, () => {
+    beforeEach(() => {
+        put('docs/README.md', '# Docs\n\n<!-- docs:begin site-index -->\n<!-- docs:end site-index -->\n');
+        put('docs/index.md', '# Home\n');
+        put('docs/setup.md', '---\nnavigation:\n    category: Basics\n---\n\n# Setup\n\nInstall the tools.\n');
+        put('docs/api/generated.md', '# Generated API page\n');
+        put('docs/topics/index.md', '---\ntitle: Topic overview\ndescription: All topics\n---\n\n# Ignored\n');
+        put('docs/topics/alpha.md', '# Alpha topic\n\nAlpha prose.\n');
+        put('docs/odds-and-ends/beta.md', '# Beta notes\n');
+        put('packages/demo/package.json', '{"name":"@x/demo"}');
+        put('packages/demo/docs/usage.md', '---\nnavigation:\n    catalog: true\n---\n\n# Demo usage\n');
+        put('packages/demo/docs/internal.md', '# Demo internals\n');
+    });
+
+    it('lists guides by category and nests docs folders and catalogued component pages', () => {
+        expect(run(dir, 'docs-index', '--check').status).toBe(1);
+        expect(run(dir, 'docs-index').status).toBe(0);
+        const index = read('docs/README.md');
+
+        expect(index).toContain('### Basics\n\n- [Setup](setup.md) — Install the tools.');
+        expect(index).toContain('- [Topic overview](topics/index.md) — All topics\n  - [Alpha topic](topics/alpha.md)');
+        expect(index).toContain('- **Odds And Ends**\n  - [Beta notes](odds-and-ends/beta.md)');
+        expect(index).toContain('[Demo usage](../packages/demo/docs/usage.md)');
+        expect(index).not.toContain('Demo internals');
+        expect(index).not.toContain('Generated API page');
+        expect(index).not.toContain('[Home]');
+        expect(run(dir, 'docs-index', '--check').status).toBe(0);
+    });
+});
