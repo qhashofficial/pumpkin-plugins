@@ -236,9 +236,17 @@ export class PortForwarder {
         const mapper = this.mapper;
         if (!mapper) return;
         const { java, bedrock } = this.config;
+        // Bedrock players reach the server over UDP, but Pumpkin's NetherNet listener sets each
+        // connection up over HTTP on the same port number, so Bedrock needs both protocols.
         const own = [
             { name: 'java', setting: java, protocol: 'tcp' as const, description: 'Pumpkin Java Edition' },
             { name: 'bedrock', setting: bedrock, protocol: 'udp' as const, description: 'Pumpkin Bedrock Edition' },
+            {
+                name: 'bedrock-tcp',
+                setting: bedrock,
+                protocol: 'tcp' as const,
+                description: 'Pumpkin Bedrock Edition signaling',
+            },
         ];
         for (const { name, setting, protocol, description } of own) {
             if (setting.enabled) mapper.request(ownKey(name), { protocol, port: setting.port, description });

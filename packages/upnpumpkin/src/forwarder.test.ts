@@ -71,22 +71,26 @@ describe('PortForwarder', () => {
         expect(files.text(CONFIG_FILE)).toContain('[java]');
         expect(log.of('info')).toContain(`Created ${ansi.named.name('config.toml')} with the default settings.`);
 
-        settle(() => keys().length === 2);
-        expect(keys()).toEqual(['tcp:25565', 'udp:19132']);
-        expect(forwarder.snapshot.mappings.map((m) => m.key).sort()).toEqual(['own:bedrock', 'own:java']);
+        settle(() => keys().length === 3);
+        expect(keys()).toEqual(['tcp:19132', 'tcp:25565', 'udp:19132']);
+        expect(forwarder.snapshot.mappings.map((m) => m.key).sort()).toEqual([
+            'own:bedrock',
+            'own:bedrock-tcp',
+            'own:java',
+        ]);
     });
 
     it('leaves out a port that is turned off, and uses the configured ports', () => {
         const { forwarder, settle, keys } = setup('[java]\nenabled = false\n\n[bedrock]\nport = 19133\n');
         forwarder.start();
-        settle(() => keys().length === 1);
-        expect(keys()).toEqual(['udp:19133']);
+        settle(() => keys().length === 2);
+        expect(keys()).toEqual(['tcp:19133', 'udp:19133']);
     });
 
     it('changes the ports on reload and closes the one that was turned off', () => {
         const { files, forwarder, settle, keys, net } = setup();
         forwarder.start();
-        settle(() => keys().length === 2);
+        settle(() => keys().length === 3);
         const searches = net.sent.filter((s) => s.to.port === 1900).length;
 
         files.put(CONFIG_FILE, '[java]\nport = 25570\n\n[bedrock]\nenabled = false\n');
@@ -267,7 +271,7 @@ describe('PortForwarder', () => {
         it('reports the network', () => {
             const { forwarder, settle, ask, keys } = setup();
             forwarder.start();
-            settle(() => keys().length === 2);
+            settle(() => keys().length === 3);
             expect(ask('X', { op: 'info' })).toEqual({
                 ok: true,
                 info: {
@@ -323,7 +327,7 @@ describe('PortForwarder', () => {
             forwarder.reload();
             expect(ask('X', { op: 'release', key: 'web' })).toEqual({ ok: true });
             settle(() => !keys().includes('tcp:8123'));
-            expect(keys()).toEqual(['tcp:25565', 'udp:19132']);
+            expect(keys()).toEqual(['tcp:19132', 'tcp:25565', 'udp:19132']);
             expect(ask('X', { op: 'status', key: 'web' })).toEqual({ ok: true, status: { kind: 'unknown' } });
             expect(ask('X', { op: 'info' })).toMatchObject({ ok: true });
         });
@@ -373,7 +377,7 @@ describe('PortForwarder', () => {
         const { forwarder, settle, keys, net, ask } = setup();
         forwarder.start();
         ask('X', ensure());
-        settle(() => keys().length === 3);
+        settle(() => keys().length === 4);
         net.autoAdvanceMs = 1;
         forwarder.stop();
         expect(keys()).toEqual([]);

@@ -24,8 +24,9 @@ describe.skipIf(hasPublicAddress)('port forwarding', () => {
         const server = await start('upnp', routerConfig(router));
         await server.waitForLog(/Opened TCP port 25565 as 93\.184\.216\.34:25565 \(upnp\)/);
         await server.waitForLog(/Opened UDP port 19132 as 93\.184\.216\.34:19132 \(upnp\)/);
+        await server.waitForLog(/Opened TCP port 19132 as 93\.184\.216\.34:19132 \(upnp\)/);
 
-        expect([...router.igd.mappings.keys()].sort()).toEqual(['tcp:25565', 'udp:19132']);
+        expect([...router.igd.mappings.keys()].sort()).toEqual(['tcp:19132', 'tcp:25565', 'udp:19132']);
         expect(router.igd.mappings.get('tcp:25565')).toMatchObject({
             internalPort: 25565,
             description: 'Pumpkin Java Edition',

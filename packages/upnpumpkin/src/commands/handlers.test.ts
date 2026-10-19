@@ -39,11 +39,12 @@ describe('the /upnp commands', () => {
         expect(lines[0]).toContain('No router found yet');
         expect(lines.some((l) => l.startsWith('java (TCP 25565)'))).toBe(true);
         expect(lines.some((l) => l.startsWith('bedrock (UDP 19132)'))).toBe(true);
+        expect(lines.some((l) => l.startsWith('bedrock-tcp (TCP 19132)'))).toBe(true);
     });
 
     it('reload says how many ports are kept open', () => {
         const { host, root } = setup();
-        expect(host.run(root, ['upnp', 'reload'])).toEqual(['Reloaded the config. 2 ports are being kept open.']);
+        expect(host.run(root, ['upnp', 'reload'])).toEqual(['Reloaded the config. 3 ports are being kept open.']);
     });
 
     describe('with a router UPnPumpkin does not work with', () => {
