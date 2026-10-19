@@ -9,6 +9,7 @@ on:
             - '.github/common/bootstrap/**'
             - '.github/labels.yml'
             - '.coderabbit.yaml'
+            - 'packages/*/package.json'
     push:
         branches:
             - master
@@ -19,6 +20,7 @@ on:
             - '.github/common/bootstrap/**'
             - '.github/labels.yml'
             - '.coderabbit.yaml'
+            - 'packages/*/package.json'
     workflow_dispatch:
 
 permissions:

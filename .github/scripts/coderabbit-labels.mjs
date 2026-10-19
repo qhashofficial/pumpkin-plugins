@@ -4,7 +4,7 @@
 //   node .github/scripts/coderabbit-labels.mjs --check      fail when .coderabbit.yaml is out of date
 //   node .github/scripts/coderabbit-labels.mjs --manifest <file>
 //                                                          write the catalog for label sync
-import { readFile, writeFile } from 'node:fs/promises';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isDeepStrictEqual, parseArgs } from 'node:util';
@@ -25,8 +25,25 @@ function isRecord(value) {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+async function pluginPackageDirectories(root) {
+    const directories = [];
+    for (const entry of await readdir(path.join(root, 'packages'), { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        try {
+            const manifest = JSON.parse(
+                await readFile(path.join(root, 'packages', entry.name, 'package.json'), 'utf8'),
+            );
+            if (manifest.pumpkinPlugin) directories.push(entry.name);
+        } catch (error) {
+            if (error.code !== 'ENOENT') throw error;
+        }
+    }
+    return directories.sort();
+}
+
 /**
- * Reads and checks the label catalog: field names, unique names and CodeRabbit instructions.
+ * Reads and checks the label catalog: field names, unique names, CodeRabbit instructions, and one
+ * `plugin:` label for each plugin package, naming `packages/<dir>/` in its `ai_apply_when`.
  */
 export async function readLabelCatalog(root = repositoryRoot) {
     const labels = parse(await readFile(path.join(root, labelsFile), 'utf8'));
@@ -36,6 +53,7 @@ export async function readLabelCatalog(root = repositoryRoot) {
 
     const errors = [];
     const names = new Set();
+    const labelledPlugins = new Map();
     for (const label of labels) {
         const { name, color, ai_apply_when: instructions } = label;
         if (typeof name !== 'string' || typeof color !== 'string') {
@@ -51,6 +69,20 @@ export async function readLabelCatalog(root = repositoryRoot) {
         } else if (instructions?.length > maxInstructionLength) {
             errors.push(`ai_apply_when for ${name} exceeds ${maxInstructionLength} characters.`);
         }
+        if (name.startsWith('plugin: ')) {
+            const directory = /\bpackages\/([^/\s]+)\//.exec(instructions ?? '')?.[1];
+            if (directory) labelledPlugins.set(directory, name);
+            else errors.push(`${name} must name its plugin as packages/<dir>/ in ai_apply_when.`);
+        }
+    }
+
+    const plugins = await pluginPackageDirectories(root);
+    for (const directory of plugins) {
+        if (!labelledPlugins.has(directory)) errors.push(`packages/${directory} has no "plugin: <Name>" label.`);
+    }
+    for (const [directory, name] of labelledPlugins) {
+        if (!plugins.includes(directory))
+            errors.push(`${name} points at packages/${directory}, which is not a plugin.`);
     }
 
     return { labels, errors };
