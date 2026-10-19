@@ -17,7 +17,7 @@ class {{ displayName }} extends PluginBase {
 
     /** Runs plugin-specific setup when the server loads the plugin. */
     protected onPluginLoad(ctx: Context): void {
-        registerCommands(ctx, commands, { plugin: () => [`${PLUGIN_NAME} is running.`] });
+        registerCommands(ctx, commands, { '{{ name }}': () => [`${PLUGIN_NAME} is running.`] });
     }
 }
 

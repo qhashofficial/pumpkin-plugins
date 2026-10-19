@@ -87,3 +87,14 @@ test('a generated plugin defines the parse-ts build every plugin needs', { skip:
     // scripts/build.test.mjs asserts the same script for every plugin in packages/.
     assert.equal(manifest.scripts['build:parse-ts'], 'pumpkin-plugins-build --parse-ts');
 });
+
+test('the starter command is named after the plugin, not the built-in /plugin', { skip: skipOnWindows }, () => {
+    const root = generate('plugin', ['my-plugin', 'MyPlugin', 'Does a thing']);
+    const spec = fs.readFileSync(path.join(root, 'packages/my-plugin/src/commands/spec.ts'), 'utf8');
+    const itest = fs.readFileSync(path.join(root, 'packages/my-plugin/test/plugin.itest.ts'), 'utf8');
+
+    assert.match(spec, /["']my-plugin["']\s*:\s*\{/);
+    assert.match(spec, /:command\.my-plugin`/);
+    assert.doesNotMatch(spec, /\bplugin\s*:\s*\{/);
+    assert.match(itest, /server\.command\(["']my-plugin["']\)/);
+});
