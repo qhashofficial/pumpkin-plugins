@@ -75,13 +75,12 @@ workflow's handoff artifacts also expire after one day instead of being deleted,
 available when you need to rerun a failed job or release. Failure logs remain available for
 diagnosis.
 
-The Docs workflow deletes its `docs-site` and `github-pages` artifacts after publishing succeeds or
-is skipped, and keeps them when publishing fails. The benchmark-comment workflow keeps the combined
-report for its post-CI run and stores chart SVGs on the `benchmark-charts` branch, outside Actions
-artifact cleanup. Each publish replaces that branch with a single commit that has no parent and
-holds only the charts of the newest 100 runs, so it never grows a history; PR comments from older
-runs lose their chart image. Fork and Dependabot pull requests use read-only tokens, so their temporary
-artifacts expire after one day instead of being deleted by the workflows.
+The Docs workflow uploads its `docs-site` and `github-pages` artifacts only on pushes, where the
+publish job uses them, and lets them expire after one day. The benchmark-comment workflow keeps the
+combined report for its post-CI run and stores chart SVGs on the `benchmark-charts` branch, where
+artifact expiry doesn't remove them. Each publish replaces that branch with a single commit that has
+no parent and holds only the charts of the newest 100 runs, so it never grows a history; PR comments
+from older runs lose their chart image.
 
 ## Reading CI results
 

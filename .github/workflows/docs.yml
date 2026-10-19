@@ -2,21 +2,16 @@ name: Docs
 
 on:
     pull_request:
-        paths:
+        paths: &docs-paths
             - '**/*.md'
             - 'docs/**'
-            - 'packages/*/docs/**'
             - 'packages/**'
             - 'extensions/**'
-            - 'tools/**/docs/**'
-            - 'actions/*/docs/**'
+            - 'tools/**'
             - 'actions/**'
             - 'scripts/**'
-            - 'tools/**'
             - 'typedoc.json'
             - 'tsconfig.docs.json'
-            - 'scripts/generate-api-references.mjs'
-            - 'docs/.vitepress/**'
             - 'package.json'
             - 'pnpm-lock.yaml'
             - 'pnpm-workspace.yaml'
@@ -24,41 +19,18 @@ on:
             - '.node-version'
             - '.github/common/bootstrap/**'
             - '.github/workflows/docs.yml'
-            - 'scripts/check-docs.mjs'
             - 'LICENSE'
     push:
         branches:
             - master
             - main
-        paths:
-            - '**/*.md'
-            - 'docs/**'
-            - 'packages/*/docs/**'
-            - 'packages/**'
-            - 'extensions/**'
-            - 'tools/**/docs/**'
-            - 'actions/*/docs/**'
-            - 'actions/**'
-            - 'scripts/**'
-            - 'tools/**'
-            - 'typedoc.json'
-            - 'tsconfig.docs.json'
-            - 'scripts/generate-api-references.mjs'
-            - 'docs/.vitepress/**'
-            - 'package.json'
-            - 'pnpm-lock.yaml'
-            - 'pnpm-workspace.yaml'
-            - 'tsconfig.base.json'
-            - '.node-version'
-            - '.github/common/bootstrap/**'
-            - '.github/workflows/docs.yml'
-            - 'scripts/check-docs.mjs'
-            - 'LICENSE'
+        paths: *docs-paths
     workflow_dispatch:
 
 concurrency:
     group: docs-${{ github.ref }}
-    cancel-in-progress: false
+    # Let a publish finish; a newer pull request run replaces an older one.
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
     CI: true
@@ -84,6 +56,7 @@ jobs:
               id: bootstrap
               uses: ./.github/common/bootstrap
 
+            # CI skips docs-only changes, so this workflow runs the docs checks for them.
             - name: 📝 Check generated READMEs
               id: check-generated-readmes
               run: node scripts/ci-run.mjs "Generated READMEs" -- pnpm run readme:check
@@ -104,12 +77,14 @@ jobs:
 
             - name: 📦 Upload Pages artifact
               id: upload-pages-artifact
+              if: github.event_name == 'push'
               uses: actions/upload-pages-artifact@v5.0.0
               with:
                   path: docs/.vitepress/dist
 
             - name: 📦 Upload site for the gh-pages mirror
               id: upload-site-for-the-gh-pages-mirror
+              if: github.event_name == 'push'
               uses: actions/upload-artifact@v7.0.2
               with:
                   name: docs-site
@@ -202,40 +177,3 @@ jobs:
                   CI_ARTIFACT_URL: ${{ steps.deployment.outputs.page_url }}
                   CI_LINK_LABEL: Open the published documentation
               run: node "$RUNNER_TEMP/docs-summary/ci-summary.mjs" --title "Documentation deployment"
-
-    cleanup:
-        name: 🧹 Cleanup docs artifacts
-        needs: [build, publish]
-        if: >-
-            ${{
-              always() &&
-              !startsWith(github.head_ref, 'release-please--branches--') &&
-              (needs.publish.result == 'success' || needs.publish.result == 'skipped') &&
-              (
-                github.event_name != 'pull_request' ||
-                (
-                  github.actor != 'dependabot[bot]' &&
-                  github.event.pull_request.head.repo.full_name == github.repository
-                )
-              )
-            }}
-        timeout-minutes: 5
-        runs-on: ubuntu-26.04
-        permissions:
-            actions: write
-        steps:
-            - name: 🧹 Delete docs artifacts after their last consumer
-              env:
-                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              run: |
-                  artifact_ids="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
-                      --jq '.artifacts[] | select(.name == "docs-site" or .name == "github-pages") | .id')"
-                  if [ -z "$artifact_ids" ]; then
-                      echo "No docs artifacts to delete"
-                      exit 0
-                  fi
-                  while IFS= read -r artifact_id; do
-                      [ -z "$artifact_id" ] && continue
-                      gh api --method DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id"
-                      echo "Deleted docs artifact $artifact_id"
-                  done <<< "$artifact_ids"
