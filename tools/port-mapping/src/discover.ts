@@ -123,7 +123,13 @@ function* connectUpnp(net: Network, candidates: readonly UpnpCandidate[]): Steps
         for (const point of points) {
             try {
                 const gateway = new UpnpGateway(net, point);
-                return { gateway, externalAddress: yield* gateway.externalAddress(), identity };
+                const externalAddress = yield* gateway.externalAddress();
+                // An idle WAN service answers 0.0.0.0 while another service of the router is online.
+                if (externalAddress.every((octet) => octet === 0)) {
+                    lastError = 'the router has no internet address on this connection';
+                    continue;
+                }
+                return { gateway, externalAddress, identity };
             } catch (err) {
                 lastError = err instanceof Error ? err.message : String(err);
             }

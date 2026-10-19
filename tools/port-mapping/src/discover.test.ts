@@ -178,6 +178,35 @@ describe('discover', () => {
         expect(net.leaks).toBe(0);
     });
 
+    it('skips a WAN service that has no internet address and uses the next one', () => {
+        const igd = new FakeIgd({ natPmp: false });
+        const service = (type: string, path: string) =>
+            `<service><serviceType>urn:schemas-upnp-org:service:${type}</serviceType><controlURL>${path}</controlURL></service>`;
+        const external = (address: string) =>
+            `<?xml version="1.0"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:GetExternalIPAddressResponse xmlns:u="x"><NewExternalIPAddress>${address}</NewExternalIPAddress></u:GetExternalIPAddressResponse></s:Body></s:Envelope>`;
+        igd.handleHttp = (method, path) => {
+            if (method === 'GET')
+                return {
+                    status: 200,
+                    body: `<root><device><serviceList>${service('WANIPConnection:1', '/ip')}${service('WANPPPConnection:1', '/ppp')}</serviceList></device></root>`,
+                };
+            return { status: 200, body: external(path === '/ip' ? '0.0.0.0' : '93.184.216.34') };
+        };
+        const net = new FakeNetwork([igd]);
+
+        const found = runSteps(net, discover(net, { upnp: true, natPmp: false }));
+        expect(found.externalAddress).toEqual([93, 184, 216, 34]);
+
+        igd.handleHttp = (method) =>
+            method === 'GET'
+                ? {
+                      status: 200,
+                      body: `<root><device><serviceList>${service('WANIPConnection:1', '/ip')}</serviceList></device></root>`,
+                  }
+                : { status: 200, body: external('0.0.0.0') };
+        expect(() => runSteps(net, discover(net, { upnp: true, natPmp: false }))).toThrow('no internet address');
+    });
+
     it('accepts a private router whose HTTP services use a different port from SSDP', () => {
         const igd = new FakeIgd({ httpPort: 6000, natPmp: false });
         const net = new FakeNetwork([igd]);
