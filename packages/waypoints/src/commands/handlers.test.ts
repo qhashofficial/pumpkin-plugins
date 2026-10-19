@@ -214,6 +214,19 @@ describe('/wp handlers', () => {
         ).toEqual([grantedId]);
     });
 
+    it('explains why a grant is invalid', () => {
+        const { catalog, handlers, sender } = setup(true);
+        catalog.create({ id: waypointId, name: 'Base', dimension: 'world', position: { x: 0, y: 64, z: 0 } });
+
+        expect(
+            handlers['wp access grant permission <name> <permission>'](sender, { name: 'Base', permission: 'vip' }),
+        ).toEqual([{ text: expect.stringContaining('namespace:node'), tone: 'error' }]);
+        expect(handlers['wp access grant group <name> <group>'](sender, { name: 'Base', group: 'VIP' })).toEqual([
+            { text: expect.stringContaining('lowercase'), tone: 'error' },
+        ]);
+        expect(catalog.getByName('Base')?.access.grants).toEqual([]);
+    });
+
     it('refuses waypoint management without the admin permission, even for operators', () => {
         const { catalog, handlers, sender } = setup(true, undefined, false);
 

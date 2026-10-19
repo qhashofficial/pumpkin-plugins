@@ -65,8 +65,8 @@ export class WaypointCatalog {
         let waypoint: Waypoint;
         try {
             waypoint = createWaypoint(input);
-        } catch {
-            return { status: 'invalid' };
+        } catch (error) {
+            return invalid(error);
         }
         if (this.store.get(waypoint.id) !== undefined || this.getByName(waypoint.name) !== undefined) {
             return { status: 'conflict' };
@@ -100,8 +100,8 @@ export class WaypointCatalog {
         try {
             const candidate = typeof change === 'function' ? change(current) : { ...current, ...change };
             changed = createWaypoint(candidate);
-        } catch {
-            return { status: 'invalid' };
+        } catch (error) {
+            return invalid(error);
         }
         const duplicate = this.getByName(changed.name);
         if (duplicate !== undefined && duplicate.id !== current.id) return { status: 'conflict' };
@@ -141,6 +141,12 @@ export class WaypointCatalog {
 
 /** Result of a catalog mutation. */
 export interface MutationResult {
+    /** Why an `invalid` change was rejected, written for the admin who made it. */
+    readonly reason?: string;
     readonly status: WaypointMutationStatus;
     readonly waypoint?: Waypoint;
+}
+
+function invalid(error: unknown): MutationResult {
+    return { status: 'invalid', ...(error instanceof Error ? { reason: error.message } : {}) };
 }
