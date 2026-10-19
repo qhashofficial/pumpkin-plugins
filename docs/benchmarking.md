@@ -13,7 +13,7 @@ From the repository root, run:
 
     pnpm --filter @pumpkin-plugins/engine-comparison compare-engines
 
-The command first runs the cacheable `benchmark:build` Turbo task, then runs the real-server integration test in [engine-comparison.test.ts](../benchmarks/engine-comparison/test/engine-comparison.test.ts). Turbo caches the nine comparison components and two stack-guard fixtures under configuration-specific paths in `build/engine-comparison/`. It can reuse them when the benchmark sources, build dependencies, and declared build environment match. The test starts a fresh Pumpkin server for each comparison component, runs the benchmark command, collects its results, and stops the server.
+The command first runs the cacheable `benchmark:build` Turbo task, then runs the real-server integration test in [engine-comparison.itest.ts](../benchmarks/engine-comparison/test/engine-comparison.itest.ts). Turbo caches the nine comparison components and two stack-guard fixtures under configuration-specific paths in `build/engine-comparison/`. It can reuse them when the benchmark sources, build dependencies, and declared build environment match. The test starts a fresh Pumpkin server for each comparison component, runs the benchmark command, collects its results, and stops the server.
 
 CI runs the nine engine configurations as parallel matrix jobs, along with both stack-guard checks. Each engine job uploads its result. The report job checks that all configurations ran the same workloads and produced matching checksums, then adds the combined Markdown report to the job summary. It uploads the combined JSON results and report for 90 days; individual engine result artifacts are kept for one day. Static Hermes preparation runs automatically when a local build needs it. In CI, the pinned toolchain is restored and verified before the comparison runs in the [engine comparison workflow](../.github/workflows/engine-comparison.yml).
 
@@ -198,7 +198,7 @@ If you change the benchmark or its CI workflow, keep these guarantees in place:
 - Include the runner image and source revision with any published comparison. Include CPU details only when the runner exposes them.
 - Use the runtime guide for the pinned Hermes/WASI toolchain and build configuration; use the test harness guide for server selection and startup behavior.
 
-The comparison is maintained in [engine-comparison.test.ts](../benchmarks/engine-comparison/test/engine-comparison.test.ts), [engine-variants.ts](../benchmarks/engine-comparison/test/engine-variants.ts), [benchmark-workloads.ts](../benchmarks/engine-comparison/src/benchmark-workloads.ts), [benchmark-plugin.ts](../benchmarks/engine-comparison/src/benchmark-plugin.ts), and the [comparison workflow](../.github/workflows/engine-comparison.yml). See [Testing](testing.md) for the real-server harness.
+The comparison is maintained in [engine-comparison.itest.ts](../benchmarks/engine-comparison/test/engine-comparison.itest.ts), [engine-variants.ts](../benchmarks/engine-comparison/test/engine-variants.ts), [benchmark-workloads.ts](../benchmarks/engine-comparison/src/benchmark-workloads.ts), [benchmark-plugin.ts](../benchmarks/engine-comparison/src/benchmark-plugin.ts), and the [comparison workflow](../.github/workflows/engine-comparison.yml). See [Testing](testing.md) for the real-server harness.
 
 ## Sources
 
