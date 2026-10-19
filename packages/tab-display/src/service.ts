@@ -3,13 +3,11 @@ import { strToU8 } from 'fflate';
 import { type ConfigValidation, type TabDisplayConfig, type TemplateLineConfig, validateConfig } from './config.ts';
 import {
     type ApplyResult,
-    type Capability,
     JAVA_DISPLAY_VERSION,
     type PlayerSnapshot,
     type RenderedLine,
     type TabDisplayStatus,
 } from './model.ts';
-import { assignDenseOrders } from './sorting.ts';
 import { type CompiledTemplate, compileTemplate, renderTemplate } from './templates.ts';
 
 /** One request sent to the shared PumpkinPIE client. */
@@ -32,8 +30,6 @@ export interface TabDisplayHost {
     setEntryName(uuid: string, value: RenderedLine | undefined): ApplyResult;
     /** Applies a personalized viewer header and footer. */
     setHeaderFooter(uuid: string, header: readonly RenderedLine[], footer: readonly RenderedLine[]): ApplyResult;
-    /** Applies one dense native player-list order. */
-    setOrder(uuid: string, order: number): ApplyResult;
     /** Copies bounded player primitives from the host. */
     snapshotPlayers(limit: number): readonly PlayerSnapshot[];
 }
@@ -45,7 +41,6 @@ export interface TabDisplayServiceOptions {
     readonly log?: (message: string) => void;
     readonly now: () => number;
     readonly resolver: TabPlaceholderResolver;
-    readonly sortingCapability?: Capability;
 }
 
 /** Maximum placeholder jobs resolved on a single game tick. */
@@ -89,10 +84,8 @@ export class TabDisplayService {
     private unresolved = new Set<string>();
     private previousOnline = new Set<string>();
     private readonly appliedNames = new Map<string, string | undefined>();
-    private readonly appliedOrders = new Map<string, number>();
     private readonly appliedHeaders = new Map<string, string>();
     private readonly unsupportedNames = new Set<string>();
-    private readonly unsupportedOrders = new Set<string>();
     private readonly unsupportedHeaders = new Set<string>();
     private readonly playerCapabilities = new Map<string, string>();
     private readonly disableResetPending = new Set<string>();
@@ -235,10 +228,6 @@ export class TabDisplayService {
                 kind: 'unsupported',
                 reason: 'TabDisplay leaves the native Bedrock player list unchanged.',
             },
-            sorting: this.options.sortingCapability ?? {
-                kind: 'unsupported',
-                reason: 'Native Java tab order direction is not verified on a client.',
-            },
         };
     }
 
@@ -337,7 +326,7 @@ export class TabDisplayService {
             if (providerAvailable) this.lastSuccessfulAt = now;
             this.unresolved = unresolved;
             phase = 'updating';
-            const failed = this.applyGeneration(generation.players, rendered);
+            const failed = this.applyGeneration(rendered);
             this.pending = undefined;
             if (!failed) this.lastFailure = undefined;
         } catch (error) {
@@ -361,14 +350,13 @@ export class TabDisplayService {
                 header: player.header.map((target) => renderTemplateFallback(target, this.config)),
                 footer: player.footer.map((target) => renderTemplateFallback(target, this.config)),
             }));
-            this.applyGeneration(generation.players, rendered);
+            this.applyGeneration(rendered);
         } catch {
             this.lastFailure = 'Literal fallback exceeded the configured output limits';
         }
     }
 
     private applyGeneration(
-        prepared: readonly PreparedPlayer[],
         rendered: readonly {
             readonly snapshot: PlayerSnapshot;
             readonly entry: RenderedLine | undefined;
@@ -377,34 +365,12 @@ export class TabDisplayService {
         }[],
     ): boolean {
         let failed = false;
-        const snapshots = prepared.map(({ snapshot }) => snapshot);
-        const orderByUuid =
-            this.config.sorting.rules.length === 0
-                ? new Map<string, number>()
-                : new Map(
-                      assignDenseOrders(snapshots, this.config.sorting.rules).map(({ uuid, order }) => [uuid, order]),
-                  );
-
         for (const item of rendered) {
             const { snapshot } = item;
             if (snapshot.edition === 'java' && item.entry !== undefined) {
                 if (this.applyName(snapshot.uuid, item.entry)) failed = true;
             } else if (snapshot.edition === 'java' && this.appliedNames.has(snapshot.uuid)) {
                 if (this.applyName(snapshot.uuid, undefined)) failed = true;
-            }
-            if (this.config.sorting.rules.length > 0) {
-                const order = orderByUuid.get(snapshot.uuid) ?? 0;
-                if (!this.unsupportedOrders.has(snapshot.uuid) && this.appliedOrders.get(snapshot.uuid) !== order) {
-                    const result = this.options.host.setOrder(snapshot.uuid, order);
-                    if (result.kind === 'unsupported') this.unsupportedOrders.add(snapshot.uuid);
-                    else if (this.recordApply(result)) this.appliedOrders.set(snapshot.uuid, order);
-                    else failed = true;
-                }
-            } else if (!this.unsupportedOrders.has(snapshot.uuid) && this.appliedOrders.has(snapshot.uuid)) {
-                const result = this.options.host.setOrder(snapshot.uuid, 0);
-                if (result.kind === 'unsupported') this.unsupportedOrders.add(snapshot.uuid);
-                else if (this.recordApply(result)) this.appliedOrders.delete(snapshot.uuid);
-                else failed = true;
             }
             if (snapshot.edition === 'java') {
                 const key = JSON.stringify([item.header, item.footer]);
@@ -473,10 +439,8 @@ export class TabDisplayService {
 
     private clearPlayerCaches(uuid: string): void {
         this.appliedNames.delete(uuid);
-        this.appliedOrders.delete(uuid);
         this.appliedHeaders.delete(uuid);
         this.unsupportedNames.delete(uuid);
-        this.unsupportedOrders.delete(uuid);
         this.unsupportedHeaders.delete(uuid);
         this.playerCapabilities.delete(uuid);
     }
@@ -493,10 +457,8 @@ export class TabDisplayService {
 
     private clearDisplayCaches(): void {
         this.appliedNames.clear();
-        this.appliedOrders.clear();
         this.appliedHeaders.clear();
         this.unsupportedNames.clear();
-        this.unsupportedOrders.clear();
         this.unsupportedHeaders.clear();
         this.playerCapabilities.clear();
     }
@@ -572,7 +534,6 @@ function copySnapshot(snapshot: PlayerSnapshot): PlayerSnapshot {
         name: snapshot.name,
         edition: snapshot.edition,
         ...(snapshot.javaVersion === undefined ? {} : { javaVersion: snapshot.javaVersion }),
-        ...(snapshot.ping === undefined ? {} : { ping: snapshot.ping }),
     };
 }
 

@@ -41,7 +41,6 @@ function formatStatus(status: TabDisplayStatus): readonly string[] {
         `Players: ${status.players} (Java ${status.javaPlayers}; Bedrock ${status.bedrockPlayers})`,
         `Java versions: ${status.javaVersions.length > 0 ? status.javaVersions.join(', ') : 'none connected'}`,
         `Java tab display: ${formatCapability(status.java)}`,
-        `Native sorting: ${formatCapability(status.sorting)}`,
         `Bedrock: ${formatCapability(status.bedrock)}`,
         `Unresolved placeholder IDs: ${status.unresolved.length > 0 ? status.unresolved.join(', ') : 'none'}`,
         ...(status.lastFailure === undefined ? [] : [`Last failure: ${status.lastFailure}`]),

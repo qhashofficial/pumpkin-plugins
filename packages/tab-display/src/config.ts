@@ -15,7 +15,6 @@ import {
     tomlString,
 } from '@pumpkin-plugins/config';
 import { PLUGIN_NAME } from './name.ts';
-import type { SortRule } from './sorting.ts';
 import { compileTemplate } from './templates.ts';
 
 /** Name of the plugin settings file. */
@@ -36,12 +35,8 @@ export interface TemplateLineConfig {
     readonly underlined?: boolean;
 }
 
-/** One configured sorting key. */
-export interface ConfigSortRule extends SortRule {}
-
 const defaultHeader: readonly TemplateLineConfig[] = [{ text: 'Welcome %player_name%', color: '#FFB347' }];
 const defaultFooter: readonly TemplateLineConfig[] = [{ text: '%server_online% players online', color: '#AAAAAA' }];
-const defaultRules: readonly ConfigSortRule[] = [];
 
 /** Declares the plugin configuration; arrays use TOML arrays of inline tables. */
 export const configSchema = defineConfig(PLUGIN_NAME, {
@@ -103,26 +98,6 @@ export const configSchema = defineConfig(PLUGIN_NAME, {
             strikethrough: bool({ description: 'Strike through the row name.', default: false }),
         },
     }),
-    sorting: section({
-        description: 'Global Java player-list ordering. Rules stay disabled until native client order is verified.',
-        fields: { rules: sortRulesField(defaultRules) },
-    }),
-    objective: section({
-        description: 'Java player-list numeric objective. It is not enabled until client behavior is verified.',
-        fields: {
-            enabled: bool({ description: 'Show a numeric objective in the Java player list.', default: false }),
-            value: str({ description: 'Value source reserved for the verified objective adapter.', default: 'ping' }),
-        },
-    }),
-    bedrock: section({
-        description: 'Native Bedrock features.',
-        fields: {
-            objective_enabled: bool({
-                description: 'Show a numeric objective in the native Bedrock player list.',
-                default: false,
-            }),
-        },
-    }),
 });
 
 /** The validated shape returned by the config package. */
@@ -176,7 +151,7 @@ export function loadTabDisplayConfig(store: ConfigStore): {
     return { config: checked.config, warnings: loaded.warnings };
 }
 
-/** Validates supported settings, limits and feature capability gates. */
+/** Validates supported settings and limits. */
 export function validateConfig(value: unknown): ConfigValidation {
     const issues: ConfigIssue[] = [];
     if (!isRecord(value)) return invalid([{ path: 'config', reason: 'must be a table' }]);
@@ -204,19 +179,6 @@ export function validateConfig(value: unknown): ConfigValidation {
     validateLineSection(value.header, 'header', issues);
     validateLineSection(value.footer, 'footer', issues);
     validateEntry(value.entry, issues);
-    validateSorting(value.sorting, issues);
-    validateObjective(value.objective, 'objective.enabled', issues);
-    if (!isRecord(value.bedrock)) add(issues, 'bedrock', 'must be a table');
-    else {
-        if (typeof value.bedrock.objective_enabled !== 'boolean')
-            add(issues, 'bedrock.objective_enabled', 'must be true or false');
-        else if (value.bedrock.objective_enabled)
-            add(
-                issues,
-                'bedrock.objective_enabled',
-                'unsupported: the native Bedrock player-list objective is not verified',
-            );
-    }
 
     if (issues.length > 0) return invalid(issues);
     return { kind: 'valid', config: value as unknown as TabDisplayConfig };
@@ -239,24 +201,6 @@ function templateLinesField(
             if (!Array.isArray(raw) || !raw.every(isTemplateLine)) return { ok: false };
             return { ok: true, value: raw.map(copyTemplateLine) };
         },
-        format,
-    };
-}
-
-function sortRulesField(defaults: readonly ConfigSortRule[]): Field<readonly ConfigSortRule[]> {
-    const format = (rules: readonly ConfigSortRule[]) =>
-        formatInlineTableArray(rules.map((rule) => ({ kind: rule.kind, direction: rule.direction })));
-    return {
-        type: 'table[]',
-        description:
-            'Reserved sorting keys. Non-empty rules are rejected until native Java order direction is verified.',
-        default: defaults,
-        expected: 'an array of name or ping sort rule tables',
-        example: format(defaults),
-        parse: (raw) =>
-            Array.isArray(raw) && raw.every(isSortRule)
-                ? { ok: true, value: raw.map((rule) => ({ ...rule })) }
-                : { ok: false },
         format,
     };
 }
@@ -310,15 +254,6 @@ function copyTemplateLine(line: TemplateLineConfig): TemplateLineConfig {
     return { ...line };
 }
 
-function isSortRule(value: unknown): value is ConfigSortRule {
-    return (
-        isRecord(value) &&
-        Object.keys(value).every((key) => key === 'kind' || key === 'direction') &&
-        (value.kind === 'name' || value.kind === 'ping') &&
-        (value.direction === 'ascending' || value.direction === 'descending')
-    );
-}
-
 function validateLineSection(value: unknown, path: string, issues: ConfigIssue[]): void {
     if (!isRecord(value) || !Array.isArray(value.lines)) {
         add(issues, `${path}.lines`, 'must be an array of line tables');
@@ -360,38 +295,6 @@ function validateEntry(value: unknown, issues: ConfigIssue[]): void {
     for (const key of ['bold', 'italic', 'underlined', 'strikethrough'] as const) {
         if (typeof value[key] !== 'boolean') add(issues, `entry.${key}`, 'must be true or false');
     }
-}
-
-function validateSorting(value: unknown, issues: ConfigIssue[]): void {
-    if (!isRecord(value) || !Array.isArray(value.rules)) {
-        add(issues, 'sorting.rules', 'must be an array of sort rule tables');
-        return;
-    }
-    const seen = new Set<string>();
-    for (const rule of value.rules) {
-        if (!isSortRule(rule)) {
-            add(issues, 'sorting.rules', 'each rule needs a supported kind and direction');
-            return;
-        }
-        if (seen.has(rule.kind)) {
-            add(issues, 'sorting.rules', `duplicate ${rule.kind} sort key`);
-            return;
-        }
-        seen.add(rule.kind);
-    }
-    if (value.rules.length > 0)
-        add(issues, 'sorting.rules', 'unsupported: native Java tab order direction is not verified on a client');
-}
-
-function validateObjective(value: unknown, path: string, issues: ConfigIssue[]): void {
-    const sectionName = path.slice(0, path.indexOf('.'));
-    if (!isRecord(value)) {
-        add(issues, sectionName, 'must be a table');
-        return;
-    }
-    if (typeof value.enabled !== 'boolean') add(issues, path, 'must be true or false');
-    else if (value.enabled) add(issues, path, 'unsupported: player-list objectives are not verified for this release');
-    if (sectionName === 'objective' && value.value !== 'ping') add(issues, 'objective.value', 'must be `ping`');
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

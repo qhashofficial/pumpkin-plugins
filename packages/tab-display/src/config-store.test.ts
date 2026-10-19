@@ -19,14 +19,14 @@ describe('configuration write transaction', () => {
     });
 
     it('does not persist an invalid configuration normalized by the schema reader', () => {
-        const original = '[sorting]\nrules = [{ kind = "name", direction = "ascending" }]\n';
+        const original = '[entry]\ncolor = "white"\n';
         let contents: string | undefined = original;
         const write = vi.fn((text: string) => {
             contents = text;
         });
         const transaction = createConfigTransaction(() => contents, write);
 
-        expect(() => loadTabDisplayConfig(transaction.store)).toThrow(/sorting\.rules/);
+        expect(() => loadTabDisplayConfig(transaction.store)).toThrow(/entry\.color/);
         expect(write).not.toHaveBeenCalled();
         expect(contents).toBe(original);
     });

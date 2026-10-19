@@ -13,9 +13,7 @@ const capabilityTable = table(
             'Java header/footer',
             `Per-viewer formatted lines, gated to ${code(JAVA_DISPLAY_VERSION)}; live client behavior unverified`,
         ],
-        ['Java sorting', 'Disabled; config rejects non-empty rules'],
-        ['Java numeric objective', `Disabled; config rejects ${code('objective.enabled = true')}`],
-        ['Bedrock roster', 'Left unchanged; objective and row formatting unsupported'],
+        ['Bedrock roster', 'Left unchanged'],
         ['Per-viewer row names, fake rows and fixed slots', 'Not implemented'],
     ],
 );

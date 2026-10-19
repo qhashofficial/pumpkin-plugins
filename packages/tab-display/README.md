@@ -71,10 +71,6 @@ Settings live in `plugins/data/TabDisplay/config.toml`. The plugin creates the f
 | `entry.italic` | boolean | `false` | Render the row name in italics. |
 | `entry.underlined` | boolean | `false` | Underline the row name. |
 | `entry.strikethrough` | boolean | `false` | Strike through the row name. |
-| `sorting.rules` | table[] | `[]` | Reserved sorting keys. Non-empty rules are rejected until native Java order direction is verified. |
-| `objective.enabled` | boolean | `false` | Show a numeric objective in the Java player list. |
-| `objective.value` | string | `"ping"` | Value source reserved for the verified objective adapter. |
-| `bedrock.objective_enabled` | boolean | `false` | Show a numeric objective in the native Bedrock player list. |
 
 <details>
 <summary>A fresh install gets this file:</summary>
@@ -149,27 +145,6 @@ underlined = false
 
 # Strike through the row name.
 strikethrough = false
-
-# Global Java player-list ordering. Rules stay disabled until native client order is verified.
-[sorting]
-
-# Reserved sorting keys. Non-empty rules are rejected until native Java order direction is verified.
-rules = []
-
-# Java player-list numeric objective. It is not enabled until client behavior is verified.
-[objective]
-
-# Show a numeric objective in the Java player list.
-enabled = false
-
-# Value source reserved for the verified objective adapter.
-value = "ping"
-
-# Native Bedrock features.
-[bedrock]
-
-# Show a numeric objective in the native Bedrock player list.
-objective_enabled = false
 ```
 </details>
 <!-- docs:end config -->
