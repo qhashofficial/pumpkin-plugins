@@ -13,6 +13,8 @@ import type { Connection, Datagram, DatagramSocket, Dial, Endpoint, Ipv4, Networ
 export interface Sockets {
     /** The network the host routes over. */
     instance(): WasiNet;
+    /** Blocks for `ms` milliseconds. */
+    pause?(ms: number): void;
     tcp(): TcpSocket;
     udp(): UdpSocket;
 }
@@ -216,6 +218,11 @@ export class WasiNetwork implements Network {
     /** {@inheritDoc port-mapping!Network#now} */
     now(): number {
         return Date.now();
+    }
+
+    /** {@inheritDoc port-mapping!Network#pause} */
+    pause(ms: number): void {
+        this.sockets.pause?.(ms);
     }
 
     /** {@inheritDoc port-mapping!Network#openDatagram} */

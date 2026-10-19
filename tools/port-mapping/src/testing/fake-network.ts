@@ -111,6 +111,11 @@ export class FakeNetwork implements Network {
         return time;
     }
 
+    /** Moves the clock on by `ms`, as if the caller had blocked that long. */
+    pause(ms: number): void {
+        this.time += ms;
+    }
+
     localAddress(): Ipv4 | undefined {
         return this.local;
     }
