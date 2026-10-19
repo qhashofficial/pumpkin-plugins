@@ -3,9 +3,9 @@
 ## Install and scan packs
 
 1. Put `bedrock-addon-manager.wasm` in the Pumpkin server's `plugins/` directory.
-2. Start or restart the server. When prompted, grant `fs.read.data`, `fs.write.data`, and
-   `network.tcp.bind` so the plugin can read packs, create its config and extracted files, and serve
-   downloads.
+2. Start or restart the server. When prompted, grant the permissions it asks for: `fs.read.data`,
+   `fs.write.data`, `network.tcp.bind` and `http.outbound`, so it can read packs, create its config
+   and extracted files, serve downloads and check for plugin updates.
 3. Copy `.mcpack` or `.mcaddon` files into `plugins/data/BedrockAddonManager/packs/`.
 4. Run `/baddon reload`, then `/baddon list` to inspect the packs and their effective settings.
 
