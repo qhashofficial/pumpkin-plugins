@@ -68,7 +68,7 @@ it('discovers at least one compatibility definition', () => {
 
 it('uses the published schema URL in matrices and VS Code settings', () => {
     const schemaUrl =
-        'https://raw.githubusercontent.com/filiphsps/pumpkin-plugins/master/schemas/pumpkin-api-compatibility.schema.json';
+        'https://raw.githubusercontent.com/filiphsps/pumpkin-plugins/master/tools/pumpkin-api/schemas/pumpkin-api-compatibility.schema.json';
 
     const matrixPaths = [...matrixFiles.map((file) => path.join(compatibilityDirectory, file)), ...historyFiles];
     for (const matrixPath of matrixPaths) {
@@ -77,7 +77,7 @@ it('uses the published schema URL in matrices and VS Code settings', () => {
     }
 
     const schema = JSON.parse(
-        fs.readFileSync(path.join(repoRoot, 'schemas/pumpkin-api-compatibility.schema.json'), 'utf8'),
+        fs.readFileSync(path.join(apiRoot, 'schemas/pumpkin-api-compatibility.schema.json'), 'utf8'),
     );
     expect(schema.$id).toBe(schemaUrl);
     expect(schema.properties.$schema.const).toBe(schemaUrl);

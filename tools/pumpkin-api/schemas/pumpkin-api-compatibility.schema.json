@@ -1,6 +1,6 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://raw.githubusercontent.com/filiphsps/pumpkin-plugins/master/schemas/pumpkin-api-compatibility.schema.json",
+    "$id": "https://raw.githubusercontent.com/filiphsps/pumpkin-plugins/master/tools/pumpkin-api/schemas/pumpkin-api-compatibility.schema.json",
     "title": "Pumpkin API compatibility matrix",
     "description": "Compatibility decisions for the Pumpkin API, its upstream WIT declarations, and migration notes.",
     "type": "object",
@@ -23,7 +23,7 @@
         "$schema": {
             "type": "string",
             "format": "uri-reference",
-            "const": "https://raw.githubusercontent.com/filiphsps/pumpkin-plugins/master/schemas/pumpkin-api-compatibility.schema.json",
+            "const": "https://raw.githubusercontent.com/filiphsps/pumpkin-plugins/master/tools/pumpkin-api/schemas/pumpkin-api-compatibility.schema.json",
             "minLength": 1
         },
         "baseline": {

@@ -193,7 +193,7 @@ it('archives each release and WIT revision without overwriting a different audit
     const archiveContents = fs.readFileSync(archivePath, 'utf8');
     const archivedMatrix = JSON.parse(archiveContents);
     expect(archivedMatrix.$schema).toBe(
-        'https://raw.githubusercontent.com/filiphsps/pumpkin-plugins/master/schemas/pumpkin-api-compatibility.schema.json',
+        'https://raw.githubusercontent.com/filiphsps/pumpkin-plugins/master/tools/pumpkin-api/schemas/pumpkin-api-compatibility.schema.json',
     );
     expect(archivedMatrix.sourceWit.subdirectory).toBe('v0.1');
     expect(archiveCompatibilityMatrix(directory, matrix)).toBe(archivePath);
@@ -266,7 +266,7 @@ it('refuses to archive a compatibility audit with an unsupported decision', () =
 function compatibilityMatrix(operations: Record<string, string>[]): CompatibilityMatrix {
     return {
         $schema:
-            'https://raw.githubusercontent.com/filiphsps/pumpkin-plugins/master/schemas/pumpkin-api-compatibility.schema.json',
+            'https://raw.githubusercontent.com/filiphsps/pumpkin-plugins/master/tools/pumpkin-api/schemas/pumpkin-api-compatibility.schema.json',
         baseline: {
             package: '@pumpkinmc/pumpkin-api-ts',
             version: '0.1.1',
