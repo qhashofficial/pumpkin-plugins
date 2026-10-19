@@ -274,7 +274,7 @@ function fileHash(file) {
     }
 }
 
-function watchBuildOutputs(plugins, serverPluginsDir) {
+function watchBuildOutputs(plugins, serverPluginsDir, watchImpl) {
     const previousHashes = new Map(plugins.map((plugin) => [plugin.name, fileHash(plugin.outputPath)]));
     const watchers = [];
     const timers = new Map();
@@ -313,7 +313,7 @@ function watchBuildOutputs(plugins, serverPluginsDir) {
     for (const plugin of plugins) {
         const outputDir = path.dirname(plugin.outputPath);
         fs.mkdirSync(outputDir, { recursive: true });
-        const watcher = fs.watch(outputDir, (_eventType, filename) => {
+        const watcher = watchImpl(outputDir, (_eventType, filename) => {
             if (!filename || filename.toString() === path.basename(plugin.outputPath)) scheduleInspect(plugin);
         });
         watcher.on('error', fail);
@@ -446,6 +446,7 @@ export function startInitialBuild(root, spawnImpl = spawn, env = process.env, pa
 export async function runDev({
     root = path.resolve(import.meta.dirname, '..'),
     spawnImpl = spawn,
+    watchImpl = fs.watch,
     resolveBinary = resolveDevPumpkinBinary,
     hotReload = true,
     latest = false,
@@ -516,7 +517,7 @@ export async function runDev({
         for (const plugin of plugins) copyPluginBuild(plugin, serverPluginsDir);
         const backgroundTasks = [];
         if (hotReload) {
-            outputs = watchBuildOutputs(plugins, serverPluginsDir);
+            outputs = watchBuildOutputs(plugins, serverPluginsDir, watchImpl);
             const turbo = spawnChild(
                 pnpmCommand(),
                 ['turbo', 'watch', parseTypeScript ? 'build:parse-ts' : 'build', '--ui=stream', ...turboArgs],

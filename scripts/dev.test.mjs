@@ -829,7 +829,7 @@ describe('runDev', () => {
         assert.ok(latest.requests.includes('https://api.github.com/repos/Pumpkin-MC/Pumpkin/releases/latest'));
     });
 
-    it('copies a rebuilt plugin into the server once when the build renames it into place', async () => {
+    it('copies a rebuilt plugin into the server once when the build renames it into place', async (t) => {
         const root = tempDir();
         addPluginFixture(root);
         const output = path.join(root, 'packages', 'plugin', 'build', 'plugin.wasm');
@@ -847,19 +847,23 @@ describe('runDev', () => {
             if (command === '/fake/pumpkin') serverStarted();
             return child;
         };
+        // fs.watch delivers events late on a loaded machine and can miss changes made just after it
+        // starts, so stand in for it and report what the OS reports for each change in the directory.
+        const listeners = new Map();
+        const watchImpl = (directory, listener) => {
+            listeners.set(directory, listener);
+            return Object.assign(new EventEmitter(), { close() {} });
+        };
+        const notify = (filename) => listeners.get(path.dirname(output))?.('rename', filename);
         // Publish the way tools/build does: write into a temporary folder beside the output, then rename.
         const publish = (bytes) => {
             const temporary = fs.mkdtempSync(path.join(path.dirname(output), '.tmp-'));
+            notify(path.basename(temporary));
             fs.writeFileSync(path.join(temporary, 'plugin.wasm'), bytes);
             fs.renameSync(path.join(temporary, 'plugin.wasm'), output);
+            notify('plugin.wasm');
             fs.rmSync(temporary, { recursive: true });
-        };
-        const waitFor = async (condition) => {
-            const deadline = Date.now() + 20_000;
-            while (!condition()) {
-                if (Date.now() > deadline) throw new Error('timed out waiting for the plugin copy');
-                await new Promise((resolve) => setTimeout(resolve, 20));
-            }
+            notify(path.basename(temporary));
         };
         const copyLogs = [];
         const originalLog = console.log;
@@ -871,6 +875,7 @@ describe('runDev', () => {
         const running = runDev({
             root,
             spawnImpl,
+            watchImpl,
             resolveBinary: async () => ({ binary: '/fake/pumpkin', release: 'test release' }),
             signalSource,
         });
@@ -878,11 +883,15 @@ describe('runDev', () => {
             await serverRunning;
             assert.equal(fs.readFileSync(copied, 'utf8'), 'built plugin');
 
+            // The dev loop checks the output 100 ms after its last change event.
+            t.mock.timers.enable({ apis: ['setTimeout'] });
             publish('rebuilt plugin');
-            await waitFor(() => fs.readFileSync(copied, 'utf8') === 'rebuilt plugin');
+            t.mock.timers.tick(100);
+            assert.equal(fs.readFileSync(copied, 'utf8'), 'rebuilt plugin');
             publish('rebuilt plugin');
-            await new Promise((resolve) => setTimeout(resolve, 400));
+            t.mock.timers.tick(100);
         } finally {
+            t.mock.timers.reset();
             signalSource.emit('SIGINT');
             await running;
             console.log = originalLog;
