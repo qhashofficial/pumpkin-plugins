@@ -181,6 +181,10 @@ describe('planChecks', () => {
         assert.deepEqual(plan(['tools/apis/upnpumpkin-api/build/generated.d.ts']), []);
     });
 
+    it('leaves package checks out of generator template changes', () => {
+        assert.equal(turbo(plan(['turbo/generators/templates/plugin/src/plugin.ts.hbs'])), undefined);
+    });
+
     it('checks every package when a shared file changes', () => {
         const args = turbo(plan(['tsconfig.base.json', 'packages/upnpumpkin/src/x.ts']));
         assert.ok(args);
@@ -193,6 +197,21 @@ describe('planChecks', () => {
     it('runs the script tests when a script or hook changes', () => {
         assert.ok(plan(['scripts/check-docs.mjs']).some((s) => s.name === 'Script tests'));
         assert.ok(plan(['.agents/hooks/guard.mjs']).some((s) => s.name === 'Script tests'));
+        for (const file of [
+            '.github/workflows/ci.yml',
+            '.github/common/setup/action.yml',
+            '.codex/hooks.json',
+            'turbo/generators/config.ts',
+            'turbo.json',
+            'release-please-config.json',
+            'release-please-paused.json',
+            '.release-please-manifest.json',
+        ]) {
+            assert.ok(
+                plan([file]).some((s) => s.name === 'Script tests'),
+                file,
+            );
+        }
         assert.equal(
             plan(['docs/testing.md']).some((s) => s.name === 'Script tests'),
             false,

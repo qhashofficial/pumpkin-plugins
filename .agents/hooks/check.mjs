@@ -22,9 +22,12 @@ const SHARED = [
     /^pnpm-workspace\.yaml$/,
     /^tsconfig\.base\.json$/,
     /^turbo\.json$/,
-    /^turbo\/generators\//,
     /^pnpm-lock\.yaml$/,
 ];
+
+/** Files the script tests run or read: scripts, hooks, generators, workflows and release config. */
+const SCRIPT_TEST_INPUTS =
+    /^(scripts|\.agents\/hooks|turbo\/generators|\.github|\.codex)\/|^(package|turbo)\.json$|^release-please-(config|paused)\.json$|^\.release-please-manifest\.json$/;
 
 const LINT_CONFIG = /^(biome\.json|eslint\.config\.mjs)$/;
 
@@ -105,7 +108,7 @@ export function planChecks(files, exists = defaultExists, packageName = defaultP
         });
     }
 
-    if (relevant.some((f) => /^(scripts|\.agents\/hooks)\/|^package\.json$/.test(f))) {
+    if (relevant.some((f) => SCRIPT_TEST_INPUTS.test(f))) {
         steps.push({ name: 'Script tests', args: ['test:scripts'] });
     }
     if (options.includeRepositoryChecks !== false) steps.push({ name: 'Repo checks', args: ['check'] });
