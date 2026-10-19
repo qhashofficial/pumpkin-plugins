@@ -132,15 +132,15 @@ While editing, run `pnpm run dev:docs` to generate the API pages and start the V
 server. To preview the last production build instead, run `pnpm run docs:preview`.
 
 Build the complete site with `pnpm run docs`. It generates bindings, builds the API references, then
-builds the VitePress site. The four independent tasks for plugin-kit, update-check, pumpkin-api, and
-codemod run concurrently; plugin guest declarations are generated after them. TypeDoc runs before
+builds the VitePress site. The binding tasks for plugin-kit, update-check, pumpkin-api, and codemod
+run concurrently; plugin guest declarations are generated after them. TypeDoc runs before
 VitePress because the site reads its generated pages. `pnpm run docs:build` runs the same complete
 production build.
 
 You can run the pipeline in stages: `pnpm run docs:types` generates binding declarations,
 `pnpm run docs:api` runs that step and then generates the API reference, and
-`pnpm run docs:site` builds the site from the generated pages. To run one of the four prerequisite
-tasks on its own, use `pnpm run docs:types:plugin-kit`, `pnpm run docs:types:update-check`,
+`pnpm run docs:site` builds the site from the generated pages. To run one of the binding tasks on
+its own, use `pnpm run docs:types:plugin-kit`, `pnpm run docs:types:update-check`,
 `pnpm run docs:types:pumpkin-api`, or `pnpm run docs:types:codemod`. Generate plugin guest
 declarations with `pnpm run docs:types:plugins`.
 
