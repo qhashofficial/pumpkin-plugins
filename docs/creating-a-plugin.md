@@ -81,9 +81,11 @@ the reason in the plugin README. Keep behavior without real-client evidence mark
 Start with the metadata and starter command:
 
 1. Describe the plugin in `src/info.ts`, including any permissions, commands, or config. Replace or
-   extend the starter command in `src/commands/spec.ts` with `defineCommands`. Keep its permission
-   under the `COMMAND_PERMISSION` constant. [Plugin info and READMEs](plugin-info-and-readmes.md)
-   explains how these declarations feed Pumpkin metadata and the generated README.
+   extend the starter command in `src/commands/spec.ts` with `defineCommands`, and keep listing the
+   commands in `info.commands` with `commandInfos` so the README documents what is registered. Keep
+   the permission under the `COMMAND_PERMISSION` constant.
+   [Plugin info and READMEs](plugin-info-and-readmes.md) explains how these declarations feed Pumpkin
+   metadata and the generated README.
 2. Add plugin behavior in `src/plugin.ts`, inside the `onPluginLoad` hook. The starter extends
    `PluginBase` and calls `registerPlugin`; together they provide shared metadata, lifecycle logging,
    and the automatic update check. Read [Building](building.md) before choosing APIs: Static Hermes
