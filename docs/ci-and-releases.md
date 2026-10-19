@@ -524,8 +524,9 @@ In this repository, the `market` job downloads the `.wasm` built earlier and res
 canonical name from its info module. It passes the plugin's Release Please version and changelog to
 the action by local path. After a successful publish, the job builds a localized description from
 `info.description` and the plugin README, then builds command metadata from `info.commands`. The
-description excludes generated README blocks and the `Installation` and `Commands` sections. The
-job passes the numeric listing ID returned by the publisher to the metadata action. That action
+description excludes generated README blocks and the `Installation` and `Commands` sections.
+Relative links and images in the README become GitHub URLs at the plugin's release tag. The job
+passes the numeric listing ID returned by the publisher to the metadata action. That action
 sends a patch, leaving the listing's other fields for the Market listing editor.
 
 Builds aren't byte-reproducible, so the job uploads the Build artifact instead of rebuilding the
