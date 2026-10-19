@@ -97,7 +97,6 @@ vi.mock('@pumpkin-plugins/plugin-kit/plugin', () => ({
 }));
 vi.mock('@pumpkin-plugins/plugin-kit/data-dir', () => ({ WasiDataDir: { open: () => state.files } }));
 vi.mock('@pumpkin-plugins/plugin-kit/host', () => ({
-    runCommand: vi.fn(),
     scheduleRepeating: (_period: number, run: (server: Server) => void) => {
         const id = ++state.nextTask;
         state.tasks.set(id, run);
