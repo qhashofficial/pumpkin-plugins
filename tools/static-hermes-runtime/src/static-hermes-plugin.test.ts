@@ -94,25 +94,23 @@ describe('Static Hermes esbuild plugin', () => {
         expect(context.result).toBe(hostResult);
     });
 
-    it.each([true, false])('replaces automatic update checks only when developmentMode=%s', async (developmentMode) => {
+    it.each([true, false])('keeps every update-check export when developmentMode=%s', async (developmentMode) => {
         const code = await bundle(
-            "import { registerPluginWithUpdates } from '@pumpkin-plugins/update-check'; registerPluginWithUpdates({ id: 'demo' });",
+            "import { checkMarketUpdate, registerPluginWithUpdates } from '@pumpkin-plugins/update-check'; registerPluginWithUpdates({ id: 'demo' }); globalThis.check = checkMarketUpdate;",
             { witDir: apiWitDir, developmentMode },
-            ['@pumpkin-plugins/pumpkin-api', '@pumpkin-plugins/update-check'],
+            ['@pumpkin-plugins/update-check'],
         );
-        const registerPlugin = vi.fn();
+        const checkMarketUpdate = vi.fn();
         const registerPluginWithUpdates = vi.fn();
-        const modules: Record<string, unknown> = {
-            '@pumpkin-plugins/pumpkin-api': { registerPlugin },
-            '@pumpkin-plugins/update-check': { registerPluginWithUpdates },
+        const context = {
+            require: () => ({ checkMarketUpdate, registerPluginWithUpdates }),
+            check: undefined as unknown,
         };
 
-        runInNewContext(code, { require: (name: string) => modules[name] });
+        runInNewContext(code, context);
 
-        const called = developmentMode ? registerPlugin : registerPluginWithUpdates;
-        const skipped = developmentMode ? registerPluginWithUpdates : registerPlugin;
-        expect(called).toHaveBeenCalledWith({ id: 'demo' });
-        expect(skipped).not.toHaveBeenCalled();
+        expect(registerPluginWithUpdates).toHaveBeenCalledWith({ id: 'demo' });
+        expect(context.check).toBe(checkMarketUpdate);
     });
 
     it('routes WASI filesystem preopens through the generated host shim and reports the import', async () => {
