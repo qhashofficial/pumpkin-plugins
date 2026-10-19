@@ -1,11 +1,10 @@
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import { createRequire } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ensurePumpkinWit, parsePumpkinWitPin } from '@pumpkin-plugins/pumpkin-api/wit';
+import { digestWitDirectory, ensurePumpkinWit, parsePumpkinWitPin } from '@pumpkin-plugins/pumpkin-api/wit';
 import { CAPABILITIES, wasiInterfaces } from '@pumpkin-plugins/wasi-capabilities';
 import { afterEach, expect, it } from 'vitest';
 import { cacheDir } from '../../build/src/repo.ts';
@@ -293,20 +292,6 @@ it('generates facades and native adapters for the full pinned Pumpkin and WASI W
 
 function count(source, expression) {
     return source.match(expression)?.length ?? 0;
-}
-
-function digestWitDirectory(directory) {
-    const hash = createHash('sha256');
-    for (const filename of fs
-        .readdirSync(directory)
-        .filter((name) => name.endsWith('.wit'))
-        .sort()) {
-        hash.update(filename);
-        hash.update('\0');
-        hash.update(fs.readFileSync(path.join(directory, filename)));
-        hash.update('\0');
-    }
-    return hash.digest('hex');
 }
 
 /** Include every event tag and recursively referenced field in the generated event bundle source. */

@@ -5,7 +5,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterEach, expect, it, vi } from 'vitest';
-import { ensurePumpkinWit, parsePumpkinWitPin } from '../src/wit.mjs';
+import { digestWitDirectory, ensurePumpkinWit, parsePumpkinWitPin } from '../src/wit.mjs';
 
 const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const temporaryDirectories: string[] = [];
@@ -116,6 +116,22 @@ it('fetches the new local Git commit when the WIT lock changes', () => {
 
     expect(nextWitRoot).not.toBe(firstWitRoot);
     expect(fs.readFileSync(path.join(nextWitRoot, 'plugin.wit'), 'utf8')).toBe('package pumpkin:plugin@0.2.0;\n');
+});
+
+it('digests every WIT file under a package directory, including nested dependencies', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'pumpkin-wit-digest-'));
+    temporaryDirectories.push(directory);
+    fs.mkdirSync(path.join(directory, 'deps'));
+    fs.writeFileSync(path.join(directory, 'plugin.wit'), 'package pumpkin:plugin@0.1.0;\n');
+    fs.writeFileSync(path.join(directory, 'deps', 'types.wit'), 'interface types {}\n');
+    const digest = digestWitDirectory(directory);
+
+    fs.writeFileSync(path.join(directory, 'README.md'), 'not part of the WIT package\n');
+    expect(digestWitDirectory(directory)).toBe(digest);
+
+    fs.writeFileSync(path.join(directory, 'deps', 'types.wit'), 'interface types { type id = u32; }\n');
+    expect(digestWitDirectory(directory)).toMatch(/^[a-f0-9]{64}$/);
+    expect(digestWitDirectory(directory)).not.toBe(digest);
 });
 
 it('rechecks a stale cache-lock owner after claiming stale-lock recovery', async () => {

@@ -35,3 +35,14 @@ export function ensurePumpkinWit(options: EnsurePumpkinWitOptions): string;
  * @returns The normalized upstream Git pin.
  */
 export function parsePumpkinWitPin(source: string, lockFile: string): PumpkinWitPin;
+
+/**
+ * Digests the WIT files under a package directory, including nested folders.
+ *
+ * Each file contributes its `/`-separated relative path and contents, in path order. Files without
+ * the `.wit` extension are ignored. Compatibility matrices record this value as `sourceWitSha256`.
+ *
+ * @param directory - WIT package directory, such as the one returned by `ensurePumpkinWit`.
+ * @returns The lowercase hexadecimal SHA-256 digest.
+ */
+export function digestWitDirectory(directory: string): string;
