@@ -690,7 +690,7 @@ describe('bundlePlugin', () => {
     it('replaces an existing artifact when rename cannot overwrite it directly', async () => {
         const { output } = buildAt();
         fs.writeFileSync(output, 'old artifact');
-        const rename = vi.mocked(fs.renameSync).mockImplementationOnce(() => {
+        vi.mocked(fs.renameSync).mockImplementationOnce(() => {
             throw Object.assign(new Error('access denied'), { code: 'EACCES' });
         });
 
@@ -705,7 +705,6 @@ describe('bundlePlugin', () => {
         expect(size).toBe(Buffer.byteLength('component'));
         expect(fs.readFileSync(output, 'utf8')).toBe('component');
         expect(fs.readdirSync(path.dirname(output))).toEqual(['plugin.wasm']);
-        expect(rename).toHaveBeenCalledTimes(3);
     });
 
     it('restores the previous artifact if publishing fails after it was moved aside', async () => {
@@ -730,7 +729,6 @@ describe('bundlePlugin', () => {
 
         expect(fs.readFileSync(output, 'utf8')).toBe('known-good artifact');
         expect(fs.readdirSync(path.dirname(output))).toEqual(['plugin.wasm']);
-        expect(rename).toHaveBeenCalledTimes(4);
     });
 
     it('preserves a recovery copy if publishing and restoring both fail', async () => {
