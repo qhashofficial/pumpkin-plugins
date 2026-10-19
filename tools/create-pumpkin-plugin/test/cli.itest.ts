@@ -116,6 +116,26 @@ it('pins the detected pnpm version in generated projects', () => {
     expect(manifest.packageManager).toBe(`pnpm@${expectedVersion}`);
 });
 
+it.each([
+    ['npm', 'npm/11.0.0 node/v24.21.0 darwin arm64'],
+    ['yarn', 'yarn/4.9.2 npm/? node/v24.21.0 darwin arm64'],
+    ['bun', 'bun/1.2.0'],
+] as const)('writes %s commands and no pnpm workspace file', (manager, userAgent) => {
+    const cwd = temporaryDirectory(`create-pumpkin-plugin-${manager}-`);
+    const result = runCli(['my-plugin', '--js', '--skip-install'], {
+        cwd,
+        env: { npm_config_user_agent: userAgent, npm_execpath: '' },
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    const destination = path.join(cwd, 'my-plugin');
+    const readme = fs.readFileSync(path.join(destination, 'README.md'), 'utf8');
+    expect(readme).toContain(`${manager} install`);
+    expect(readme).toContain(`${manager} run build`);
+    expect(readme).not.toMatch(/\bpnpm\b/);
+    expect(fs.existsSync(path.join(destination, 'pnpm-workspace.yaml'))).toBe(false);
+});
+
 it('requires a language in non-interactive use and prints the exact choices', () => {
     const cwd = temporaryDirectory('create-pumpkin-plugin-language-');
     const result = runCli(['my-plugin'], { cwd });
