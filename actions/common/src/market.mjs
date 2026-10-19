@@ -3,6 +3,8 @@ import { readBoundedJson, safeResponseBody } from './diagnostics.mjs';
 /** Base URL of the public Pumpkin Market, used when the api-url input is empty. */
 export const MARKET_URL = 'https://market.pumpkinmc.org';
 
+const searchPageSize = 20;
+const maxSearchPages = 10;
 const loopbackHosts = new Set(['localhost', '127.0.0.1', '[::1]']);
 
 /**
@@ -53,16 +55,38 @@ export async function findListingById(baseUrl, id) {
 
 /**
  * Finds a listing by an exact, case-insensitive name match in Market search results. Market has no
- * direct lookup by name: `GET /plugins/{name}` answers 404 for listings that exist.
+ * direct lookup by name: `GET /plugins/{name}` answers 404 for listings that exist. Search is fuzzy,
+ * so the exact name can rank below other results; this reads up to 10 pages of 20 results.
  *
  * @param secret - Token to redact from a failed search response.
  * @returns The listing, or undefined when no listing has that name.
- * @throws Error when the search fails, a match isn't a valid listing, or the name is ambiguous.
+ * @throws Error when the search fails, a match isn't a valid listing, the name is ambiguous, or the
+ * results run past the page limit without an exact match.
  */
 export async function findListingByName(baseUrl, name, secret) {
+    const matches = new Map();
+    for (let page = 1; page <= maxSearchPages; page++) {
+        const listings = await searchPage(baseUrl, name, page, secret);
+        for (const listing of listings.filter((candidate) => isExactName(candidate, name))) {
+            if (!isValidListing(listing)) throw new Error('Market plugin lookup response was not a valid listing');
+            matches.set(listing.id, listing);
+        }
+        if (listings.length < searchPageSize) break;
+        if (page === maxSearchPages && !matches.size) {
+            throw new Error(
+                `Market search for ${JSON.stringify(name)} returned more than ${maxSearchPages * searchPageSize} results without an exact match; use plugin-id instead`,
+            );
+        }
+    }
+    if (matches.size > 1) throw new Error(`Market has multiple listings named ${JSON.stringify(name)}`);
+    return matches.values().next().value;
+}
+
+async function searchPage(baseUrl, name, page, secret) {
     const searchUrl = new URL(`${baseUrl}/api/v1/rest/plugins`);
     searchUrl.searchParams.set('q', name);
-    searchUrl.searchParams.set('limit', '20');
+    searchUrl.searchParams.set('limit', String(searchPageSize));
+    searchUrl.searchParams.set('page', String(page));
     const response = await marketFetch(searchUrl);
     if (!response.ok)
         throw new Error(
@@ -70,11 +94,7 @@ export async function findListingByName(baseUrl, name, secret) {
         );
     const listings = await readBoundedJson(response);
     if (!Array.isArray(listings)) throw new Error('Market plugin search response was not an array');
-    const matches = listings.filter((listing) => isExactName(listing, name));
-    if (matches.some((listing) => !isValidListing(listing)))
-        throw new Error('Market plugin lookup response was not a valid listing');
-    if (matches.length > 1) throw new Error(`Market has multiple listings named ${JSON.stringify(name)}`);
-    return matches[0];
+    return listings;
 }
 
 // A listing without a published version has `version` null, an empty string or no field at all.

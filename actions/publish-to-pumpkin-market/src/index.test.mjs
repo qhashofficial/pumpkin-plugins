@@ -190,7 +190,7 @@ describe('publish-to-market action', () => {
             assert.deepEqual(
                 requests.map(({ method, url }) => [method, url]),
                 [
-                    ['GET', '/api/v1/rest/plugins?q=Published+plugin&limit=20'],
+                    ['GET', '/api/v1/rest/plugins?q=Published+plugin&limit=20&page=1'],
                     ['PUT', '/api/plugins/42'],
                 ],
             );
@@ -231,7 +231,7 @@ describe('publish-to-market action', () => {
         const requests = [];
         const market = await server((request, response) => {
             requests.push({ method: request.method, url: request.url });
-            if (request.url === '/api/v1/rest/plugins?q=Published+plugin&limit=20') {
+            if (request.url === '/api/v1/rest/plugins?q=Published+plugin&limit=20&page=1') {
                 response.statusCode = 503;
                 response.end('temporarily unavailable');
             } else response.end('{}');
@@ -252,7 +252,9 @@ describe('publish-to-market action', () => {
             assert.match(result.stderr, /Could not search Market plugins \(503\)/);
             assert.doesNotMatch(result.stdout + result.stderr, /::warning|status: skipped/);
             assert.equal(fs.existsSync(outputFile), false);
-            assert.deepEqual(requests, [{ method: 'GET', url: '/api/v1/rest/plugins?q=Published+plugin&limit=20' }]);
+            assert.deepEqual(requests, [
+                { method: 'GET', url: '/api/v1/rest/plugins?q=Published+plugin&limit=20&page=1' },
+            ]);
         } finally {
             market.instance.close();
         }
@@ -482,7 +484,7 @@ describe('publish-to-market action', () => {
             );
             assert.equal(result.status, 0, result.stderr);
             assert.equal(requests[0].method, 'GET');
-            assert.equal(requests[0].url, '/api/v1/rest/plugins?q=Published+plugin&limit=20');
+            assert.equal(requests[0].url, '/api/v1/rest/plugins?q=Published+plugin&limit=20&page=1');
             assert.equal(requests[1].method, 'PUT');
             assert.equal(requests[1].url, '/api/plugins/42');
             assert.equal(requests[1].headers.authorization, 'Bearer test-token');

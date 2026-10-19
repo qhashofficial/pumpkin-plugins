@@ -23,9 +23,9 @@ steps:
         - Fix plugin behavior
 ```
 
-The example selects a listing by name. Name lookups search up to 20 Market results for a
-case-insensitive exact match. If your workflow already has the listing's numeric database ID or
-public ID, use `plugin-id` for a direct lookup instead. Set exactly one of `plugin-name` and
+The example selects a listing by name. Name lookups read up to 10 pages of 20 Market search results
+for a case-insensitive exact match. If your workflow already has the listing's numeric database ID
+or public ID, use `plugin-id` for a direct lookup instead. Set exactly one of `plugin-name` and
 `plugin-id`.
 
 The tag in the example is this action's Release Please tag. Action releases are independent of your

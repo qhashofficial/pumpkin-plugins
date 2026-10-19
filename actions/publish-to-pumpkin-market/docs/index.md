@@ -10,8 +10,8 @@ plugin or create its Market listing.
 
 For a workflow example and the complete input and output reference, see the
 [action README](../README.md). Set exactly one of `plugin-name` or `plugin-id` to choose the listing.
-When you use a name, the action searches a bounded set of results and requires a case-insensitive
-exact match. Supply `version` without a leading `v`; you can also set the release track and release
+When you use a name, the action reads up to 10 pages of search results and requires a
+case-insensitive exact match. Supply `version` without a leading `v`; you can also set the release track and release
 notes.
 
 ## Credentials and unavailable listings
