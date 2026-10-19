@@ -25,6 +25,11 @@ within the same block is ignored to avoid repeated world and inventory lookups.
 Either hand can provide light, and the brighter configured item wins. The server world is never
 changed, so no light block can replace terrain or be left behind after a crash.
 
+The light from a held item is shown only to the player holding it. Other players don't see it.
+
+DynamicLightsPumpkin supports Java Edition only. Pumpkin sends client-only block changes only to Java
+clients, so Bedrock players get no light.
+
 Built-in sources, including torches and lava buckets, are listed in `config.toml`. Remove an entry to
 disable it, change its `light_level`, or add any item ID you want to support.
 

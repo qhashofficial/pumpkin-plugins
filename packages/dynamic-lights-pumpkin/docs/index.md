@@ -2,7 +2,11 @@
 
 DynamicLightsPumpkin gives players temporary light from supported held items, dropped items, and
 configured entity types. It sends light-block changes to each player's client; it doesn't change the
-server world. These lights are temporary and may disappear when the client reloads the area.
+server world. These lights are temporary and may disappear when the client reloads the area. The
+light from a held item is shown only to the player holding it; other players don't see it.
+
+The plugin supports Java Edition only. Pumpkin sends client-only block changes only to Java clients,
+so Bedrock players get no light.
 
 Install `dynamic-lights-pumpkin.wasm` in the Pumpkin server's `plugins/` directory and restart. On
 first load, grant the plugin data-folder permissions in the server console. Players can run
