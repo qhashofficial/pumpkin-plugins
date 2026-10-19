@@ -37,7 +37,7 @@ export function renderBlocks(info: PluginInfo): Record<string, string> {
 function renderPermissions(info: PluginInfo): string {
     const permissions = pluginPermissions(info);
     return [
-        'Pumpkin asks for these on the server console the first time the plugin loads.',
+        'Pumpkin asks you to approve these on the server console when it loads the plugin. It skips the question when the `[plugins]` table in `pumpkin.toml` lists all of them in `allowed_permissions` or sets `ask_permission_confirmation = false`. Pumpkin remembers your answer and asks again after the plugin file or this list changes.',
         '',
         table(
             ['Permission', 'Why'],
