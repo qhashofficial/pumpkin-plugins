@@ -30,6 +30,10 @@ export const DEPENDENCY_SECTIONS = [
 /** Source extensions parsed by the migration's TypeScript AST pass. */
 export const SOURCE_EXTENSIONS = new Set(['.cjs', '.cts', '.js', '.jsx', '.mjs', '.mts', '.ts', '.tsx']);
 
+/** Review note for a manifest that gets the new builder's default engine. */
+export const ENGINE_NOTE =
+    'Set pumpkinPlugin.engine to static-hermes, the new default runtime. The old builder ran QuickJS; set it to quickjs to keep the old runtime.';
+
 /** Review notes attached to package manifest changes. */
 export const MIGRATION_NOTES = [
     'Review inferred pumpkinPlugin.wasi capabilities and any static-analysis notes before building.',
