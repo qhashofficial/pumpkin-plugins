@@ -235,7 +235,6 @@ if (previousMatrix && !sameRevision) archiveCompatibilityMatrix(compatibilityDir
 
 const operationInventory = {
     apiPackage: compatibilityMatrix.replacement.package,
-    apiPackageVersion: compatibilityMatrix.replacement.version,
     witPackage: compatibilityMatrix.replacement.witPackage,
     sourceWit: compatibilityMatrix.sourceWit,
     sourceWitSha256: compatibilityMatrix.sourceWitSha256,
