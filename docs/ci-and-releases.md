@@ -423,12 +423,9 @@ A plugin is tracked for releases only when it appears in **both** Release Please
 its path and a reason to `release-please-paused.json`. Write the reason as a full sentence that
 names what blocks the release: the plugin's README shows it in place of the download link, and the
 root README marks the plugin as unreleased. The release-config check verifies that each paused path
-exists and isn't tracked. To resume a package, remove it from the paused file and add it
-to both Release Please files.
-
-A first release has no previous tag to mark the history boundary, so the release helper scans the
-full history. Pausing an unreleased plugin keeps it from triggering that scan on every release run;
-the package stays in the workspace and continues through normal build and test workflows.
+exists and isn't tracked. To resume a package, remove it from the paused file and add it to both
+Release Please files. A paused package stays in the workspace and continues through normal build and
+test workflows.
 
 `pnpm gen` handles release registration for you. If you create a plugin by hand, make these three
 updates:
