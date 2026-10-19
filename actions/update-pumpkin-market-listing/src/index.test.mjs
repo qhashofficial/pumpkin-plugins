@@ -20,7 +20,7 @@ function fixture() {
 
 function run(dir, env = {}) {
     return new Promise((resolve, reject) => {
-        const child = spawn('node', [entrypoint], { cwd: dir, env: { ...process.env, ...env } });
+        const child = spawn(process.execPath, [entrypoint], { cwd: dir, env: childEnv(dir, env) });
         let stdout = '';
         let stderr = '';
         child.stdout.on('data', (chunk) => (stdout += chunk));
@@ -28,6 +28,18 @@ function run(dir, env = {}) {
         child.on('error', reject);
         child.on('close', (status) => resolve({ status, stdout, stderr }));
     });
+}
+
+// Start from a minimal environment so the runner's own INPUT_* and GITHUB_* values can't reach the action.
+function childEnv(dir, env) {
+    const base = { PATH: process.env.PATH, HOME: process.env.HOME };
+    if (process.env.SystemRoot) base.SystemRoot = process.env.SystemRoot;
+    return {
+        ...base,
+        GITHUB_OUTPUT: path.join(dir, 'unread-outputs.txt'),
+        GITHUB_STEP_SUMMARY: path.join(dir, 'unread-summary.md'),
+        ...env,
+    };
 }
 
 function inputs(extra = {}) {
