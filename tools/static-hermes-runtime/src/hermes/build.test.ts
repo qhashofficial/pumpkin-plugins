@@ -7,6 +7,7 @@ import {
     acquireHermesBuildLock,
     buildHermes,
     hermesBuildFingerprint,
+    hermesCMakeCommands,
     requiredHermesArtifacts,
     withHermesBuildLock,
 } from './build.ts';
@@ -40,6 +41,14 @@ it('changes the Hermes build fingerprint when a CMake argument changes', () => {
         original,
     );
     expect(hermesBuildFingerprint({ ...options, gcVariant: 'malloc' })).not.toBe(original);
+});
+
+it('marks only the WASI configure step as a WASI target', () => {
+    const { options } = fixture();
+    const [hostConfigure, , wasiConfigure] = hermesCMakeCommands(options, {});
+
+    expect(wasiConfigure).toContain('-DHERMES_WASI_TARGET=ON');
+    expect(hostConfigure?.some((argument) => argument.startsWith('-DHERMES_WASI_TARGET'))).toBe(false);
 });
 
 it('builds missing archives, reuses a current cache, and rebuilds when settings change', async () => {

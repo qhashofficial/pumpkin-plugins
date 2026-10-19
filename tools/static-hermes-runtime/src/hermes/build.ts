@@ -691,6 +691,8 @@ export function hermesCMakeCommands(options: HermesBuildOptions, environment: No
             'Ninja',
             '-DCMAKE_BUILD_TYPE=MinSizeRel',
             `-DCMAKE_TOOLCHAIN_FILE=${options.toolchainFile}`,
+            // Patch 0001 reads this before project(), when CMAKE_SYSTEM_NAME is not set yet.
+            '-DHERMES_WASI_TARGET=ON',
             `-DWASI_SDK_PREFIX=${options.wasiSdk}`,
             `-DIMPORT_HOST_COMPILERS=${path.join(options.hostBuild, 'ImportHostCompilers.cmake')}`,
             '-DCMAKE_C_FLAGS_MINSIZEREL=-Oz -DNDEBUG -ffunction-sections -fdata-sections',

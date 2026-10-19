@@ -62,7 +62,7 @@ it('does not apply Windows host defines to WASI Hermes builds', () => {
         'utf8',
     );
 
-    expect(patch).toContain('+if (WIN32 AND NOT CMAKE_TOOLCHAIN_FILE MATCHES "wasi-sdk-hermes-p2.cmake")');
+    expect(patch).toContain('+if (WIN32 AND NOT HERMES_WASI_TARGET)');
     expect(patch).toContain('+if (WIN32 AND NOT CMAKE_SYSTEM_NAME STREQUAL "WASI")');
     expect(patch).toContain('-else (WIN32)\n-  if (FUCHSIA OR UNIX)\n+else ()');
     expect(patch).toContain('-  endif (FUCHSIA OR UNIX)\n-endif (WIN32)\n+  endif ()\n+endif ()');
