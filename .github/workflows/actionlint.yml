@@ -25,8 +25,10 @@ jobs:
             - name: 🕶️ Checkout repository
               id: checkout
               uses: actions/checkout@v7.0.1
+              # The scope check needs commit history but no file contents from earlier commits.
               with:
                   fetch-depth: 0
+                  filter: blob:none
 
             - name: 🧭 Check whether workflow lint is needed
               id: scope
