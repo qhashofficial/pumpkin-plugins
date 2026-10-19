@@ -188,20 +188,53 @@ export function findUsedWitMethods({
         } else if (ts.isIdentifier(node)) collectMethod(node);
         if (ts.isNewExpression(node)) collectConstructor(node.expression);
         if (ts.isIdentifier(node) || ts.isPropertyAccessExpression(node)) collectReferencedWitConstructor(node);
-        if (ts.isVariableDeclaration(node) && ts.isObjectBindingPattern(node.name) && node.initializer) {
-            for (const binding of node.name.elements) {
-                if (binding.dotDotDotToken) {
-                    collectAllMembers(checker.getTypeAtLocation(node.initializer), binding.name, node.initializer);
-                    continue;
-                }
-                const name = binding.propertyName ?? binding.name;
-                if (ts.isIdentifier(name) || ts.isStringLiteral(name)) {
-                    if (name.text === 'registerEvent') incompleteEventTypes = true;
-                    collectMethod(name, node.initializer, name.text);
-                } else collectAllMembers(checker.getTypeAtLocation(node.initializer), name, node.initializer);
-            }
-        }
+        if (ts.isObjectBindingPattern(node)) collectDestructuredMembers(node);
+        else if (
+            ts.isBinaryExpression(node) &&
+            node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+            ts.isObjectLiteralExpression(node.left)
+        )
+            collectAssignedMembers(node.left, node.right);
+        else if (isUnsupportedDestructuringTarget(node)) incomplete = true;
         ts.forEachChild(node, visit);
+    }
+
+    /**
+     * Collects members taken from a destructuring pattern in a declaration, parameter, for-of
+     * loop or enclosing pattern, using the type of the value the pattern destructures.
+     */
+    function collectDestructuredMembers(pattern: ts.ObjectBindingPattern): void {
+        const type = checker.getTypeAtLocation(pattern);
+        for (const binding of pattern.elements) {
+            if (binding.dotDotDotToken) {
+                // Members later read from an untyped rest object are collected where they are accessed.
+                if (!(type.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)))
+                    collectAllMembers(type, binding.name, pattern);
+                continue;
+            }
+            const name = binding.propertyName ?? binding.name;
+            if (ts.isIdentifier(name) || ts.isStringLiteral(name)) {
+                if (name.text === 'registerEvent') incompleteEventTypes = true;
+                collectMethod(name, pattern, name.text);
+            } else collectAllMembers(type, name, pattern);
+        }
+    }
+
+    /** Collects members taken by a destructuring assignment such as `({ method } = resource)`. */
+    function collectAssignedMembers(target: ts.ObjectLiteralExpression, source: ts.Expression): void {
+        const type = checker.getTypeAtLocation(source);
+        for (const property of target.properties) {
+            if (ts.isSpreadAssignment(property)) {
+                collectAllMembers(type, property, source);
+                continue;
+            }
+            if (ts.isPropertyAssignment(property) && containsAssignmentPattern(property.initializer)) incomplete = true;
+            const name = property.name;
+            if (name && (ts.isIdentifier(name) || ts.isStringLiteral(name))) {
+                if (name.text === 'registerEvent') incompleteEventTypes = true;
+                collectMethod(name, source, name.text);
+            } else if (name) collectAllMembers(type, name, source);
+        }
     }
 
     function registerEventMember(expression: ts.Expression): string | undefined {
@@ -279,7 +312,7 @@ export function findUsedWitMethods({
         return undefined;
     }
 
-    function collectAllMembers(type: ts.Type, name: ts.Node, receiver: ts.Expression): void {
+    function collectAllMembers(type: ts.Type, name: ts.Node, receiver: ts.Node): void {
         if (type.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) {
             if (!ts.isElementAccessExpression(name.parent) || isUnknownDynamicHostCall(name.parent)) incomplete = true;
             return;
@@ -391,19 +424,25 @@ export function findUsedWitMethods({
         return false;
     }
 
-    function collectMethod(name: ts.Node, receiver?: ts.Expression, memberName?: string): void {
+    function collectMethod(name: ts.Node, receiver?: ts.Node, memberName?: string): void {
         const symbol = checker.getSymbolAtLocation(name);
         const resolvedSymbol =
             symbol && symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
         const declarations = new Set(resolvedSymbol?.declarations ?? []);
         if (receiver && memberName) {
             const receiverType = checker.getTypeAtLocation(receiver);
-            collectInheritedMethodDeclarations(receiverType, memberName, declarations);
-            // Compiled dependency parameters lose their TypeScript resource types. Keep every
+            const members = new Set<ts.Declaration>();
+            collectInheritedMethodDeclarations(receiverType, memberName, members);
+            // Compiled dependency parameters lose their TypeScript resource types, and JavaScript
+            // infers types such as rest objects without the members code reads from them. Keep every
             // matching WIT operation rather than mistaking an unresolved member for unused code.
-            if (receiverType.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) {
-                for (const declaration of witDeclarations.get(memberName) ?? []) declarations.add(declaration);
+            if (
+                receiverType.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown) ||
+                (members.size === 0 && /\.[cm]?jsx?$/.test(receiver.getSourceFile().fileName))
+            ) {
+                for (const declaration of witDeclarations.get(memberName) ?? []) members.add(declaration);
             }
+            for (const member of members) declarations.add(member);
         }
         for (const declaration of declarations) collectWitMethod(declaration);
     }
@@ -576,6 +615,25 @@ export function findUsedWitMethods({
 function tsconfigError(configPath: string, diagnostics: readonly ts.Diagnostic[]): BuildError {
     const messages = diagnostics.map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'));
     return new BuildError(`invalid TypeScript configuration ${configPath}:\n${messages.join('\n')}`);
+}
+
+/**
+ * Finds destructuring assignments whose members the analysis does not follow: object patterns
+ * nested in an array assignment or used as a for-of or for-in target.
+ */
+function isUnsupportedDestructuringTarget(node: ts.Node): boolean {
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+        return ts.isArrayLiteralExpression(node.left) && containsAssignmentPattern(node.left);
+    }
+    if (ts.isForOfStatement(node) || ts.isForInStatement(node)) {
+        return ts.isExpression(node.initializer) && containsAssignmentPattern(node.initializer);
+    }
+    return false;
+}
+
+function containsAssignmentPattern(node: ts.Node): boolean {
+    if (ts.isObjectLiteralExpression(node)) return true;
+    return ts.forEachChild(node, containsAssignmentPattern) ?? false;
 }
 
 function isModuleCall(node: ts.Node): node is ts.CallExpression {

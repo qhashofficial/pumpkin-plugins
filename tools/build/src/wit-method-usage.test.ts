@@ -361,6 +361,62 @@ class RuntimePlugin extends Plugin {
         expect((await analyze(entry))?.pumpkinMethods).toContain('player.player.get-position');
     });
 
+    const playerImport =
+        'import type { Player } from "./build/types/bindings/interfaces/pumpkin-plugin-player"; import * as ipc from "./build/types/bindings/interfaces/pumpkin-plugin-ipc"; declare const player: Player; declare const players: Player[]; declare const holder: { player: Player };';
+    it.each([
+        [
+            'a typed parameter',
+            'function send({ sendIpcMessage }: typeof ipc) { sendIpcMessage("plugin", new Uint8Array()); } send(ipc);',
+            'ipc.send-ipc-message',
+        ],
+        [
+            'a contextually typed parameter',
+            'players.forEach(({ getPosition }) => getPosition.call(player));',
+            'player.player.get-position',
+        ],
+        ['for-of', 'for (const { getPosition } of players) getPosition.call(player);', 'player.player.get-position'],
+        [
+            'a nested pattern',
+            'const { player: { getWorld } } = holder; getWorld.call(player);',
+            'player.player.get-world',
+        ],
+        [
+            'an assignment',
+            'let send; ({ sendIpcMessage: send } = ipc); send("plugin", new Uint8Array());',
+            'ipc.send-ipc-message',
+        ],
+    ])('includes methods destructured in %s', async (_form, usage, method) => {
+        const entry = fixture();
+        fs.writeFileSync(entry, `${playerImport} ${usage}`);
+
+        expect((await analyze(entry))?.pumpkinMethods).toContain(method);
+    });
+
+    it('follows members read from an untyped rest parameter in a JavaScript dependency', async () => {
+        const entry = fixture();
+        fs.writeFileSync(
+            path.join(path.dirname(entry), 'helper.js'),
+            'export function read({ id, ...player }) { return player.getPosition(); }',
+        );
+        fs.writeFileSync(
+            entry,
+            'import type { Player } from "./build/types/bindings/interfaces/pumpkin-plugin-player"; import { read } from "./helper.js"; declare const player: Player; read(player);',
+        );
+
+        expect((await analyze(entry))?.pumpkinMethods).toEqual(['player.player.get-position']);
+    });
+
+    it.each([
+        ['a nested assignment', 'let read; ({ player: { getWorld: read } } = holder); read.call(player);'],
+        ['a for-of assignment', 'let read; for ({ getPosition: read } of players) read.call(player);'],
+        ['an array assignment', 'let read; [{ getPosition: read }] = players; read.call(player);'],
+    ])('falls back to full adapters for methods destructured in %s', async (_form, usage) => {
+        const entry = fixture();
+        fs.writeFileSync(entry, `${playerImport} ${usage}`);
+
+        expect(await analyze(entry)).toBeUndefined();
+    });
+
     it('includes all possible resource methods for a dynamic member key', async () => {
         const entry = fixture();
         fs.writeFileSync(
