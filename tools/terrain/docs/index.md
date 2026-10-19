@@ -17,10 +17,11 @@ If your source provides a column height with `top()` and you identify empty mate
 plugin can spread a large capture across server ticks instead of sampling the whole region at once.
 
 `AdaptiveWorkBudget` chooses a work limit from recent server MSPT and the measured time per work
-unit. Call `observe()` after each step to update its cost estimate, and pass your configured maximum
-to `next()`; the returned limit will not exceed it. The budget leaves a configurable portion of the
-tick for the server and other plugins, making it useful for incremental work that should slow down
-when the server is busy.
+unit. Call `observe()` after each step with the blocks it sampled to update its cost estimate;
+`TerrainCapture.samples()` returns the running total, so the difference across a step is that
+count. Pass your configured maximum to `next()`; the returned limit will not exceed it. The budget
+leaves a configurable portion of the tick for the server and other plugins, making it useful for
+incremental work that should slow down when the server is busy.
 
 ## Chunk access adapters
 
