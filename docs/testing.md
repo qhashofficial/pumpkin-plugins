@@ -7,6 +7,10 @@ description: "Unit tests and integration tests against a real Pumpkin server"
 
 # Testing
 
+This guide explains how to run the two kinds of tests and what the harness does. Which kind to write
+for a change, and when, is set by the repository's
+[testing policy](https://github.com/filiphsps/pumpkin-plugins/blob/master/AGENTS.md#testing-policy).
+
 Plugin packages use `definePluginVitestConfig()` from `@pumpkin-plugins/test-harness/vitest` to
 define two Vitest projects:
 
