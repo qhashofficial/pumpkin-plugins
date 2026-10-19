@@ -77,7 +77,8 @@ unchanged text is not resent for appearance-only updates.
 This approximates a first-person HUD: network latency, client view bobbing, and third-person camera
 offsets can still affect alignment. The server cannot read client FOV or reliably detect Java item-use
 state, so spyglass and modded zoom enlarge the labels. Other Java protocol versions do not receive the
-HUD. This HUD supports Java clients only. Waypoints does not currently render Bedrock HUDs.
+HUD; the server log notes each such player once per session.
+This HUD supports Java clients only. Waypoints does not currently render Bedrock HUDs.
 Icons use vanilla atlas textures; block items use a representative model texture, and custom item IDs
 require the corresponding `item/<path>` sprite in the client's resource pack.
 
