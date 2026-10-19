@@ -315,13 +315,13 @@ own repository-scoped token. The release-PR job uses its token to push prepared 
 updates, which then trigger normal pull request checks. The benchmark-comment job uses its token to
 read artifacts from earlier runs and publish the SVG as a GitHub attachment in the PR comment.
 
-`scripts/release.mjs` runs the pinned Release Please version through `pnpm dlx` and applies the
-pre-1.0.0 version policy to every configured component. Below `1.0.0`, breaking changes bump the
-minor version (`0.0.8` to `0.1.0`), while features, fixes and performance improvements bump the
-patch. At `1.0.0` and later, normal SemVer applies: breaking changes bump major, features bump minor,
-and fixes and performance improvements bump patch. The release-config check requires
-`bump-minor-pre-major` and `bump-patch-for-minor-pre-major` and rejects package overrides that turn
-either option off.
+`scripts/release.mjs` runs the pinned Release Please version through `pnpm dlx`. The root of
+`release-please-config.json` sets the pre-1.0.0 version policy for every configured component.
+Below `1.0.0`, breaking changes bump the minor version (`0.0.8` to `0.1.0`), while features, fixes
+and performance improvements bump the patch. At `1.0.0` and later, normal SemVer applies: breaking
+changes bump major, features bump minor, and fixes and performance improvements bump patch. The
+release-config check requires `bump-minor-pre-major` and `bump-patch-for-minor-pre-major` and
+rejects package overrides that turn either option off.
 
 Before Release Please calculates versions and changelogs, `scripts/utils/release-commits.mjs` adds
 shared commits through its plugin hook. If a shipped dependency changes, every plugin that bundles

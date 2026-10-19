@@ -41,19 +41,7 @@ const commitFilesCache = process.env.RELEASE_COMMIT_FILES_CACHE
 const branch = github.repository.defaultBranch;
 const repositoryRoot = resolve(import.meta.dirname, '..');
 const packages = workspacePackages(repositoryRoot);
-const load = async () => {
-    const manifest = await Manifest.fromManifest(
-        github,
-        branch,
-        'release-please-config.json',
-        '.release-please-manifest.json',
-    );
-    for (const config of Object.values(manifest.repositoryConfig)) {
-        config.bumpMinorPreMajor = true;
-        config.bumpPatchForMinorPreMajor = true;
-    }
-    return manifest;
-};
+const load = () => Manifest.fromManifest(github, branch, 'release-please-config.json', '.release-please-manifest.json');
 const outputs = {
     paths_released: '[]',
     action_paths_released: '[]',
