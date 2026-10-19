@@ -69,7 +69,7 @@ class DistantHorizonsSupportPumpkin extends PluginBase {
             try {
                 withPlayer(event.player, settings, (peer) => sessions.receive(peer, event.data));
             } catch (err) {
-                sessions.left(event.player.getName());
+                sessions.endSession(event.player.getName());
                 hostLogger.warn(`${PLUGIN_NAME}: cannot open DH session: ${String(err)}`);
             }
         });
