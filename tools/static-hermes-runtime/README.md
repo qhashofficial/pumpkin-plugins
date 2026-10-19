@@ -235,10 +235,12 @@ direct codegen can select operations with `--api-methods`, and omission includes
 operations. Event conversion keeps complete payload fields for statically registered event types;
 dynamic or unresolved registrations retain every event case and payload field.
 
-The native JSI shim implements part of the Pumpkin API: plugin lifecycle and metadata, command and
-task dispatch, event registration and dispatch, selected server/player/world methods, logging,
-scheduling, and Java custom payloads. Calls outside that supported subset are not available through
-Static Hermes.
+The runtime generator emits a JSI host function and a JavaScript facade for every operation in the
+pinned Pumpkin API WIT. A component includes the operations that source analysis selects, or all of
+them when the selection is unknown. If a selected operation uses a WIT type that has no adapter, the
+build fails and the error names the operation. Limits on the host side are documented separately;
+for example, the pinned Pumpkin host does not start custom AI goals, as the
+[runtime documentation](docs/index.md) explains.
 
 The generated Pumpkin API facades reject host calls during `on_unload`, except
 `scheduler.cancel-task`, which plugins need to stop scheduled callbacks. Cancel scheduled tasks and
