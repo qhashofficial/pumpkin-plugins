@@ -51,16 +51,30 @@ export function compileTemplate(source: string): CompiledTemplate {
     };
 }
 
-/** Renders one provider result as literal text, applying fallback only to unresolved tokens. */
+/**
+ * Renders one provider result as literal text, applying fallback only to unresolved tokens.
+ *
+ * @param builtins - Values used for matching tokens when there is no provider result, so common
+ * tokens such as `%player_name%` still render without PumpkinPIE.
+ */
 export function renderTemplate(
     template: CompiledTemplate,
     resolution: ResolvedLine | undefined,
     fallback: PlaceholderFallback,
     providerAvailable: boolean,
+    builtins: ReadonlyMap<string, string> = new Map(),
 ): string {
     if (!template.hasPlaceholders) return template.source;
     if (!providerAvailable || resolution === undefined) {
-        return bounded(fallback === 'literal' ? template.source : withoutPlaceholders(template));
+        return bounded(
+            template.parts
+                .map((part) =>
+                    part.kind === 'literal'
+                        ? part.text
+                        : (builtins.get(part.id) ?? (fallback === 'literal' ? part.token : '')),
+                )
+                .join(''),
+        );
     }
 
     const unresolved = new Set(resolution.unresolved);
@@ -71,10 +85,6 @@ export function renderTemplate(
         }
     }
     return bounded(rendered);
-}
-
-function withoutPlaceholders(template: CompiledTemplate): string {
-    return template.parts.map((part) => (part.kind === 'literal' ? part.text : '')).join('');
 }
 
 function bounded(text: string): string {

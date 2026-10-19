@@ -60,7 +60,7 @@ Settings live in `plugins/data/TabDisplay/config.toml`. The plugin creates the f
 | `general.refresh_ticks` | integer | `20` | Ticks between full display refreshes. |
 | `general.max_players` | integer | `500` | Maximum player snapshots processed per refresh. |
 | `placeholders.provider` | string | `"PumpkinPIE"` | Pumpkin plugin that supplies placeholder values. |
-| `placeholders.missing_provider` | string | `"literal"` | Text to show when PumpkinPIE is unavailable: `literal` keeps tokens, `empty` removes them. |
+| `placeholders.missing_provider` | string | `"literal"` | Text to show for tokens other than `%player_name%` and `%server_online%` when PumpkinPIE is unavailable: `literal` keeps them, `empty` removes them. |
 | `placeholders.unresolved` | string | `"literal"` | Text to show for unresolved identifiers: `literal` keeps tokens, `empty` removes them. |
 | `header.lines` | table[] | `[{ text = "Welcome %player_name%", color = "#FFB347" }]` | Header lines in display order. Use a TOML array of inline tables, for example [{ text = "Welcome %player_name%", color = "#FFB347" }]. |
 | `footer.lines` | table[] | `[{ text = "%server_online% players online", color = "#AAAAAA" }]` | Footer lines in display order. Use a TOML array of inline tables, for example [{ text = "%server_online% players online", color = "#AAAAAA" }]. |
@@ -102,7 +102,8 @@ max_players = 500
 # Pumpkin plugin that supplies placeholder values.
 provider = "PumpkinPIE"
 
-# Text to show when PumpkinPIE is unavailable: `literal` keeps tokens, `empty` removes them.
+# Text to show for tokens other than `%player_name%` and `%server_online%` when PumpkinPIE is
+# unavailable: `literal` keeps them, `empty` removes them.
 missing_provider = "literal"
 
 # Text to show for unresolved identifiers: `literal` keeps tokens, `empty` removes them.

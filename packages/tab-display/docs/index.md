@@ -30,8 +30,8 @@ fields to Bedrock players or modify names, scores, identities, skins or roster m
 PumpkinPIE is an optional external plugin, built and released separately from TabDisplay. TabDisplay
 talks to the configured plugin name through the shared PumpkinPIE client API and does not require
 the provider as plugin metadata. If it is absent, the display
-commands still work and templates use the configured `placeholders.missing_provider` fallback
-(`literal` by default, or `empty`). Once the provider returns, one shared session resumes bounded
+commands still work, `%player_name%` and `%server_online%` are filled in by TabDisplay, and other
+tokens follow `placeholders.missing_provider` (`literal` by default, or `empty`). Once the provider returns, one shared session resumes bounded
 placeholder work. Unknown identifiers follow `placeholders.unresolved`.
 
 Install only a PumpkinPIE artifact compatible with the server and plugin API versions. Confirm its
