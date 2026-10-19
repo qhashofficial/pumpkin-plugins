@@ -70,7 +70,8 @@ skip the integration job.
 `@pumpkin-plugins/test-harness` starts a real server for each test file. It uses a temporary
 directory and free ports, and turns off plugin permission prompts and telemetry. The harness sets
 `RUST_LOG=info` for Pumpkin so readiness checks and assertions can see startup and plugin INFO logs,
-even if your shell uses a stricter log filter:
+even if your shell uses a stricter log filter. Pass `logLevel: 'debug'` to `startPumpkin` when a test
+waits on a plugin's debug logs:
 
 ```ts
 // packages/<folder>/test/my.itest.ts
