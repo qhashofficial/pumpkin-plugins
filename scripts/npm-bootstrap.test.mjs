@@ -276,6 +276,29 @@ describe('npm first-release bootstrap', () => {
         assert.equal(fixture.events.removed.length, 1);
     });
 
+    it('downloads the tagged source from the repository named in the root package.json', async () => {
+        const fixture = makeFixture({ packagePath: 'tools/docs' });
+        const forkRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'npm-bootstrap-fork-'));
+        temporaryDirectories.push(forkRoot);
+        fs.writeFileSync(
+            path.join(forkRoot, 'package.json'),
+            JSON.stringify({ repository: { url: 'git+https://github.com/example-owner/example-fork.git' } }),
+        );
+        for (const file of ['.node-version', 'release-please-config.json']) {
+            fs.copyFileSync(path.join(root, file), path.join(forkRoot, file));
+        }
+        fs.mkdirSync(path.join(forkRoot, 'tools/docs'), { recursive: true });
+        fs.writeFileSync(path.join(forkRoot, 'tools/docs/package.json'), JSON.stringify(manifest('tools/docs')));
+        fixture.adapters.root = forkRoot;
+
+        await bootstrapFixture(fixture, { dryRun: true });
+
+        assert.equal(
+            fixture.events.fetch[0],
+            'https://codeload.github.com/example-owner/example-fork/tar.gz/refs/tags/docs-v0.1.0',
+        );
+    });
+
     it('rejects archive traversal entries before extracting them', async () => {
         const unsafeArchives = [
             ['pumpkin-plugins-pumpkin-api-v0.1.0/', 'pumpkin-plugins-pumpkin-api-v0.1.0/../../outside'],
