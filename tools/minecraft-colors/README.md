@@ -7,7 +7,7 @@
 Format Minecraft chat text and server-console output with familiar Chalk-style color chains. The package has no runtime dependencies.
 
 ```ts
-import { ansi, color, colorTable, minecraftColorTable } from '@pumpkin-plugins/minecraft-colors';
+import { ansi, ansiColorTable, color, minecraftColorTable } from '@pumpkin-plugins/minecraft-colors';
 
 console.log(`Memory cache: ${color.aqua('100 B')}`);
 console.log(color.gold.bold('The server is restarting'));
@@ -15,7 +15,7 @@ console.log(color.hex('#12abef').underline('Custom color'));
 console.log(color.named.name('Pumpkin'));
 console.log(color.named.permission('plugin.manage'));
 console.log(ansi.named.name('Pumpkin')); // ANSI color for console logs.
-console.log(colorTable()); // Terminal palette for debugging.
+console.log(ansiColorTable()); // Terminal palette for debugging.
 console.log(minecraftColorTable()); // Legacy codes for Minecraft text.
 ```
 
@@ -33,9 +33,13 @@ color wins. Invalid hex colors throw a `RangeError`.
 
 Use `color.named` for common value roles: `value` is gold, `name` and `url` are dark aqua,
 `namespace` is dark green, `version` is green, `number` is blue, `permission` is bold yellow,
-`port`, `uuid` and `identifier` are yellow, and `error` is bold dark red. `colorTable()` returns a
-multiline terminal table with every color shown in its own color, both normally and in bold.
-`minecraftColorTable()` returns the same table with Minecraft legacy codes.
+`port`, `uuid` and `identifier` are yellow, and `error` is bold dark red. `ansiColorTable()` returns
+a multiline terminal table with every color shown in its own color, both normally and in bold.
+`minecraftColorTable()` returns the same table with Minecraft legacy codes. `colorTable()` is a
+deprecated alias of `ansiColorTable()`.
+
+The `TextFormatter` and `ColorApi` types describe the formatters, so a function can take `color`,
+`ansi` or any chained formatter as a parameter.
 
 Pumpkin's native `TextComponent` API can style components directly with named colors, RGB, gradients
 and rainbow effects. The plugin-kit command helpers parse returned strings with
