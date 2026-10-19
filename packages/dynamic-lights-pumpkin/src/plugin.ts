@@ -47,6 +47,7 @@ class DynamicLightsPumpkin extends PluginBase {
     private droppedItemLevels: DroppedItemLightLevels | undefined;
     private preferences: PlayerLightPreferences | undefined;
     private entityTask: number | undefined;
+    private started = false;
     private readonly playerBlockPositions = new Map<string, BlockPosition>();
     private readonly playerWorlds = new Map<string, string>();
     private readonly pendingSyncs = new Map<string, number>();
@@ -169,25 +170,41 @@ class DynamicLightsPumpkin extends PluginBase {
             'lowest',
         );
         this.registerEvent(ctx, 'server-load-event', (server: Server) => {
-            const worlds = server.getAllWorlds();
-            let recovered: number;
-            try {
-                recovered = journal.recover(worlds.map((world) => new PumpkinLightWorld(world)));
-            } finally {
-                for (const world of worlds) disposeWasiResource(world);
-            }
-            if (recovered > 0)
-                logging.log(
-                    'warn',
-                    `${ansi.named.name(info.name)} restored ${ansi.named.number(recovered)} stale temporary light level${recovered === 1 ? '' : 's'}`,
-                );
-            const players = server.getAllPlayers();
-            try {
-                for (const player of players) this.syncPlayer(player);
-            } finally {
-                for (const player of players) disposeWasiResource(player);
-            }
+            this.start(server, journal);
         });
+        // `/plugin load` and hot reload don't fire server-load-event, so start now if players are online.
+        const server = ctx.getServer();
+        try {
+            const players = server.getAllPlayers();
+            for (const player of players) disposeWasiResource(player);
+            if (players.length > 0) this.start(server, journal);
+        } finally {
+            disposeWasiResource(server);
+        }
+    }
+
+    /** Repairs lights left by earlier versions and lights the players already online, once per load. */
+    private start(server: Server, journal: LightJournal): void {
+        if (this.started) return;
+        this.started = true;
+        const worlds = server.getAllWorlds();
+        let recovered: number;
+        try {
+            recovered = journal.recover(worlds.map((world) => new PumpkinLightWorld(world)));
+        } finally {
+            for (const world of worlds) disposeWasiResource(world);
+        }
+        if (recovered > 0)
+            logging.log(
+                'warn',
+                `${ansi.named.name(info.name)} restored ${ansi.named.number(recovered)} stale temporary light level${recovered === 1 ? '' : 's'}`,
+            );
+        const players = server.getAllPlayers();
+        try {
+            for (const player of players) this.syncPlayer(player);
+        } finally {
+            for (const player of players) disposeWasiResource(player);
+        }
     }
 
     /** Tracks dropped items for the entity refresh, with `lowest` priority as for the drop event. */
