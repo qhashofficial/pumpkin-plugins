@@ -89,7 +89,7 @@ to all three families.
 | `z` | Saved Z coordinate. | locale-independent number; negative zero is 0 |
 | `distance` | Raw three-dimensional distance. | blocks to one decimal, no suffix |
 | `distance_horizontal` | Raw X/Z distance. | blocks to one decimal, no suffix |
-| `distance_formatted` | Human-readable distance. | rounded integer meters below 1000 blocks; otherwise one decimal kilometer |
+| `distance_formatted` | Human-readable distance. | whole meters while it rounds below 1000; otherwise kilometers to one decimal |
 | `delta_x` | Destination X minus viewer X. | blocks to one decimal |
 | `delta_y` | Destination Y minus viewer Y. | blocks to one decimal |
 | `delta_z` | Destination Z minus viewer Z. | blocks to one decimal |
