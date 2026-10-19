@@ -14,9 +14,6 @@ import {
 /** Command resources from the pinned WIT API used while building a tree. */
 export type CommandNodeLike = Command | CommandNode;
 
-/** An argument node that can request dynamic completions. */
-export type CommandArgumentNodeLike = CommandNode;
-
 /** The input context Pumpkin provides when a client requests argument suggestions. */
 export interface CommandSuggestionRequest {
     readonly cursor: number;
@@ -31,7 +28,7 @@ export type CommandSuggestionHandler<Sender> = (sender: Sender, request: Command
 /** What building commands needs from the host. `registerCommands` implements it with Pumpkin's command classes. */
 export interface CommandHost<Sender> {
     /** Creates a typed argument below a node. */
-    argument(spec: CommandArgumentSpec): CommandArgumentNodeLike;
+    argument(spec: CommandArgumentSpec): CommandNode;
     /** Makes the running command fail with a message, the way the server reports a failed command. Never returns. */
     fail(text: string): never;
     /** Checks whether a sender has a command permission. */
