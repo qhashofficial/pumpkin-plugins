@@ -49,22 +49,37 @@ jobs:
               if: startsWith(matrix.variant, 'static-hermes-')
               uses: ./.github/common/setup-static-hermes
 
+            - name: 🏗️ Verify Static Hermes is prepared
+              id: verify-static-hermes-is-prepared
+              if: startsWith(matrix.variant, 'static-hermes-')
+              run: pnpm --filter @pumpkin-plugins/static-hermes-runtime prepare-hermes
+
             # The shared snapshot contains Hades. Keep malloc's separate archives and fingerprint
             # so each variant can reuse compilation without replacing that immutable snapshot.
-            - name: 💾 Cache malloc Static Hermes build
+            # Building malloc reconfigures the shared host build, which rewrites its compiler export,
+            # and the malloc fingerprint records that file. Restore it only after the Hades check
+            # above, which would otherwise see a changed host build and rebuild Hades.
+            - name: 💾 Restore and save malloc Static Hermes build
               id: cache-malloc-static-hermes-build
-              if: contains(matrix.variant, '-malloc-')
+              if: contains(matrix.variant, '-malloc-') && steps.bootstrap.outputs.save-caches == 'true'
               uses: actions/cache@v6.1.0
               with:
                   path: |
                       .cache/hermes/build-wasip2-malloc
                       .cache/hermes/prepared-build-malloc.json
-                  key: ${{ steps.setup-hermes.outputs.hermes-cache-key }}-benchmark-malloc-v1
+                      .cache/hermes/build-host/ImportHostCompilers.cmake
+                  key: ${{ steps.setup-hermes.outputs.hermes-cache-key }}-benchmark-malloc-v2
 
-            - name: 🏗️ Verify Static Hermes is prepared
-              id: verify-static-hermes-is-prepared
-              if: startsWith(matrix.variant, 'static-hermes-')
-              run: pnpm --filter @pumpkin-plugins/static-hermes-runtime prepare-hermes
+            - name: 💾 Restore malloc Static Hermes build
+              id: restore-malloc-static-hermes-build
+              if: contains(matrix.variant, '-malloc-') && steps.bootstrap.outputs.save-caches != 'true'
+              uses: actions/cache/restore@v6.1.0
+              with:
+                  path: |
+                      .cache/hermes/build-wasip2-malloc
+                      .cache/hermes/prepared-build-malloc.json
+                      .cache/hermes/build-host/ImportHostCompilers.cmake
+                  key: ${{ steps.setup-hermes.outputs.hermes-cache-key }}-benchmark-malloc-v2
 
             - name: 📊 Run benchmark variant
               id: run-benchmark-variant

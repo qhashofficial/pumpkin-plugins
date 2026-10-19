@@ -61,28 +61,46 @@ it('keeps parallel benchmark caches distinct and restores the same variant acros
 it('persists malloc archives independently of the immutable shared Hades snapshot', () => {
     const steps = comparison.jobs.benchmark.steps;
     const setup = steps.find((step) => step.uses === './.github/common/setup-static-hermes');
-    const cache = steps.find((step) => step.with?.path?.includes('build-wasip2-malloc'));
-    assert.ok(cache, 'malloc compilation must survive the benchmark runner');
-    assert.ok(steps.indexOf(cache) > steps.indexOf(setup), 'restore malloc after the shared snapshot');
-    assert.ok(steps.indexOf(cache) < steps.findIndex((step) => step.env?.ENGINE_COMPARISON_VARIANT));
+    const bootstrapStep = steps.find((step) => step.uses === './.github/common/bootstrap');
+    const hadesCheck = steps.find((step) => step.run?.includes('prepare-hermes'));
+    const caches = steps.filter((step) => step.with?.path?.includes('build-wasip2-malloc'));
+    assert.ok(caches.length > 0, 'malloc compilation must survive the benchmark runner');
 
-    const enabled = (variant) => runInNewContext(cache.if, { matrix: { variant }, contains: (a, b) => a.includes(b) });
-    assert.equal(enabled('static-hermes-full-malloc-js'), true);
-    assert.equal(enabled('static-hermes-lean-malloc-ts'), true);
-    assert.equal(enabled('static-hermes-full-hades-js'), false);
-    assert.equal(enabled('quickjs'), false);
+    const cachesFor = (variant, save) =>
+        caches
+            .filter(
+                (step) =>
+                    expand(`\${{ ${step.if} }}`, {
+                        matrix: { variant },
+                        contains: (a, b) => a.includes(b),
+                        steps: { [bootstrapStep.id]: { outputs: { 'save-caches': String(save) } } },
+                    }) === 'true',
+            )
+            .map((step) => step.uses.replace(/@.*/, ''));
+    assert.deepEqual(cachesFor('static-hermes-full-malloc-js', true), ['actions/cache']);
+    assert.deepEqual(cachesFor('static-hermes-lean-malloc-ts', false), ['actions/cache/restore']);
+    assert.deepEqual(cachesFor('static-hermes-full-hades-js', true), []);
+    assert.deepEqual(cachesFor('quickjs', true), []);
 
-    const key = (pin) => expand(cache.with.key, { steps: { [setup.id]: { outputs: { 'hermes-cache-key': pin } } } });
-    assert.notEqual(key('pinned-runtime-a'), 'pinned-runtime-a', 'never overwrite the Hades cache');
-    assert.notEqual(
-        key('pinned-runtime-a'),
-        key('pinned-runtime-b'),
-        'runtime changes must invalidate malloc archives',
-    );
-    assert.ok(
-        cache.with.path.includes('prepared-build-malloc.json'),
-        'retain the fingerprint used to skip compilation',
-    );
+    const key = (cache, pin) =>
+        expand(cache.with.key, { steps: { [setup.id]: { outputs: { 'hermes-cache-key': pin } } } });
+    for (const cache of caches) {
+        // The malloc fingerprint records the host compiler export that its build rewrites.
+        assert.ok(steps.indexOf(cache) > steps.indexOf(hadesCheck), 'restore malloc after the Hades check');
+        assert.ok(steps.indexOf(cache) < steps.findIndex((step) => step.env?.ENGINE_COMPARISON_VARIANT));
+        assert.ok(cache.with.path.includes('build-host/ImportHostCompilers.cmake'), 'keep the host export it records');
+        assert.ok(
+            cache.with.path.includes('prepared-build-malloc.json'),
+            'retain the fingerprint used to skip compilation',
+        );
+        assert.notEqual(key(cache, 'pinned-runtime-a'), 'pinned-runtime-a', 'never overwrite the Hades cache');
+        assert.notEqual(
+            key(cache, 'pinned-runtime-a'),
+            key(cache, 'pinned-runtime-b'),
+            'runtime changes must invalidate malloc archives',
+        );
+        assert.equal(key(cache, 'pin'), key(caches[0], 'pin'), 'restore the entry that default-branch runs save');
+    }
 });
 
 /** Returns the `uses` of the bootstrap cache steps that run for one event, keyed by cached path. */
