@@ -5,7 +5,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { getNpmRegistryIntegrity, publishToolPackages } from './publish-tool-packages.mjs';
+import { getNpmRegistryIntegrity, npmDistTag, publishToolPackages } from './publish-tool-packages.mjs';
 import { nodeEngineRange } from './utils/tool-packages.mjs';
 
 const roots = [];
@@ -131,7 +131,7 @@ describe('publishToolPackages', () => {
         fs.chmodSync(npmPath, 0o755);
 
         const moduleUrl = new URL('./publish-tool-packages.mjs', import.meta.url).href;
-        const call = `import { publishNpmTarball } from ${JSON.stringify(moduleUrl)};\npublishNpmTarball(${JSON.stringify({ tarballPath })});`;
+        const call = `import { publishNpmTarball } from ${JSON.stringify(moduleUrl)};\npublishNpmTarball(${JSON.stringify({ tarballPath, distTag: 'backfill' })});`;
         const result = spawnSync(process.execPath, ['--input-type=module', '--eval', call], {
             encoding: 'utf8',
             env: {
@@ -144,7 +144,17 @@ describe('publishToolPackages', () => {
         assert.equal(result.status, 0, result.stderr);
         const [workingDirectory, ...args] = fs.readFileSync(recordPath, 'utf8').trimEnd().split('\n');
         assert.equal(fs.realpathSync(workingDirectory), fs.realpathSync(tarballDirectory));
-        assert.deepEqual(args, ['publish', tarballPath, '--access', 'public', '--provenance']);
+        assert.deepEqual(args, ['publish', tarballPath, '--access', 'public', '--provenance', '--tag', 'backfill']);
+    });
+
+    it('moves latest only for a version above the current latest release', () => {
+        assert.equal(npmDistTag('0.1.0', undefined), 'latest');
+        assert.equal(npmDistTag('0.2.0', '0.1.5'), 'latest');
+        assert.equal(npmDistTag('0.1.10', '0.1.9'), 'latest');
+        assert.equal(npmDistTag('0.1.3', '0.1.5'), 'backfill');
+        assert.equal(npmDistTag('0.1.9', '0.1.10'), 'backfill');
+        assert.equal(npmDistTag('0.2.0+build-1', '0.1.5'), 'latest');
+        assert.throws(() => npmDistTag('0.2.0-rc.1', '0.1.5'), /prerelease/);
     });
 
     it('reads an exact version integrity from one npm packument request', async () => {
