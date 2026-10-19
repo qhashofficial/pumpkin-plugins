@@ -57,7 +57,7 @@ export function readManifest(zip: Uint8Array | ByteSource): PackManifest {
     try {
         json = JSON.parse(stripJsonComments(strFromU8(bytes)));
     } catch {
-        throw new ManifestError(`${manifest.name} is not valid JSON (encrypted packs are not supported)`);
+        throw new ManifestError(`${manifest.name} is not valid JSON`);
     }
     return fromJson(json);
 }

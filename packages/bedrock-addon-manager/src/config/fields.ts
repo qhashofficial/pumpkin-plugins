@@ -33,16 +33,11 @@ export function ipv4Address(options: FieldOptions & { default: string }): Field<
 
 /**
  * An `http://` or `https://` URL setting. Trailing slashes are removed.
- * @param options - Description, default and whether an empty value is allowed.
+ * @param options - Description, optional default and whether an empty value is allowed.
  * @returns The field.
  */
 export function httpUrl(options: FieldOptions & { default: string; allowEmpty?: boolean }): Field<string>;
 export function httpUrl(options: FieldOptions & { allowEmpty?: boolean }): Field<string | undefined>;
-/**
- * An `http://` or `https://` URL setting. Trailing slashes are removed.
- * @param options - Description, optional default and whether an empty value is allowed.
- * @returns The field.
- */
 export function httpUrl(options: FieldOptions & { default?: string; allowEmpty?: boolean }): Field<string | undefined> {
     const { allowEmpty, ...rest } = options;
     return str({
@@ -58,7 +53,7 @@ export function httpUrl(options: FieldOptions & { default?: string; allowEmpty?:
 
 /**
  * An `http://` or `https://` base URL setting. Query strings and fragments are not allowed.
- * @param options - Description, default and whether an empty value is allowed.
+ * @param options - Description, optional default and whether an empty value is allowed.
  * @returns The field.
  */
 export function httpBaseUrl(options: FieldOptions & { default: string; allowEmpty?: boolean }): Field<string>;
