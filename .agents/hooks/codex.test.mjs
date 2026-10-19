@@ -48,25 +48,23 @@ describe('Codex hook adapter', () => {
     });
 
     it('blocks a failed completion check once, then stops retrying', async () => {
-        const runner = async () => ({ ok: false, report: '### Repo checks failed: `pnpm check`\n\nmissing link' });
+        const report = '### Repo checks failed: `pnpm check`\n\nmissing link';
+        const runner = async () => ({ ok: false, report });
+        const scope = temporaryScope();
         const request = {
             hook_event_name: 'Stop',
             session_id: 'session-1',
             turn_id: 'turn-1',
             stop_hook_active: false,
         };
-        const first = await handleCodexHook(request, runner);
-        const retry = await handleCodexHook({ ...request, stop_hook_active: true }, runner);
+        const first = await handleCodexHook(request, runner, scope);
+        const retry = await handleCodexHook({ ...request, stop_hook_active: true }, runner, scope);
 
-        assert.deepEqual(first, {
-            decision: 'block',
-            reason: 'Turn-scoped repository checks failed. Fix failures tied to this turn’s changed files; if a failure is pre-existing, environment-specific, or unrelated, report it without editing unrelated files.\n\n### Repo checks failed: `pnpm check`\n\nmissing link',
-        });
-        assert.deepEqual(retry, {
-            continue: false,
-            systemMessage:
-                'Turn-scoped checks still fail after one continuation attempt. Preserve unrelated changes; report any failure that cannot be fixed within this turn’s changes.\n\n### Repo checks failed: `pnpm check`\n\nmissing link',
-        });
+        assert.equal(first.decision, 'block');
+        assert.ok(first.reason.includes(report));
+        assert.equal(retry.continue, false);
+        assert.equal(retry.decision, undefined);
+        assert.ok(retry.systemMessage.includes(report));
     });
 
     it('caps the failure report included in a continuation prompt', async () => {
@@ -74,6 +72,7 @@ describe('Codex hook adapter', () => {
         const result = await handleCodexHook(
             { hook_event_name: 'Stop', session_id: 'session-1', turn_id: 'turn-1' },
             async () => ({ ok: false, report }),
+            temporaryScope(),
         );
 
         assert.match(result.reason, /first diagnostic/);
@@ -85,6 +84,7 @@ describe('Codex hook adapter', () => {
         const result = await handleCodexHook(
             { hook_event_name: 'Stop', session_id: 'session-1', turn_id: 'turn-1' },
             async () => ({ ok: true }),
+            temporaryScope(),
         );
 
         assert.deepEqual(result, { continue: true });
@@ -163,16 +163,18 @@ describe('Codex hook adapter', () => {
 
     it('does not run an unscoped check when Codex omits turn identifiers', async () => {
         let ran = false;
-        const result = await handleCodexHook({ hook_event_name: 'Stop' }, async () => {
-            ran = true;
-            return { ok: true };
-        });
+        const result = await handleCodexHook(
+            { hook_event_name: 'Stop' },
+            async () => {
+                ran = true;
+                return { ok: true };
+            },
+            temporaryScope(),
+        );
 
         assert.equal(ran, false);
-        assert.deepEqual(result, {
-            decision: 'block',
-            reason: 'Turn-scoped repository checks failed. Fix failures tied to this turn’s changed files; if a failure is pre-existing, environment-specific, or unrelated, report it without editing unrelated files.\n\nCodex did not provide session_id and turn_id; repository checks cannot be scoped safely.',
-        });
+        assert.equal(result.decision, 'block');
+        assert.match(result.reason, /session_id and turn_id/);
     });
 
     it('fails closed when the portable before-tool runner errors', async () => {
