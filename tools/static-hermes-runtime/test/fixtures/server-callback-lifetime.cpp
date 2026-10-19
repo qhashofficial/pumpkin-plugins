@@ -63,6 +63,7 @@ Object makeEvent(Runtime &runtime, plugin_event_t *, std::vector<std::shared_ptr
 void returnEvent(Runtime &, const Value &, plugin_event_t *, plugin_event_t *,
                  std::vector<std::shared_ptr<ResourceState>> *) {}
 void logPluginError(const char *) {}
+void initializeRuntime() {}
 
 Value retainedServer;
 bool dropDuringCallback = false;

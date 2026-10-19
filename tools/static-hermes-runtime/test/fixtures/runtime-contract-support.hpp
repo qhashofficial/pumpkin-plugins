@@ -10,7 +10,12 @@
 #include <utility>
 #include <vector>
 
-class Runtime {};
+class Object;
+
+class Runtime {
+  public:
+    Object global();
+};
 
 inline Runtime *jsRuntime = nullptr;
 
@@ -148,6 +153,11 @@ class Array {
   private:
     std::shared_ptr<ObjectData> data_;
 };
+
+inline Object Runtime::global() {
+    static Object globalObject;
+    return globalObject;
+}
 
 inline Value::Value(Object value) : kind(Kind::Object), object(value.data()) {}
 
