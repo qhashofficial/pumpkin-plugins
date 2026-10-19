@@ -227,6 +227,23 @@ describe('/wp handlers', () => {
         expect(catalog.getByName('Base')?.access.grants).toEqual([]);
     });
 
+    it('reports unavailable storage from the access commands', () => {
+        const { runtime, sender } = setup(true);
+        const files = new MemoryFiles();
+        files.put('waypoints.json', 'not json');
+        const handlers = commandHandlers({
+            ...runtime,
+            catalog: new WaypointCatalog(new WaypointStore(files, new MemoryLogger())),
+        });
+        const storageError = [{ text: expect.stringContaining('storage is unavailable'), tone: 'error' }];
+
+        expect(handlers['wp access list <name>'](sender, { name: 'Spawn' })).toEqual(storageError);
+        expect(handlers['wp access public <name>'](sender, { name: 'Spawn' })).toEqual(storageError);
+        expect(
+            handlers['wp access grant permission <name> <permission>'](sender, { name: 'Spawn', permission: 'a:b' }),
+        ).toEqual(storageError);
+    });
+
     it('refuses waypoint management without the admin permission, even for operators', () => {
         const { catalog, handlers, sender } = setup(true, undefined, false);
 
