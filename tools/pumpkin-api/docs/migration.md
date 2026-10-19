@@ -16,12 +16,12 @@ Each compatibility entry records the source package version it audits, its suppo
 
 | Source baseline | Pumpkin release | Audited API surface | Details |
 | --- | --- | --- | --- |
-| `@pumpkinmc/pumpkin-api-ts` `v0.1.1` | `0.2.0+26.3-26.51` | 18 runtime exports; 6 public TypeScript types; 44 WIT interfaces; 987 WIT types; 957 operations | [Item-level decisions](../compatibility/v0.1.1.json) |
+| `@pumpkinmc/pumpkin-api-ts` `v0.1.1` | `0.2.0+26.3-26.51` | 18 runtime exports; 7 public TypeScript types; 44 WIT interfaces; 987 WIT types; 957 operations | [Item-level decisions](../compatibility/v0.1.1.json) |
 <!-- docs:end compatibility-matrix -->
 
 The replacement package's npm version and WIT ABI version are separate. The compatibility matrix records the current ABI and the Pumpkin release it was audited against. Make sure the Pumpkin server you target supports that ABI.
 
-The compatibility inventories record decisions for the runtime facade, public TypeScript types, and WIT API. Facade behavior also changed for diagnostics, callback cleanup and runtime tick validation; the sections below describe those changes.
+The compatibility inventories record decisions for the runtime facade, public TypeScript types, and WIT API. The facade also changed event handler types, diagnostics, callback cleanup, metadata without a registered plugin and runtime tick validation; the sections below describe those changes.
 
 ## Updating the Upstream WIT Audit
 
@@ -131,7 +131,24 @@ pnpm build
 
 Review the resulting `.wasm` on the Pumpkin release you target. If the component reports missing or incompatible `pumpkin:plugin` imports, check the server's WIT ABI against the active compatibility matrix and confirm that your build used the intended engine.
 
-## 5. Update Tests That Check the Old Error Text
+## 5. Check Event Handler Types
+
+`registerEvent` now takes the handler's payload type from the event type you register. `EventHandler` defaults to the union of event payloads instead of `any`, and handlers return `T | undefined` instead of `T | void`. Fix the handlers that `pnpm typecheck` reports:
+
+- Let `registerEvent` infer the payload, or name it with `EventPayload`:
+
+  ```ts
+  import type { EventHandler, EventPayload } from '@pumpkin-plugins/pumpkin-api';
+
+  const onJoin: EventHandler<EventPayload<'player-join-event'>> = (server, event) => {
+      // event has the player-join payload type.
+      return undefined;
+  };
+  ```
+
+- Remove `: void` return annotations from event handlers. Return nothing to keep the event unchanged.
+
+## 6. Update Tests That Check the Old Error Text
 
 When no command-suggestion handler is registered, the new facade reports the requested ID:
 
@@ -141,15 +158,19 @@ No command suggestion handler registered for ID <id>
 
 The old implementation reported `undefined` in this error. Plugin source does not need to change, but tests that asserted the old message should use the corrected text.
 
-## 6. Update Tests That Check IPC Rejection Diagnostics
+## 7. Update Tests That Check IPC Rejection Diagnostics
 
 When a plugin does not override `Plugin.handleIpcMessage`, the default now throws `Error('This plugin does not handle IPC messages')` instead of the string `This plugin cannot recieve messages`. Calling the exported `handleIpcMessage` before `registerPlugin()` now throws `Error('Cannot handle IPC messages before a plugin is registered')` instead of `Error('No plugin instance available?')`. Plugins that override the handler do not need a source change, but tests that assert either previous rejection value or message should be updated.
 
-## 7. Account for Callback Cleanup
+## 8. Account for Lifecycle Changes
 
 The facade releases event, command, suggestion, AI-goal and chunk-generator callbacks when `onUnload()` finishes, including when the plugin's unload hook throws. It also removes event and command callbacks if registration with the host fails. A command resource may keep its assigned handler ID if host registration fails after assignment. Re-register callbacks from a later `onLoad()`; no migration is needed for plugins that already follow that lifecycle.
 
-## 8. Pass Runtime Tick Values With the Declared Types
+Use the new `cancelTask()` helper to cancel a task scheduled through the facade; it also releases the task's callback.
+
+Call `registerPlugin()` in the plugin entry point. When Pumpkin asks for metadata and no plugin is registered, the facade now throws, so Pumpkin rejects the plugin instead of loading it as `unknown`.
+
+## 9. Pass Runtime Tick Values With the Declared Types
 
 Scheduled task helpers now reject runtime values other than numbers or bigints before coercion. JavaScript callers must pass a number or bigint; TypeScript call sites already checked against the declared types need no source change. Safe-integer, unsigned 64-bit range and positive repeating-period rules still apply.
 
