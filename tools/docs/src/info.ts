@@ -1,5 +1,6 @@
 // Pure data and helpers shared by the plugin runtime and the README generator. Keep this
 // file free of Pumpkin and WASI imports so Node can load it directly.
+import type { CommandPermissionDefault } from './commands.ts';
 import type { PumpkinPermission } from './permissions.ts';
 
 export type {
@@ -41,7 +42,7 @@ export interface PermissionInfo<Name extends string = PumpkinPermission> {
 /** A command the plugin lists in its README. Build these with `commandInfos` rather than writing them. */
 export interface CommandInfo<Node extends string = string> {
     /** Who may run the command by default. */
-    defaultPermission?: import('./commands.ts').CommandPermissionDefault;
+    defaultPermission?: CommandPermissionDefault;
     description: string;
     /** Permission node required to run it, if any. */
     permission?: Node;
