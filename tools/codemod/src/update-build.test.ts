@@ -211,6 +211,59 @@ describe('update-build workflow', () => {
         expect(await fs.readFile(path.join(root, 'package.json'), 'utf8')).toBe(source);
     });
 
+    it('selects release migrations from the builder installed for each scanned package', async () => {
+        const root = await createProject('{"name":"workspace"}');
+        const plugin = path.join(root, 'plugin');
+        await fs.mkdir(plugin);
+        await fs.writeFile(path.join(plugin, 'package.json'), '{"dependencies":{"@pumpkin-plugins/build":"^0.1.0"}}');
+        await fs.writeFile(path.join(plugin, 'plugin.txt'), 'old\n');
+        const installed = new Map([
+            [root, '0.2.0'],
+            [plugin, '0.1.0'],
+        ]);
+
+        const report = await runUpdateBuild(['plugin'], {
+            cwd: root,
+            lookup: lookup('0.2.0'),
+            resolveInstalledVersion: (directory) => installed.get(directory),
+            migrations: [
+                {
+                    introducedIn: '0.2.0',
+                    codemod: {
+                        id: 'rename',
+                        description: 'rename',
+                        matchesFile: (relativePath) => relativePath.endsWith('.txt'),
+                        transform: ({ source }) => ({ source: source.replace('old', 'new') }),
+                    },
+                },
+            ],
+        });
+
+        expect(report.changedFiles.find(({ relativePath }) => relativePath === 'plugin/plugin.txt')?.after).toBe(
+            'new\n',
+        );
+    });
+
+    it('notes a missing builder dependency once for the whole run', async () => {
+        const root = await createProject('{"name":"consumer"}');
+        await fs.mkdir(path.join(root, 'fixture'));
+        await fs.writeFile(path.join(root, 'fixture/package.json'), '{"name":"fixture"}');
+
+        const report = await runUpdateBuild([], { cwd: root, lookup: lookup('0.2.0'), resolveInstalledVersion });
+
+        expect(report.messages.filter(({ text }) => text.includes('No direct'))).toHaveLength(1);
+    });
+
+    it('does not note a missing builder when another scanned package declares it', async () => {
+        const root = await createProject('{"dependencies":{"@pumpkin-plugins/build":"^0.1.0"}}');
+        await fs.mkdir(path.join(root, 'fixture'));
+        await fs.writeFile(path.join(root, 'fixture/package.json'), '{"name":"fixture"}');
+
+        const report = await runUpdateBuild([], { cwd: root, lookup: lookup('0.2.0'), resolveInstalledVersion });
+
+        expect(report.messages.filter(({ text }) => text.includes('No direct'))).toEqual([]);
+    });
+
     it('runs selected release migrations in semver order only inside the version interval', async () => {
         const root = await createProject('{"dependencies":{"@pumpkin-plugins/build":"^0.1.0"}}');
         await fs.writeFile(path.join(root, 'plugin.txt'), 'start\n');

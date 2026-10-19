@@ -45,9 +45,10 @@ the latest published builder update and its release-specific migrations:
 pnpm dlx @pumpkin-plugins/codemod update-build .
 ```
 
-The command resolves the builder version installed in that project and fetches npm's current
-`latest` version without using a cached result. It applies only migrations introduced after the
-installed version and no later than the target release, in release order. Preview is the default;
+The command resolves the builder version installed for each package it scans, from that package's
+directory, and fetches npm's current `latest` version without using a cached result. For each file
+it applies only migrations introduced after the version installed for its package and no later
+than the target release, in release order. Preview is the default;
 apply the result with `--write`:
 
 ```sh
@@ -56,7 +57,8 @@ pnpm dlx @pumpkin-plugins/codemod update-build . --write
 
 Supported exact, caret and tilde builder ranges keep their range style. Catalog, workspace, npm
 alias, URL, file, git and composite ranges remain unchanged with a manual update note. The codemod
-does not add a direct builder dependency when one is absent. Review the preview and run your package
+does not add a direct builder dependency when one is absent; if no scanned `package.json` declares
+the builder, the preview says so once. Review the preview and run your package
 manager after applying changes to refresh the lockfile.
 
 Preview the Pumpkin API migration:
