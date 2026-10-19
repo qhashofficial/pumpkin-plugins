@@ -157,7 +157,9 @@ export class ForcedLodGeneration {
             skipped: 0,
             lastReportedStep: 0,
         };
-        this.log.info(`Started forced LOD capture for ${peer.name}: ${sections} requested sections in ${peer.level}.`);
+        this.log.info(
+            `${logTag} Started forced LOD capture for ${ansi.named.name(peer.name)}: ${ansi.named.number(sections)} requested sections in ${ansi.named.identifier(peer.level)}.`,
+        );
         return { centerX, centerZ, radius, sections };
     }
 
@@ -175,7 +177,9 @@ export class ForcedLodGeneration {
             this.advance(job, peer, serverMspt);
         });
         if (!found && this.job === job) {
-            this.log.info(`Cancelled forced LOD capture for ${job.owner}: player is no longer available.`);
+            this.log.info(
+                `${logTag} Cancelled forced LOD capture for ${ansi.named.name(job.owner)}: player is no longer available.`,
+            );
             this.job = undefined;
         }
         return true;
@@ -213,7 +217,7 @@ export class ForcedLodGeneration {
     left(name: string): void {
         if (this.job?.owner !== name) return;
         this.job = undefined;
-        this.log.info(`Cancelled forced LOD capture for ${name}: player disconnected.`);
+        this.log.info(`${logTag} Cancelled forced LOD capture for ${ansi.named.name(name)}: player disconnected.`);
     }
 
     private advance(job: ForcedJob, peer: ForcedLodPeer, serverMspt: number): void {
@@ -339,9 +343,7 @@ export class ForcedLodGeneration {
             }
             if (message) {
                 this.sendReport(peer, message);
-                this.log.info(
-                    `${message} World ${job.level}, center ${job.centerX}, ${job.centerZ}, radius ${job.radius}.`,
-                );
+                this.log.info(`${logTag} ${message} ${this.jobSummary(job)}`);
                 this.job = undefined;
                 return;
             }
@@ -349,8 +351,12 @@ export class ForcedLodGeneration {
         const skipped = this.skipped(job);
         const message = `Forced LOD capture complete: ${job.built} built, ${skipped} skipped (${job.skippedAlreadyGenerated} already generated).`;
         this.sendReport(peer, message);
-        this.log.info(`${message} World ${job.level}, center ${job.centerX}, ${job.centerZ}, radius ${job.radius}.`);
+        this.log.info(`${logTag} ${message} ${this.jobSummary(job)}`);
         this.job = undefined;
+    }
+
+    private jobSummary(job: ForcedJob): string {
+        return `Player ${ansi.named.name(job.owner)}, world ${ansi.named.identifier(job.level)}, center ${ansi.named.number(job.centerX)}, ${ansi.named.number(job.centerZ)}, radius ${ansi.named.number(job.radius)}.`;
     }
 
     private completed(job: ForcedJob): number {
@@ -395,7 +401,9 @@ export class ForcedLodGeneration {
         try {
             peer.report(message);
         } catch (err) {
-            this.log.warn(`Could not report forced LOD progress to ${peer.name}: ${String(err)}`);
+            this.log.warn(
+                `${logTag} Could not report forced LOD progress to ${ansi.named.name(peer.name)}: ${String(err)}`,
+            );
         }
     }
 }
