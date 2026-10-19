@@ -299,6 +299,18 @@ describe('check-docs', () => {
         assert.ok(inCode.ok, inCode.out);
     });
 
+    it('accepts links to generated API pages when the ignored API output is absent', () => {
+        const result = run(
+            'check-docs.mjs',
+            repoWithCurrentDocsIndex({
+                ...good,
+                'docs/guide.md':
+                    '# Guide\n\n## Getting started\n\nSee `tools/kit/src/a.ts` and [the API](/api/kit/).\n',
+            }),
+        );
+        assert.ok(result.ok, result.out);
+    });
+
     it('validates agent guidance and skill links and commands too', () => {
         const result = run(
             'check-docs.mjs',
