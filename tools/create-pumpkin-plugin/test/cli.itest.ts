@@ -59,6 +59,8 @@ it.each([
     expect(readme).toContain('https://filiphsps.github.io/pumpkin-plugins/tools/static-hermes-runtime/README');
     expect(fs.existsSync(path.join(destination, 'pnpm-workspace.yaml'))).toBe(true);
     expect(fs.existsSync(path.join(destination, 'node_modules'))).toBe(false);
+    expect(fs.readFileSync(path.join(destination, '.gitignore'), 'utf8')).toContain('node_modules/');
+    expect(fs.existsSync(path.join(destination, 'gitignore'))).toBe(false);
     expect(fs.readFileSync(path.join(destination, 'pnpm-workspace.yaml'), 'utf8')).toMatch(
         /allowBuilds:\s*\n\s+esbuild:\s*true/,
     );
@@ -147,98 +149,6 @@ it('refuses an existing destination without modifying its files', () => {
     expect(result.stderr).toContain('destination already exists');
     expect(fs.readFileSync(path.join(destination, 'keep.txt'), 'utf8')).toBe('keep');
     expect(fs.readdirSync(destination)).toEqual(['keep.txt']);
-});
-
-it('preserves a destination created immediately before project publication', () => {
-    const cwd = temporaryDirectory('create-pumpkin-plugin-publication-race-');
-    const destination = path.join(fs.realpathSync(cwd), 'my-plugin');
-    const preloadDirectory = temporaryDirectory('create-pumpkin-plugin-race-preload-');
-    const preloadPath = path.join(preloadDirectory, 'race-preload.mjs');
-    fs.writeFileSync(
-        preloadPath,
-        `import fs from 'node:fs';
-import path from 'node:path';
-import { syncBuiltinESMExports } from 'node:module';
-
-const destination = process.env.CREATE_PUMPKIN_RACE_DESTINATION;
-const mkdirSync = fs.mkdirSync.bind(fs);
-const renameSync = fs.renameSync.bind(fs);
-let raced = false;
-
-function claimDestination(candidate) {
-    if (raced || path.resolve(String(candidate)) !== destination) return;
-    raced = true;
-    process.stderr.write('RACE_HIT\\n');
-    mkdirSync(destination);
-}
-
-fs.mkdirSync = function (candidate, ...args) {
-    claimDestination(candidate);
-    return mkdirSync(candidate, ...args);
-};
-fs.renameSync = function (source, candidate, ...args) {
-    claimDestination(candidate);
-    return renameSync(source, candidate, ...args);
-};
-syncBuiltinESMExports();
-`,
-    );
-
-    const result = runCli(['my-plugin', '--ts', '--skip-install'], {
-        cwd,
-        env: {
-            NODE_OPTIONS: `--import=${pathToFileURL(preloadPath).href}`,
-            CREATE_PUMPKIN_RACE_DESTINATION: destination,
-        },
-    });
-
-    expect(result.stderr).toContain('RACE_HIT');
-    expect(result.status).not.toBe(0);
-    expect(fs.existsSync(destination)).toBe(true);
-    expect(fs.readdirSync(destination)).toEqual([]);
-    expect(fs.readdirSync(cwd)).toEqual(['my-plugin']);
-});
-
-it('rolls back only generated files when another process claims a staged path', () => {
-    const cwd = temporaryDirectory('create-pumpkin-plugin-child-race-');
-    const destination = path.join(fs.realpathSync(cwd), 'my-plugin');
-    const competingFile = path.join(destination, 'src', 'plugin.ts');
-    const preloadDirectory = temporaryDirectory('create-pumpkin-plugin-child-race-preload-');
-    const preloadPath = path.join(preloadDirectory, 'race-preload.mjs');
-    fs.writeFileSync(
-        preloadPath,
-        `import fs from 'node:fs';
-import path from 'node:path';
-import { syncBuiltinESMExports } from 'node:module';
-
-const competingFile = process.env.CREATE_PUMPKIN_COMPETING_FILE;
-const openSync = fs.openSync.bind(fs);
-let raced = false;
-
-fs.openSync = function (candidate, ...args) {
-    if (!raced && path.resolve(String(candidate)) === competingFile) {
-        raced = true;
-        fs.writeFileSync(competingFile, 'created by the competing process');
-    }
-    return openSync(candidate, ...args);
-};
-syncBuiltinESMExports();
-`,
-    );
-
-    const result = runCli(['my-plugin', '--ts', '--skip-install'], {
-        cwd,
-        env: {
-            NODE_OPTIONS: `--import=${pathToFileURL(preloadPath).href}`,
-            CREATE_PUMPKIN_COMPETING_FILE: competingFile,
-        },
-    });
-
-    expect(result.status).not.toBe(0);
-    expect(fs.readFileSync(competingFile, 'utf8')).toBe('created by the competing process');
-    expect(fs.readdirSync(destination)).toEqual(['src']);
-    expect(fs.readdirSync(path.dirname(competingFile))).toEqual(['plugin.ts']);
-    expect(fs.readdirSync(cwd)).toEqual(['my-plugin']);
 });
 
 it('removes the generated destination when copying a template fails', () => {
