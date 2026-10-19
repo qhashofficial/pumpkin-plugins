@@ -16,6 +16,25 @@ describe('Distant Horizons protocol', () => {
         expect([...new Writer().string('ö😀').finish()]).toEqual([0, 6, 195, 182, 240, 159, 152, 128]);
         expect(new Reader(new Writer().string('ö😀').finish()).string()).toBe('ö😀');
     });
+    it('round-trips long strings and blobs mixed with numbers', () => {
+        const text = 'ö'.repeat(30_000);
+        const blob = new Uint8Array(70_000).map((_, i) => i);
+        const data = new Writer()
+            .int(-2)
+            .string(text)
+            .blob(blob)
+            .short(65535)
+            .timestamp(2 ** 40)
+            .finish();
+        const input = new Reader(data);
+        expect(input.int()).toBe(-2);
+        expect(input.string()).toBe(text);
+        expect(input.bytes(input.int())).toEqual(blob);
+        expect(input.short()).toBe(65535);
+        expect(input.timestamp()).toBe(2 ** 40);
+        input.end();
+        expect(() => new Writer().string('x'.repeat(65536))).toThrow('too long');
+    });
     it('decodes signed section coordinates without rounding 64-bit positions', () => {
         const bytes = new Writer().words(0xffffffff, 0xffffff06).finish();
         expect(readSection(new Reader(bytes))).toEqual({ high: 0xffffffff, low: 0xffffff06, detail: 6, x: -1, z: -1 });
