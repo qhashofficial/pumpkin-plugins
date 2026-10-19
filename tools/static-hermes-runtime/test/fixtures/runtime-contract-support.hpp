@@ -31,8 +31,9 @@ class ArrayBuffer;
 class Uint8Array;
 
 struct Value {
-    enum class Kind { Undefined, Null, Number, String, Bytes, Object };
+    enum class Kind { Undefined, Null, Boolean, Number, String, Bytes, Object };
     Kind kind = Kind::Undefined;
+    bool boolean = false;
     double number = 0;
     std::string string;
     std::vector<std::uint8_t> bytes;
@@ -51,6 +52,11 @@ struct Value {
     bool isUndefined() const { return kind == Kind::Undefined; }
     bool isNull() const { return kind == Kind::Null; }
 
+    bool getBool() const {
+        if (kind != Kind::Boolean) throw std::runtime_error("Expected a boolean");
+        return boolean;
+    }
+
     double asNumber() const {
         if (!isNumber()) throw std::runtime_error("Expected a number");
         return number;
@@ -63,6 +69,12 @@ struct Value {
 
     Object asObject(Runtime &) const;
     static Value undefined() { return {}; }
+    static Value fromBool(bool boolean) {
+        Value value;
+        value.kind = Kind::Boolean;
+        value.boolean = boolean;
+        return value;
+    }
     static Value null() {
         Value value;
         value.kind = Kind::Null;
@@ -197,15 +209,19 @@ class JSError : public std::runtime_error {
     std::string getStack() const { return what(); }
 };
 
-template <typename Callback>
-class WitScopeGuard {
+// Keep this a copy of the runtime shim's guard; callback-resource-drops.test.mjs checks it.
+template <typename Callback> class WitScopeGuard final {
   public:
-    explicit WitScopeGuard(Callback callback) : callback_(std::move(callback)) {}
-    ~WitScopeGuard() {
-        if (active_) callback_();
+    explicit WitScopeGuard(Callback callback)
+        : callback_(std::move(callback)) {}
+    ~WitScopeGuard() noexcept {
+        if (active_)
+            callback_();
     }
+    WitScopeGuard(const WitScopeGuard &) = delete;
+    WitScopeGuard &operator=(const WitScopeGuard &) = delete;
 
-    void release() { active_ = false; }
+    void release() noexcept { active_ = false; }
 
   private:
     Callback callback_;

@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, describe, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 const packageRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const runtimeShim = path.join(packageRoot, 'src/component/templates/runtime-shim.template');
@@ -61,6 +61,12 @@ afterEach(() => {
 });
 
 describe('callback dispatch and resource ownership', () => {
+    it('gives the C++ fixtures the scope guard the runtime shim ships', () => {
+        const guard = (source) => templateFunction(source, 'template <typename Callback> class WitScopeGuard final');
+        const support = fs.readFileSync(path.join(fixtures, 'runtime-contract-support.hpp'), 'utf8');
+        expect(guard(support)).toBe(guard(fs.readFileSync(runtimeShim, 'utf8')));
+    });
+
     it('dispatches registered AI goals and chunk generators through their callback exports', () => {
         const source = fs.readFileSync(dispatchFixture, 'utf8');
         const marker = '/* GENERATED_CALLBACKS */';
