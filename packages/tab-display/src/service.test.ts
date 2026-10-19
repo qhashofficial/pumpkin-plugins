@@ -1,6 +1,6 @@
 import { defaultValues } from '@pumpkin-plugins/config';
 import { describe, expect, it, vi } from 'vitest';
-import { configSchema, validateConfig } from './config.ts';
+import { configSchema } from './config.ts';
 import type { ApplyResult, PlayerSnapshot, RenderedLine } from './model.ts';
 import { type TabDisplayHost, TabDisplayService, type TabPlaceholderResolver } from './service.ts';
 
@@ -49,12 +49,6 @@ function baseConfig() {
     return config;
 }
 
-function validConfig(value: unknown) {
-    const result = validateConfig(value);
-    if (result.kind !== 'valid') throw new Error('Test config was invalid');
-    return result.config;
-}
-
 const viewers: readonly PlayerSnapshot[] = [
     { uuid: 'uuid-a', name: 'Alex', edition: 'java', javaVersion: 'v-26-3' },
     { uuid: 'uuid-b', name: 'Bea', edition: 'java', javaVersion: 'v-26-3' },
@@ -70,7 +64,7 @@ describe('TabDisplayService', () => {
                     unresolved: [],
                 })),
         };
-        const service = new TabDisplayService({ host, resolver, now: () => 0, config: validConfig(baseConfig()) });
+        const service = new TabDisplayService({ host, resolver, now: () => 0, config: baseConfig() });
         service.tick();
         expect(host.headers.get('uuid-a')?.header[0]?.text).toBe('Hi Alex');
         expect(host.headers.get('uuid-b')?.header[0]?.text).toBe('Hi Bea');
@@ -97,7 +91,7 @@ describe('TabDisplayService', () => {
             host,
             resolver: { state: { kind: 'unavailable' }, resolveBatch },
             now: () => 0,
-            config: validConfig(structuredClone(defaultValues(configSchema))),
+            config: structuredClone(defaultValues(configSchema)),
         });
 
         service.tick();
@@ -124,7 +118,7 @@ describe('TabDisplayService', () => {
             host,
             resolver: { resolveBatch: (requests) => requests.map(({ text }) => ({ text, unresolved: [] })) },
             now: () => 0,
-            config: validConfig(baseConfig()),
+            config: baseConfig(),
         });
 
         service.tick();
@@ -154,7 +148,7 @@ describe('TabDisplayService', () => {
                 },
             },
             now: () => 0,
-            config: validConfig(baseConfig()),
+            config: baseConfig(),
         });
 
         service.tick();
@@ -174,13 +168,13 @@ describe('TabDisplayService', () => {
             host,
             resolver: { resolveBatch: (requests) => requests.map(({ text }) => ({ text, unresolved: [] })) },
             now: () => 0,
-            config: validConfig(baseConfig()),
+            config: baseConfig(),
         });
         service.tick();
 
         const replacement = baseConfig();
         replacement.entry.enabled = false;
-        expect(service.setConfig(replacement).kind).toBe('applied');
+        service.setConfig(replacement);
         service.tick();
 
         expect(host.names.get('uuid-a')).toBeUndefined();
@@ -200,7 +194,7 @@ describe('TabDisplayService', () => {
             resolveBatch: (requests) =>
                 requests.map(({ text }) => ({ text: text.replace('%player_name%', 'resolved'), unresolved: [] })),
         };
-        const service = new TabDisplayService({ host, resolver, now: () => 0, config: validConfig(config) });
+        const service = new TabDisplayService({ host, resolver, now: () => 0, config });
         service.tick();
         expect(host.names.size).toBe(0);
         service.tick();
@@ -215,7 +209,7 @@ describe('TabDisplayService', () => {
             host,
             resolver: { resolveBatch: (requests) => requests.map(({ text }) => ({ text, unresolved: [] })) },
             now: () => 0,
-            config: validConfig(config),
+            config,
         });
 
         service.tick();
@@ -238,7 +232,7 @@ describe('TabDisplayService', () => {
                     })),
             },
             now: () => 0,
-            config: validConfig(baseConfig()),
+            config: baseConfig(),
         });
 
         service.tick();
@@ -258,7 +252,7 @@ describe('TabDisplayService', () => {
             host,
             resolver: { resolveBatch: (requests) => requests.map(({ text }) => ({ text, unresolved: [] })) },
             now: () => 0,
-            config: validConfig(config),
+            config,
             log: (message) => messages.push(message),
         });
 
@@ -277,7 +271,7 @@ describe('TabDisplayService', () => {
     it('rejects mismatched placeholder batches without applying shifted player data', () => {
         const host = new FakeHost(viewers);
         const resolver: TabPlaceholderResolver = { resolveBatch: () => [{ text: 'wrong', unresolved: [] }] };
-        const service = new TabDisplayService({ host, resolver, now: () => 0, config: validConfig(baseConfig()) });
+        const service = new TabDisplayService({ host, resolver, now: () => 0, config: baseConfig() });
         service.tick();
         expect(host.names).toEqual(
             new Map([
@@ -298,7 +292,7 @@ describe('TabDisplayService', () => {
             host,
             resolver: { resolveBatch: (requests) => requests.map(({ text }) => ({ text, unresolved: [] })) },
             now: () => 0,
-            config: validConfig(baseConfig()),
+            config: baseConfig(),
             log: (message) => warnings.push(message),
         });
 
@@ -316,7 +310,7 @@ describe('TabDisplayService', () => {
             host,
             resolver: { resolveBatch: (requests) => requests.map(({ text }) => ({ text, unresolved: [] })) },
             now: () => 0,
-            config: validConfig(baseConfig()),
+            config: baseConfig(),
         });
 
         service.tick();
@@ -340,7 +334,7 @@ describe('TabDisplayService', () => {
                 host,
                 resolver: { resolveBatch: (requests) => requests.map(({ text }) => ({ text, unresolved: [] })) },
                 now: () => 0,
-                config: validConfig(config),
+                config,
             });
 
             service.tick();
@@ -378,7 +372,7 @@ describe('TabDisplayService', () => {
             host,
             resolver: { resolveBatch: (requests) => requests.map(({ text }) => ({ text, unresolved: [] })) },
             now: () => 0,
-            config: validConfig(baseConfig()),
+            config: baseConfig(),
         });
 
         service.tick();
@@ -405,7 +399,7 @@ describe('TabDisplayService', () => {
             },
         };
         let time = 0;
-        const service = new TabDisplayService({ host, resolver, now: () => time, config: validConfig(baseConfig()) });
+        const service = new TabDisplayService({ host, resolver, now: () => time, config: baseConfig() });
         service.tick();
         expect(host.names.get('uuid-a')).toBe('Alex from PIE');
         available = false;
@@ -423,12 +417,11 @@ describe('TabDisplayService', () => {
             host,
             resolver: { resolveBatch: (requests) => requests.map(({ text }) => ({ text, unresolved: [] })) },
             now: () => 0,
-            config: validConfig(config),
+            config,
         });
         service.tick();
         config.general.enabled = false;
-        const result = service.setConfig(config);
-        expect(result.kind).toBe('applied');
+        service.setConfig(config);
         service.tick();
         expect(host.resetCount).toBe(2);
     });
@@ -446,12 +439,12 @@ describe('TabDisplayService', () => {
                     })),
             },
             now: () => 0,
-            config: validConfig(config),
+            config,
         });
         service.tick();
         host.resetFailuresRemaining = 1;
         config.general.enabled = false;
-        expect(service.setConfig(config).kind).toBe('applied');
+        service.setConfig(config);
 
         service.tick();
 

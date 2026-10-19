@@ -1,6 +1,5 @@
-import { defaultValues } from '@pumpkin-plugins/config';
 import { describe, expect, it } from 'vitest';
-import { configInfo, configSchema, loadTabDisplayConfig, validateConfig } from './config.ts';
+import { configInfo, loadTabDisplayConfig } from './config.ts';
 
 function memoryStore(initial?: string) {
     let contents = initial;
@@ -43,20 +42,37 @@ describe('tab display configuration', () => {
         );
     });
 
-    it('rejects malformed structured arrays without rewriting the user file', () => {
+    it('reports malformed structured arrays without rewriting the user file', () => {
         const initial = '[header]\nlines = [{ text = 7 }]\n';
         const store = memoryStore(initial);
-        expect(() => loadTabDisplayConfig(store)).toThrow(/header\.lines/);
+        expect(loadTabDisplayConfig(store).warnings.join('\n')).toMatch(/header\.lines/);
         expect(store.value()).toBe(initial);
     });
 
-    it('rejects invalid styles before a config can be applied', () => {
-        const config = structuredClone(defaultValues(configSchema));
-        config.header.lines = [{ text: 'Hi', color: 'red' }];
-        const result = validateConfig(config);
-        expect(result.kind).toBe('invalid');
-        if (result.kind === 'invalid') {
-            expect(result.issues.map(({ path }) => path)).toContain('header.lines[0].color');
-        }
+    it('falls back to the default for each invalid setting and keeps the valid ones', () => {
+        const initial = [
+            '[general]',
+            'refresh_ticks = 5',
+            '[placeholders]',
+            'missing_provider = "blank"',
+            '[header]',
+            'lines = [{ text = "Hi", color = "red" }]',
+            '[entry]',
+            'text = "%player_name%"',
+            'color = "#12345"',
+            '',
+        ].join('\n');
+        const store = memoryStore(initial);
+
+        const loaded = loadTabDisplayConfig(store);
+
+        expect(loaded.config.general.refresh_ticks).toBe(5);
+        expect(loaded.config.placeholders.missing_provider).toBe('literal');
+        expect(loaded.config.header.lines[0]?.text).toBe('Welcome %player_name%');
+        expect(loaded.config.entry.color).toBe('#FFFFFF');
+        expect(loaded.warnings.join('\n')).toMatch(/placeholders\.missing_provider/);
+        expect(loaded.warnings.join('\n')).toMatch(/header\.lines/);
+        expect(loaded.warnings.join('\n')).toMatch(/entry\.color/);
+        expect(store.value()).toBe(initial);
     });
 });

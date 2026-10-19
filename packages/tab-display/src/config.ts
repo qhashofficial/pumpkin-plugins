@@ -1,7 +1,6 @@
 import {
     bool,
     type ConfigStore,
-    ConfigSyntaxError,
     type ConfigValues,
     defineConfig,
     describeConfig,
@@ -10,6 +9,7 @@ import {
     loadConfig,
     MANAGED_NOTE,
     type RenderOptions,
+    type StringCheck,
     section,
     str,
     tomlString,
@@ -34,6 +34,15 @@ export interface TemplateLineConfig {
     readonly text: string;
     readonly underlined?: boolean;
 }
+
+const MAX_LINES = 64;
+const RGB_COLOR = /^#[\da-fA-F]{6}$/;
+const rgbColor: StringCheck = { expected: 'an RGB color in `#RRGGBB` form', test: (value) => RGB_COLOR.test(value) };
+const template: StringCheck = { expected: 'a template of at most 4 KiB', test: isTemplate };
+const fallbackPolicy: StringCheck = {
+    expected: '`literal` or `empty`',
+    test: (value) => value === 'literal' || value === 'empty',
+};
 
 const defaultHeader: readonly TemplateLineConfig[] = [{ text: 'Welcome %player_name%', color: '#FFB347' }];
 const defaultFooter: readonly TemplateLineConfig[] = [{ text: '%server_online% players online', color: '#AAAAAA' }];
@@ -62,15 +71,21 @@ export const configSchema = defineConfig(PLUGIN_NAME, {
     placeholders: section({
         description: 'PumpkinPIE placeholder handling.',
         fields: {
-            provider: str({ description: 'Pumpkin plugin that supplies placeholder values.', default: 'PumpkinPIE' }),
+            provider: str({
+                description: 'Pumpkin plugin that supplies placeholder values.',
+                default: 'PumpkinPIE',
+                check: { expected: 'a plugin name', test: (value) => value.length > 0 },
+            }),
             missing_provider: str({
                 description:
                     'Text to show for tokens other than `%player_name%` and `%server_online%` when PumpkinPIE is unavailable: `literal` keeps them, `empty` removes them.',
                 default: 'literal',
+                check: fallbackPolicy,
             }),
             unresolved: str({
                 description: 'Text to show for unresolved identifiers: `literal` keeps tokens, `empty` removes them.',
                 default: 'literal',
+                check: fallbackPolicy,
             }),
         },
     }),
@@ -90,8 +105,12 @@ export const configSchema = defineConfig(PLUGIN_NAME, {
         description: 'Global real-player row formatting. Placeholder context is the listed subject.',
         fields: {
             enabled: bool({ description: 'Apply a custom name to real player rows.', default: true }),
-            text: str({ description: 'Name template for each listed player.', default: '%player_name%' }),
-            color: str({ description: 'Optional RGB text color in `#RRGGBB` form.', default: '#FFFFFF' }),
+            text: str({
+                description: 'Name template for each listed player.',
+                default: '%player_name%',
+                check: template,
+            }),
+            color: str({ description: 'RGB text color in `#RRGGBB` form.', default: '#FFFFFF', check: rgbColor }),
             bold: bool({ description: 'Render the row name in bold.', default: false }),
             italic: bool({ description: 'Render the row name in italics.', default: false }),
             underlined: bool({ description: 'Underline the row name.', default: false }),
@@ -103,85 +122,21 @@ export const configSchema = defineConfig(PLUGIN_NAME, {
 /** The validated shape returned by the config package. */
 export type TabDisplayConfig = ConfigValues<typeof configSchema>;
 
-/** What is invalid about a candidate configuration. */
-export interface ConfigIssue {
-    readonly path: string;
-    readonly reason: string;
-}
-
-/** Validation result before a configuration is swapped into the running service. */
-export type ConfigValidation =
-    | { readonly kind: 'valid'; readonly config: TabDisplayConfig }
-    | { readonly kind: 'invalid'; readonly issues: readonly ConfigIssue[] };
-
-/** A file or semantic config validation error. */
-export class TabDisplayConfigError extends Error {
-    /** The individual config paths that failed validation. */
-    readonly issues: readonly ConfigIssue[];
-
-    constructor(issues: readonly ConfigIssue[]) {
-        super(issues.map(({ path, reason }) => `${path}: ${reason}`).join('; '));
-        this.name = 'TabDisplayConfigError';
-        this.issues = issues;
-    }
-}
-
 /** Config section used by generated plugin metadata. */
 export const configInfo = describeConfig(configSchema, CONFIG_FILE, CONFIG_RENDER_OPTIONS);
 
-/** Loads values from a config store and rejects invalid candidates before the caller swaps them. */
+/**
+ * Loads the settings file, creating it on first start. Each invalid value falls back to its default
+ * and is listed in `warnings`; the file is then left unchanged so the user can fix it.
+ *
+ * @throws {ConfigSyntaxError} When the file is not valid TOML. The file is not changed.
+ */
 export function loadTabDisplayConfig(store: ConfigStore): {
     readonly config: TabDisplayConfig;
     readonly warnings: readonly string[];
 } {
-    let loaded: ReturnType<typeof loadConfig<typeof configSchema>>;
-    try {
-        loaded = loadConfig(configSchema, store, CONFIG_RENDER_OPTIONS);
-    } catch (error) {
-        if (error instanceof ConfigSyntaxError) {
-            throw new TabDisplayConfigError([{ path: CONFIG_FILE, reason: `invalid TOML (${error.message})` }]);
-        }
-        throw error;
-    }
-    if (loaded.warnings.length > 0) {
-        throw new TabDisplayConfigError(loaded.warnings.map((warning) => ({ path: CONFIG_FILE, reason: warning })));
-    }
-    const checked = validateConfig(loaded.values);
-    if (checked.kind === 'invalid') throw new TabDisplayConfigError(checked.issues);
-    return { config: checked.config, warnings: loaded.warnings };
-}
-
-/** Validates supported settings and limits. */
-export function validateConfig(value: unknown): ConfigValidation {
-    const issues: ConfigIssue[] = [];
-    if (!isRecord(value)) return invalid([{ path: 'config', reason: 'must be a table' }]);
-
-    if (!isRecord(value.general)) add(issues, 'general', 'must be a table');
-    else {
-        if (value.general.version !== 1) add(issues, 'general.version', 'must be 1');
-        if (typeof value.general.enabled !== 'boolean') add(issues, 'general.enabled', 'must be true or false');
-        if (!isInteger(value.general.refresh_ticks, 1, 1200))
-            add(issues, 'general.refresh_ticks', 'must be an integer from 1 to 1200');
-        if (!isInteger(value.general.max_players, 1, 5000))
-            add(issues, 'general.max_players', 'must be an integer from 1 to 5000');
-    }
-
-    if (!isRecord(value.placeholders)) add(issues, 'placeholders', 'must be a table');
-    else {
-        if (typeof value.placeholders.provider !== 'string' || value.placeholders.provider.length === 0)
-            add(issues, 'placeholders.provider', 'must name a Pumpkin plugin');
-        for (const key of ['missing_provider', 'unresolved'] as const) {
-            if (value.placeholders[key] !== 'literal' && value.placeholders[key] !== 'empty')
-                add(issues, `placeholders.${key}`, 'must be `literal` or `empty`');
-        }
-    }
-
-    validateLineSection(value.header, 'header', issues);
-    validateLineSection(value.footer, 'footer', issues);
-    validateEntry(value.entry, issues);
-
-    if (issues.length > 0) return invalid(issues);
-    return { kind: 'valid', config: value as unknown as TabDisplayConfig };
+    const loaded = loadConfig(configSchema, store, CONFIG_RENDER_OPTIONS);
+    return { config: loaded.values, warnings: loaded.warnings };
 }
 
 function templateLinesField(
@@ -195,10 +150,10 @@ function templateLinesField(
         type: 'table[]',
         description: `${description} Use a TOML array of inline tables, for example ${example}.`,
         default: defaults,
-        expected: 'an array of line tables with text and optional style fields',
+        expected: `an array of at most ${MAX_LINES} line tables, each with text of at most 4 KiB and optional style fields`,
         example,
         parse: (raw) => {
-            if (!Array.isArray(raw) || !raw.every(isTemplateLine)) return { ok: false };
+            if (!Array.isArray(raw) || raw.length > MAX_LINES || !raw.every(isTemplateLine)) return { ok: false };
             return { ok: true, value: raw.map(copyTemplateLine) };
         },
         format,
@@ -234,7 +189,7 @@ function lineFields(line: TemplateLineConfig): Record<string, unknown> {
 }
 
 function isTemplateLine(value: unknown): value is TemplateLineConfig {
-    if (!isRecord(value) || typeof value.text !== 'string') return false;
+    if (!isRecord(value) || typeof value.text !== 'string' || !isTemplate(value.text)) return false;
     if (
         Object.keys(value).some(
             (key) => !['text', 'color', 'bold', 'italic', 'underlined', 'strikethrough'].includes(key),
@@ -242,7 +197,7 @@ function isTemplateLine(value: unknown): value is TemplateLineConfig {
     )
         return false;
     return (
-        (value.color === undefined || typeof value.color === 'string') &&
+        (value.color === undefined || (typeof value.color === 'string' && RGB_COLOR.test(value.color))) &&
         (value.bold === undefined || typeof value.bold === 'boolean') &&
         (value.italic === undefined || typeof value.italic === 'boolean') &&
         (value.underlined === undefined || typeof value.underlined === 'boolean') &&
@@ -254,65 +209,15 @@ function copyTemplateLine(line: TemplateLineConfig): TemplateLineConfig {
     return { ...line };
 }
 
-function validateLineSection(value: unknown, path: string, issues: ConfigIssue[]): void {
-    if (!isRecord(value) || !Array.isArray(value.lines)) {
-        add(issues, `${path}.lines`, 'must be an array of line tables');
-        return;
-    }
-    if (value.lines.length > 64) add(issues, `${path}.lines`, 'must contain no more than 64 lines');
-    value.lines.forEach((line, index) => {
-        const at = `${path}.lines[${index}]`;
-        if (!isTemplateLine(line)) {
-            add(issues, at, 'must contain text and optional style fields');
-            return;
-        }
-        try {
-            compileTemplate(line.text);
-        } catch (error) {
-            add(issues, `${at}.text`, errorMessage(error));
-        }
-        if (line.color !== undefined && !/^#[\da-fA-F]{6}$/.test(line.color))
-            add(issues, `${at}.color`, 'must be an RGB color in `#RRGGBB` form');
-    });
-}
-
-function validateEntry(value: unknown, issues: ConfigIssue[]): void {
-    if (!isRecord(value)) {
-        add(issues, 'entry', 'must be a table');
-        return;
-    }
-    if (typeof value.enabled !== 'boolean') add(issues, 'entry.enabled', 'must be true or false');
-    if (typeof value.text !== 'string') add(issues, 'entry.text', 'must be text');
-    else {
-        try {
-            compileTemplate(value.text);
-        } catch (error) {
-            add(issues, 'entry.text', errorMessage(error));
-        }
-    }
-    if (typeof value.color !== 'string' || !/^#[\da-fA-F]{6}$/.test(value.color))
-        add(issues, 'entry.color', 'must be an RGB color in `#RRGGBB` form');
-    for (const key of ['bold', 'italic', 'underlined', 'strikethrough'] as const) {
-        if (typeof value[key] !== 'boolean') add(issues, `entry.${key}`, 'must be true or false');
-    }
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value) && !(value instanceof Date);
 }
 
-function isInteger(value: unknown, min: number, max: number): value is number {
-    return typeof value === 'number' && Number.isSafeInteger(value) && value >= min && value <= max;
-}
-
-function add(issues: ConfigIssue[], path: string, reason: string): void {
-    issues.push({ path, reason });
-}
-
-function invalid(issues: readonly ConfigIssue[]): ConfigValidation {
-    return { kind: 'invalid', issues };
-}
-
-function errorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : String(error);
+function isTemplate(value: string): boolean {
+    try {
+        compileTemplate(value);
+        return true;
+    } catch {
+        return false;
+    }
 }

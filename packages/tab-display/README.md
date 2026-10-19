@@ -66,7 +66,7 @@ Settings live in `plugins/data/TabDisplay/config.toml`. The plugin creates the f
 | `footer.lines` | table[] | `[{ text = "%server_online% players online", color = "#AAAAAA" }]` | Footer lines in display order. Use a TOML array of inline tables, for example [{ text = "%server_online% players online", color = "#AAAAAA" }]. |
 | `entry.enabled` | boolean | `true` | Apply a custom name to real player rows. |
 | `entry.text` | string | `"%player_name%"` | Name template for each listed player. |
-| `entry.color` | string | `"#FFFFFF"` | Optional RGB text color in `#RRGGBB` form. |
+| `entry.color` | string | `"#FFFFFF"` | RGB text color in `#RRGGBB` form. |
 | `entry.bold` | boolean | `false` | Render the row name in bold. |
 | `entry.italic` | boolean | `false` | Render the row name in italics. |
 | `entry.underlined` | boolean | `false` | Underline the row name. |
@@ -132,7 +132,7 @@ enabled = true
 # Name template for each listed player.
 text = "%player_name%"
 
-# Optional RGB text color in `#RRGGBB` form.
+# RGB text color in `#RRGGBB` form.
 color = "#FFFFFF"
 
 # Render the row name in bold.
