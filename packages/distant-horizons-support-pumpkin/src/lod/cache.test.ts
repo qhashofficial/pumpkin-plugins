@@ -262,6 +262,19 @@ describe('LOD cache', () => {
         expect(new LodCache(files, 2, 2).get(key)).toBeUndefined();
         expect(files.list('cache')).toHaveLength(0);
     });
+    it('deletes temporary files left by an interrupted write on startup', () => {
+        const files = new MemoryFiles();
+        new LodCache(files, 0, 2).put('kept', lod(1));
+        const name = files.list('cache')[0] ?? '';
+        files.put(`cache/${name}.tmp.0`, new Uint8Array(10));
+        files.put('cache/0123abcd.lod.tmp.17', new Uint8Array(10));
+        files.put('cache/notes.txt', new Uint8Array(1));
+
+        const cache = new LodCache(files, 0, 2);
+
+        expect(files.list('cache').sort()).toEqual([name, 'notes.txt'].sort());
+        expect(cache.get('kept')).toEqual(lod(1));
+    });
     it('checks whether a section is cached without reading or promoting disk entries', () => {
         const files = new MemoryFiles();
         const cache = new LodCache(files, 1, 2);
