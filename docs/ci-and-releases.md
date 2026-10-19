@@ -207,7 +207,8 @@ The workflow compares each pin with its branch tip, validates any update, and re
 pull request. If validation fails, it closes that PR and creates or updates an issue. When
 validation passes again, it closes the issue and reopens or creates the PR. Both include the
 configured labels and a compare link. Static Hermes validation prepares the pinned runtime by
-checking out its source and applying the patch series in order.
+checking out its source and applying the patch series in order. It uses the same pinned CMake and
+Ninja setup as CI.
 
 ## Merging
 

@@ -26,8 +26,17 @@ jobs:
               with:
                   ref: ${{ github.event.repository.default_branch }}
 
-            - name: 📦 Bootstrap workspace
-              uses: ./.github/common/bootstrap
+            - name: 📦 Setup pnpm
+              uses: pnpm/action-setup@v6.1.0
+
+            - name: 🟢 Setup Node
+              uses: actions/setup-node@v7.1.0
+              with:
+                  node-version-file: .node-version
+
+            # Discovery only needs the root package's dependencies, such as commander.
+            - name: 📥 Install root dependencies
+              run: pnpm install --frozen-lockfile --filter pumpkin-plugins
 
             - name: 🔎 Discover upstream updates
               id: pins
@@ -78,28 +87,22 @@ jobs:
                   ref: ${{ github.event.repository.default_branch }}
                   token: ${{ steps.app-token.outputs.token }}
 
-            - name: 📦 Setup pnpm
-              id: setup-pnpm
+            - name: 🚀 Bootstrap
+              id: bootstrap
               if: env.NEEDS_UPDATE == 'true'
-              uses: pnpm/action-setup@v6.1.0
-
-            - name: 🟢 Setup Node
-              id: setup-node
-              if: env.NEEDS_UPDATE == 'true'
-              uses: actions/setup-node@v7.1.0
-              with:
-                  node-version-file: .node-version
-                  cache: pnpm
-
-            - name: 📥 Install dependencies
-              id: install-dependencies
-              if: env.NEEDS_UPDATE == 'true'
-              run: pnpm install --frozen-lockfile
+              uses: ./.github/common/bootstrap
 
             - name: 📝 Update pinned source
               id: update-pinned-source
               if: env.NEEDS_UPDATE == 'true'
               run: node scripts/upstream-pins.mjs apply "$SOURCE_ID" "$LATEST_COMMIT"
+
+            # Set up after the update so the Static Hermes cache key matches the new pin, as it does
+            # in the pull request's CI.
+            - name: 🔧 Setup Static Hermes toolchain
+              id: setup-hermes
+              if: env.NEEDS_UPDATE == 'true'
+              uses: ./.github/common/setup-static-hermes
 
             - name: 🧪 Validate updated source
               id: validate
