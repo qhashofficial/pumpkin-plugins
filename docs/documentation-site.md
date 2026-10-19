@@ -21,11 +21,11 @@ are exceptions: `docs/index.md` renders at `/`, and `docs/team.md` renders at `/
 listed in the Guides or Docs catalog. Instructions for coding agents in `docs/agents/` stay in the
 repository and are not published.
 
-For a plugin, put component-specific pages in `packages/<plugin>/docs/`; tools and actions use the
-same layout in their own folders. The site adds those pages to the component sidebar. If you create
-`docs/index.md`, it becomes the component's landing page and the README remains available as a
-separate **README** entry. Otherwise, the README is the overview when one exists; if it doesn't, the
-first docs page is used.
+For a plugin, put component-specific pages in `packages/<plugin>/docs/`; tools, actions and VS Code
+extensions use the same layout in their own folders. The site adds those pages to the component
+sidebar. If you create `docs/index.md`, it becomes the component's landing page and the README
+remains available as a separate **README** entry. Otherwise, the README is the overview when one
+exists; if it doesn't, the first docs page is used.
 
 Write links from component docs to repository docs as relative Markdown links. `pnpm check` checks
 relative links, and the site rewrites those links to their site routes during the build. The site
@@ -58,6 +58,7 @@ navigation:
 ```
 
 `category` is optional; without it, the item stays in its default Plugins, Tools, or Actions group.
+VS Code extensions appear in the Tools menu, in a VS Code extensions group by default.
 `type` defaults to a regular link and can be set to `card` or `spotlight`. An `icon` path is relative
 to the component root. If you omit it—or the configured file doesn't exist—the site looks for
 `icon.svg`, `icon.png`, `icon.webp`, `logo.svg`, `logo.png`, or `logo.webp` first in the component
