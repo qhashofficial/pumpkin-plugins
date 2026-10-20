@@ -31,7 +31,9 @@ describe.skipIf(hasPublicAddress)('port forwarding', () => {
     it('opens the Java and Bedrock ports through UPnP and closes them when the server stops', async () => {
         const router = await startRouter({ natPmp: false });
         const server = await start('upnp', routerConfig(router));
-        await server.waitForLog(/Opened TCP port 25565 as 93\.184\.216\.34:25565 \(upnp\)/);
+        await server.waitForLog(
+            new RegExp(`${PLUGIN_NAME}: Opened TCP port 25565 as 93\\.184\\.216\\.34:25565 \\(upnp\\)`),
+        );
         await server.waitForLog(/Opened UDP port 19132 as 93\.184\.216\.34:19132 \(upnp\)/);
         await server.waitForLog(/Opened TCP port 19132 as 93\.184\.216\.34:19132 \(upnp\)/);
 

@@ -1,6 +1,8 @@
 import type { Context } from 'pumpkin:plugin/context@0.1.0';
+import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import { WasiDataDir } from '@pumpkin-plugins/plugin-kit/data-dir';
 import { cancelTask, hostLogger, scheduleRepeating } from '@pumpkin-plugins/plugin-kit/host';
+import { taggedLogger } from '@pumpkin-plugins/plugin-kit/logger';
 import { PluginBase, registerPlugin } from '@pumpkin-plugins/plugin-kit/plugin';
 import { handleIpcMessage as apiHandleIpcMessage } from '@pumpkin-plugins/pumpkin-api';
 import { registerCommands } from './commands/register.ts';
@@ -9,6 +11,7 @@ import { info } from './info.ts';
 import { WasiNetwork } from './platform/wasi-network.ts';
 import { wasiSockets } from './platform/wasi-sockets.ts';
 
+const log = taggedLogger(`${ansi.named.name(info.name)}:`, hostLogger);
 let forwarder: PortForwarder | undefined;
 
 /** Opens ports on the router with UPnP and NAT-PMP, for the server itself and for other plugins. */
@@ -25,15 +28,15 @@ class UPnPumpkin extends PluginBase {
     protected onPluginLoad(ctx: Context): void {
         const files = WasiDataDir.open();
         if (!files) {
-            hostLogger.error(
-                `${info.name} cannot reach its data folder. Grant it the fs.read.data and fs.write.data permissions and restart the server.`,
+            log.error(
+                'Cannot reach the data folder. Grant this plugin the fs.read.data and fs.write.data permissions and restart the server.',
             );
             return;
         }
 
         this.dataDir = files;
         try {
-            const started = new PortForwarder(files, hostLogger, new WasiNetwork(wasiSockets));
+            const started = new PortForwarder(files, log, new WasiNetwork(wasiSockets));
             this.activeForwarder = started;
             started.start();
             forwarder = started;
