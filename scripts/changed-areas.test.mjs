@@ -14,8 +14,12 @@ const classifierFiles = Object.fromEntries(
         '.git-blame-ignore-revs',
         'scripts/changed-areas.mjs',
         'scripts/utils/commit-log.mjs',
+        'scripts/utils/generator-inputs.mjs',
         'scripts/utils/ignored-commits.mjs',
+        'scripts/utils/integration-inputs.mjs',
         'scripts/utils/workspace-changes.mjs',
+        'scripts/utils/workspace-discovery.mjs',
+        'tools/docs/src/discovery.ts',
     ].map((file) => [file, fs.readFileSync(path.join(scripts, '..', file), 'utf8')]),
 );
 const dirs = [];
@@ -88,6 +92,8 @@ function repo(files) {
         ].join('\n'),
         'turbo/generators/config.mjs': 'plugin.setGenerator(() => {});\n',
         'turbo/generators/templates/plugin/package.json.hbs': '{}\n',
+        // Declares the copied discovery source an ES module, as the real docs package does.
+        'tools/docs/package.json': '{"type":"module"}\n',
         'tools/build/package.json':
             '{"name":"@test/build","scripts":{"build":"true"},"dependencies":{"@test/runtime":"workspace:*"}}\n',
         'tools/static-hermes-runtime/package.json': '{"name":"@test/runtime","scripts":{"build":"true"}}\n',
