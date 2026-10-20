@@ -426,7 +426,15 @@ export default defineConfig({
                                   ? `/${routeWithoutExtension.slice(0, -'index'.length)}`
                                   : `/${routeWithoutExtension}`;
                         token.attrSet('href', `${publicRoute}${match[2] ?? ''}`);
+                        continue;
                     }
+                    // The site publishes only Markdown, so other repository files and folders open on GitHub.
+                    // Missing files and unpublished pages stay relative for the dead-link check.
+                    const file = path.join(repoRoot, target);
+                    if (target.startsWith('..') || target.endsWith('.md') || !fs.existsSync(file)) continue;
+                    if (fs.existsSync(path.join(file, 'index.md'))) continue;
+                    const view = fs.statSync(file).isDirectory() ? 'tree' : 'blob';
+                    token.attrSet('href', `${repoUrl}/${view}/master/${target.replace(/\/$/, '')}${match[2] ?? ''}`);
                 }
             });
             md.core.ruler.push('component-title-metadata', (state) => {
