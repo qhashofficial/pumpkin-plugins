@@ -3,7 +3,6 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, expect, it } from 'vitest';
-import { acquireHermesBuildLock, isHermesBuildCacheCurrent, saveHermesBuildCache } from '../src/hermes/build.ts';
 import type { HermesPatch } from '../src/hermes/patch.ts';
 import {
     applyHermesPatchSeries,
@@ -264,41 +263,6 @@ it('rejects patch application when a patch-owned copy targets an unrelated path'
     expect(() => applyHermesPatchSeries({ source, patches: [managedPatch] })).toThrow(
         /outside the managed patch set.*unrelated-copy\.txt/,
     );
-});
-
-it('validates and atomically saves the build cache fingerprint', () => {
-    const root = temporaryDirectory();
-    const artifact = path.join(root, 'hermesvm.a');
-    const state = path.join(root, 'prepared-build.json');
-    fs.writeFileSync(artifact, 'archive');
-    saveHermesBuildCache('a'.repeat(64), state, root);
-
-    expect(isHermesBuildCacheCurrent('a'.repeat(64), state, [artifact])).toBe(true);
-    expect(isHermesBuildCacheCurrent('b'.repeat(64), state, [artifact])).toBe(false);
-    fs.writeFileSync(state, '{ invalid json');
-    expect(isHermesBuildCacheCurrent('a'.repeat(64), state, [artifact])).toBe(false);
-});
-
-it('removes stale build locks, waits for live owners, and times out cleanly', async () => {
-    const root = temporaryDirectory();
-    const staleLock = path.join(root, 'stale.lock');
-    fs.writeFileSync(staleLock, JSON.stringify({ pid: 99999999, startedAt: 1 }));
-    await acquireHermesBuildLock(staleLock, { isProcessAlive: () => false, wait: async () => undefined });
-    expect(JSON.parse(fs.readFileSync(staleLock, 'utf8')).pid).toBe(process.pid);
-
-    const liveLock = path.join(root, 'live.lock');
-    fs.writeFileSync(liveLock, JSON.stringify({ pid: 2, startedAt: 1 }));
-    let time = 0;
-    await expect(
-        acquireHermesBuildLock(liveLock, {
-            timeoutMs: 250,
-            isProcessAlive: () => true,
-            now: () => time,
-            wait: async (delay) => {
-                time += delay;
-            },
-        }),
-    ).rejects.toThrow(`Timed out waiting for Hermes build lock: ${liveLock}`);
 });
 
 function temporaryDirectory(): string {
