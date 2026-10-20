@@ -1,11 +1,12 @@
-import { now as monotonicNow } from 'wasi:clocks/monotonic-clock@0.2.3';
 import { instanceNetwork } from 'wasi:sockets/instance-network@0.2.3';
 import type { TcpSocket } from 'wasi:sockets/tcp@0.2.3';
 import { createTcpSocket } from 'wasi:sockets/tcp-create-socket@0.2.3';
 import type { Logger } from '@pumpkin-plugins/plugin-kit/logger';
+import { monotonicMs } from '@pumpkin-plugins/plugin-kit/wasi-clock';
 import { wasiErrorCode } from '@pumpkin-plugins/plugin-kit/wasi-error';
 import { disposeWasiResource } from '@pumpkin-plugins/plugin-kit/wasi-resource';
-import { parseIpv4 } from '@pumpkin-plugins/port-mapping/ipv4';
+import { fromIpSocketAddress, settle, toIpSocketAddress } from '@pumpkin-plugins/plugin-kit/wasi-socket';
+import { formatIpv4, parseIpv4 } from '@pumpkin-plugins/port-mapping/ipv4';
 import type { WebServer, WebServerSettings } from './server.ts';
 import { HttpSession, type PackLookup, type SessionOptions, type TickQuota } from './session.ts';
 import { TcpTransport } from './tcp-transport.ts';
@@ -21,8 +22,6 @@ const MAX_CONNECTIONS_PER_ADDRESS = 8;
 const ACCEPTS_PER_TICK = 8;
 /** Accepts with their address lookups, request/file reads, open/stat, capacity checks, writes and flush/shutdown calls. */
 const OPERATIONS_PER_TICK = 64;
-/** How often to retry a socket step that reports it would block. */
-const MAX_SETTLE_ATTEMPTS = 100;
 
 const SESSION_LIMITS: Omit<SessionOptions, 'now'> = {
     idleTimeoutMs: 15_000,
@@ -39,28 +38,17 @@ const BIND_REASONS: Record<string, string> = {
     'permanently-unavailable': 'listening is not available',
 };
 
-/** Socket start/finish pairs may report `would-block` while the host works; try again until they settle. */
-function settle<T>(step: () => T): T {
-    for (let attempt = 1; ; attempt++) {
-        try {
-            return step();
-        } catch (err) {
-            if (wasiErrorCode(err) !== 'would-block' || attempt >= MAX_SETTLE_ATTEMPTS) throw err;
-        }
-    }
-}
-
-/** The peer's IP address as text, or undefined when the connection is already gone. */
+/** The peer's IPv4 address as text, or undefined when the connection is already gone. */
 function remoteAddress(socket: TcpSocket): string | undefined {
     try {
-        const { tag, val } = socket.remoteAddress();
-        return tag === 'ipv4' ? val.address.join('.') : val.address.join(':');
+        const peer = fromIpSocketAddress(socket.remoteAddress());
+        return peer && formatIpv4(peer.address);
     } catch {
         return undefined;
     }
 }
 
-const isLoopback = (address: string) => address.startsWith('127.') || address === '0:0:0:0:0:0:0:1';
+const isLoopback = (address: string) => address.startsWith('127.');
 
 /** An HTTP server on a WASI TCP socket, serving packs from a lookup. Driven by `tick`. */
 export class TcpWebServer implements WebServer {
@@ -73,7 +61,7 @@ export class TcpWebServer implements WebServer {
     constructor(
         private readonly lookup: PackLookup,
         private readonly log: Logger,
-        private readonly now: () => number = () => Number(monotonicNow() / 1_000_000n),
+        private readonly now: () => number = monotonicMs,
     ) {}
 
     /** {@inheritDoc web/server!WebServer#start} */
@@ -84,7 +72,7 @@ export class TcpWebServer implements WebServer {
 
         const socket = createTcpSocket('ipv4');
         try {
-            socket.startBind(instanceNetwork(), { tag: 'ipv4', val: { port: settings.port, address: [...address] } });
+            socket.startBind(instanceNetwork(), toIpSocketAddress({ address, port: settings.port }));
             settle(() => socket.finishBind());
             socket.setListenBacklogSize(128n);
             socket.startListen();
