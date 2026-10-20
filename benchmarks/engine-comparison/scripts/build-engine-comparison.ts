@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
+import { readParseTypeScript } from '../src/build-log.ts';
 import {
     createEngineComparisonMatrix,
     createEngineVariants,
@@ -119,14 +120,15 @@ function buildPlugin(packageDir: string, label: string, parseTypeScript: boolean
         env: {
             ...process.env,
             PUMPKIN_DEV_MODE: developmentMode ? '1' : '0',
+            PUMPKIN_PLUGINS_BUILD_LOG_FORMAT: 'json',
             STATIC_HERMES_CACHE_DIR: hermesCacheDir,
         },
         maxBuffer: 16 * 1024 * 1024,
     });
-    if (buildOutput.includes('-parse-ts') !== parseTypeScript) {
+    console.log(`${label} build:\n${buildOutput.trim()}`);
+    if (readParseTypeScript(buildOutput) !== parseTypeScript) {
         throw new Error(`${label} build selected an unexpected parser mode`);
     }
-    console.log(`${label} build:\n${buildOutput.trim()}`);
     return path.join(packageDir, 'build/plugin.wasm');
 }
 
