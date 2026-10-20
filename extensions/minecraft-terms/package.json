@@ -50,6 +50,7 @@
         "onStartupFinished"
     ],
     "devDependencies": {
+        "@pumpkin-plugins/cspell-dict-minecraft": "workspace:*",
         "@types/vscode": "catalog:",
         "@vscode/vsce": "catalog:",
         "cspell": "catalog:",

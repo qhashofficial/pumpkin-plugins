@@ -322,6 +322,9 @@ importers:
 
   extensions/minecraft-terms:
     devDependencies:
+      '@pumpkin-plugins/cspell-dict-minecraft':
+        specifier: workspace:*
+        version: link:../../tools/cspell-dict-minecraft
       '@types/vscode':
         specifier: 'catalog:'
         version: 1.140.0
