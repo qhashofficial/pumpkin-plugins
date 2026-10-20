@@ -57,6 +57,24 @@ describe('packAndInspect', () => {
         const digest = createHash('sha512').update(fs.readFileSync(packed.tarballPath)).digest('base64');
         assert.equal(packed.integrity, `sha512-${digest}`);
     });
+
+    it('packs a package whose prepack script prints build output to stdout', () => {
+        const root = temporaryDirectory();
+        const packageDirectory = path.join(root, 'demo');
+        const destination = path.join(root, 'packed');
+        fs.mkdirSync(destination);
+        // A prepack that runs turbo prints its run summary on pnpm pack's stdout.
+        writeJson(path.join(packageDirectory, 'package.json'), {
+            name: '@example/demo',
+            version: '1.2.3',
+            scripts: { prepack: `node -e "console.log('Packages in scope: @example/demo')"` },
+        });
+
+        const packed = packAndInspect(packageDirectory, destination);
+
+        assert.equal(packed.tarballPath, path.join(destination, 'example-demo-1.2.3.tgz'));
+        assert.deepEqual(fs.readdirSync(destination), ['example-demo-1.2.3.tgz']);
+    });
 });
 
 describe('sourcePrerequisitePaths', () => {
