@@ -26,7 +26,8 @@ import {
     sessionConfig,
 } from './protocol/messages.ts';
 import type { Peer, Peers } from './session/peer.ts';
-import { type Client, type Refresh, type Request, SessionState } from './session/state.ts';
+import { refreshOne, scheduleRefresh } from './session/refresh.ts';
+import { type Client, type Request, SessionState } from './session/state.ts';
 import { describeStatus, type SessionPlaceholderSnapshot, sessionSnapshot } from './session/status.ts';
 import { cancelQueuedResponse, queueResponse, sendQueuedPackets, setBandwidth } from './session/transfer.ts';
 
@@ -241,7 +242,7 @@ export class Sessions {
                                 this.complete(request, cached, true);
                                 return;
                             }
-                            this.scheduleRefresh(request);
+                            scheduleRefresh(this.state, request);
                             this.complete(request, cached, true);
                             return;
                         }
@@ -329,7 +330,7 @@ export class Sessions {
             });
         }
         if (!forcedWork && !builderStepped && blocksBudget > 0)
-            builderStepped = this.refreshOne(peers, refreshesAtStart, blocksBudget);
+            builderStepped = refreshOne(this.state, peers, refreshesAtStart, blocksBudget);
         sendQueuedPackets(this.state, peers);
         this.state.lastHandlerMs = Math.max(0, this.state.measureNow() - handlerStarted);
     }
@@ -369,75 +370,6 @@ export class Sessions {
     /** Describes current queues for the operator command. */
     status(): string {
         return describeStatus(this.state, this.forcedGeneration.status());
-    }
-    private scheduleRefresh(request: Request): void {
-        if (this.state.refreshes.has(request.key) || this.state.refreshes.size >= this.state.settings.pending_requests)
-            return;
-        this.state.refreshes.set(request.key, {
-            name: request.name,
-            key: request.key,
-            level: request.level,
-            section: request.section,
-            revision: request.revision,
-        });
-    }
-    private refreshOne(peers: Peers, candidates: Refresh[], blocksBudget: number): boolean {
-        const refresh = candidates.find((candidate) => this.state.refreshes.get(candidate.key) === candidate);
-        if (!refresh) return false;
-        let stepped = false;
-        let found = false;
-        try {
-            found = peers.withPeer(refresh.name, (peer) => {
-                if (peer.level !== refresh.level || (this.state.revisions.get(refresh.key) ?? 0) !== refresh.revision) {
-                    this.finishRefresh(refresh);
-                    return;
-                }
-                try {
-                    const region = sectionRegion(refresh.section, peer.terrain);
-                    const prepared = peer.terrain.prepare?.(region);
-                    if (prepared?.status === 'pending') {
-                        this.state.refreshes.delete(refresh.key);
-                        this.state.refreshes.set(refresh.key, refresh);
-                        return;
-                    }
-                    if (prepared && prepared.status !== 'ready') throw new Error(prepared.reason);
-                    refresh.builder ??= new LodBuilder(refresh.section, peer.terrain.minY, peer.terrain.height);
-                    const sampledBefore = refresh.builder.samples();
-                    const started = this.state.measureNow();
-                    const complete = refresh.builder.step(peer.terrain, blocksBudget);
-                    stepped = true;
-                    this.state.workBudget.observe(
-                        refresh.builder.samples() - sampledBefore,
-                        this.state.measureNow() - started,
-                    );
-                    if (!complete) return;
-                    const stillLoaded = peer.terrain.prepare?.(region);
-                    if (stillLoaded?.status === 'pending') return;
-                    if (stillLoaded && stillLoaded.status !== 'ready') throw new Error(stillLoaded.reason);
-                    const captured = { updated: this.state.now(), data: refresh.builder.finish(this.state.now()) };
-                    this.state.cache.put(refresh.key, captured);
-                    this.state.log.debug(
-                        `Refreshed cached LOD for ${ansi.named.name(refresh.name)} at ${lodLocation(refresh.level, refresh.section.x, refresh.section.z)} (${ansi.named.number(captured.data.length)} bytes).`,
-                    );
-                    this.finishRefresh(refresh);
-                } catch (err) {
-                    this.state.log.debug(
-                        `Background refresh for ${lodLocation(refresh.level, refresh.section.x, refresh.section.z)} failed: ${String(err)}.`,
-                    );
-                    this.finishRefresh(refresh);
-                }
-            });
-        } catch (err) {
-            this.state.log.debug(
-                `Background refresh for ${lodLocation(refresh.level, refresh.section.x, refresh.section.z)} failed: ${String(err)}.`,
-            );
-        }
-        if (!found) this.finishRefresh(refresh);
-        return stepped;
-    }
-    private finishRefresh(refresh: Refresh): void {
-        if (this.state.refreshes.get(refresh.key) === refresh) this.state.refreshes.delete(refresh.key);
-        this.state.clearRevisionIfUnused(refresh.key);
     }
     private announce(peer: Peer): void {
         if (peer.terrain.height <= 0) {
