@@ -503,9 +503,9 @@ plugin in `🧬 Generator`, so the generated setup stays compatible with reposit
 | `pnpm typecheck:scripts` | The JSDoc types of a release or publish script disagree with its code or its callers. It checks the scripts listed in `tsconfig.scripts.json`. |
 
 `pnpm test:scripts` tests those three scripts, `scripts/unpin-release-as.mjs`,
-`scripts/changed-areas.mjs`, the bundled release-commit selector and the agent hooks, using fixtures
-and throwaway repositories. The docs package tests action README generation and example-version
-updates with `pnpm --filter @pumpkin-plugins/docs test`. See [Keep docs in sync with code](code-style.md#keep-docs-in-sync-with-code).
+`scripts/changed-areas.mjs`, the bundled release-commit selector, the agent hooks and the issue-form
+and label scripts in `.github/scripts`, using fixtures and throwaway repositories. The docs package
+tests action README generation and example-version updates with `pnpm --filter @pumpkin-plugins/docs test`. See [Keep docs in sync with code](code-style.md#keep-docs-in-sync-with-code).
 
 ## Publishing to market.pumpkinmc.org
 
