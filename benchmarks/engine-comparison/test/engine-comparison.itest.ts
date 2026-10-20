@@ -2,14 +2,14 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { startPumpkin } from '@pumpkin-plugins/test-harness';
 import { expect, it } from 'vitest';
-import { type EngineResult, formatInteger, median, validateMatchingResults } from './benchmark-results.ts';
-import { formatConsoleReport, formatReport } from './engine-comparison-report.ts';
+import { type EngineResult, formatInteger, median, validateMatchingResults } from '../src/benchmark-results.ts';
+import { formatConsoleReport, formatReport } from '../src/engine-comparison-report.ts';
 import {
     createEngineComparisonMatrix,
     createEngineVariants,
     type EngineVariant,
     getEngineVariantBuildOutput,
-} from './engine-variants.ts';
+} from '../src/engine-variants.ts';
 
 const engineVariants = createEngineVariants();
 const engineComparisonMatrix = createEngineComparisonMatrix();

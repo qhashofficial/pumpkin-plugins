@@ -6,7 +6,7 @@ import {
     createEngineComparisonMatrix,
     createEngineVariants,
     getEngineVariantBuildOutput,
-} from '../test/engine-variants.ts';
+} from '../src/engine-variants.ts';
 
 const benchmarkDir = path.resolve(import.meta.dirname, '..');
 const repositoryDir = path.resolve(benchmarkDir, '../..');

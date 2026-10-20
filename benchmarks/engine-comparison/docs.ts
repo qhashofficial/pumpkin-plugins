@@ -1,7 +1,7 @@
 import { code, table } from '@pumpkin-plugins/docs/markdown';
 import type { DocumentSpec } from '@pumpkin-plugins/docs/node';
+import { formatInteger } from './src/benchmark-results.ts';
 import { API_WORKLOAD, WORKLOADS } from './src/benchmark-workloads.ts';
-import { formatInteger } from './test/benchmark-results.ts';
 
 const workloads = [
     ...WORKLOADS.map(({ area, name, operationsPerSample }) => ({ area, kind: 'Synthetic', name, operationsPerSample })),

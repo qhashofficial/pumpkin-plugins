@@ -1,4 +1,3 @@
-import type { BenchmarkWorkload, WorkloadProvenance } from '../src/benchmark-workloads.ts';
 import {
     type EngineResult,
     formatInteger,
@@ -6,6 +5,7 @@ import {
     median,
     validateMatchingResults,
 } from './benchmark-results.ts';
+import type { BenchmarkWorkload, WorkloadProvenance } from './benchmark-workloads.ts';
 
 /** Formats size and performance results for an arbitrary set of matching engines. */
 export function formatReport(engines: readonly EngineResult[], baselineId: string): string {

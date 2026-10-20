@@ -1,7 +1,11 @@
 import { expect, it } from 'vitest';
+import {
+    compareBenchmarkResults,
+    formatBenchmarkChangeSvgs,
+    formatBenchmarkComment,
+} from '../src/benchmark-regression.ts';
+import type { EngineResult } from '../src/benchmark-results.ts';
 import type { BenchmarkWorkload } from '../src/benchmark-workloads.ts';
-import { compareBenchmarkResults, formatBenchmarkChangeSvgs, formatBenchmarkComment } from './benchmark-regression.ts';
-import type { EngineResult } from './benchmark-results.ts';
 
 it('flags workload changes only when they exceed the jitter threshold', () => {
     const baseline = [engine('quickjs', [workload('stable', [100]), workload('slower', [100])])];

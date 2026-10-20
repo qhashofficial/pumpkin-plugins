@@ -1,8 +1,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { type EngineResult, validateMatchingResults } from '../test/benchmark-results.ts';
-import { formatReport } from '../test/engine-comparison-report.ts';
-import { createEngineVariants } from '../test/engine-variants.ts';
+import { type EngineResult, validateMatchingResults } from '../src/benchmark-results.ts';
+import { formatReport } from '../src/engine-comparison-report.ts';
+import { createEngineVariants } from '../src/engine-variants.ts';
 
 const resultDirectory = process.env.ENGINE_COMPARISON_RESULT_DIR;
 const reportDirectory = process.env.ENGINE_COMPARISON_REPORT_DIR;

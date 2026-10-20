@@ -1,11 +1,11 @@
 import * as fs from 'node:fs';
-import type { BenchmarkWorkload } from '../src/benchmark-workloads.ts';
 import {
     compareBenchmarkResults,
     formatBenchmarkChangeSvgs,
     formatBenchmarkComment,
-} from '../test/benchmark-regression.ts';
-import { API_BEHAVIOR_KEYS, type EngineResult } from '../test/benchmark-results.ts';
+} from '../src/benchmark-regression.ts';
+import { API_BEHAVIOR_KEYS, type EngineResult } from '../src/benchmark-results.ts';
+import type { BenchmarkWorkload } from '../src/benchmark-workloads.ts';
 
 const headResults = readEngineResults(requiredEnvironment('ENGINE_COMPARISON_HEAD_RESULTS'));
 const repository = requiredEnvironment('GITHUB_REPOSITORY');

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { createEngineVariants, getEngineVariantBuildOutput } from './engine-variants.ts';
+import { createEngineVariants, getEngineVariantBuildOutput } from '../src/engine-variants.ts';
 
 it('includes QuickJS and every Static Hermes profile, collector, and parser mode', () => {
     const variants = createEngineVariants();
