@@ -1,5 +1,4 @@
 import { MemoryFiles, MemoryLogger } from '@pumpkin-plugins/plugin-kit/testing';
-import { unavailableChunkLoader, unavailableTerrainGenerator } from '@pumpkin-plugins/terrain';
 import { describe, expect, it, vi } from 'vitest';
 import { LodCache } from './cache.ts';
 import { ForcedLodGeneration, type ForcedLodPeer, type ForcedLodPeers } from './force-generation.ts';
@@ -19,8 +18,6 @@ function fixture(height = 1) {
         terrain: {
             minY: 0,
             height,
-            chunkLoader: unavailableChunkLoader,
-            terrainGenerator: unavailableTerrainGenerator,
             sample: () => {
                 samples++;
                 clock += 0.001;

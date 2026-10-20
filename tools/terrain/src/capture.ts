@@ -1,5 +1,3 @@
-import type { ChunkLoader, TerrainGenerator } from './chunks.ts';
-
 /** A rectangular area expressed in absolute block coordinates. */
 export interface TerrainRegion {
     depth: number;
@@ -26,19 +24,16 @@ export interface TerrainSource {
     top?(x: number, z: number): number;
 }
 
-/** Terrain source plus the platform capabilities used to prepare missing chunks. */
+/** Terrain source plus an optional check that a region can be sampled. */
 export interface TerrainAccess extends TerrainSource {
-    chunkLoader: ChunkLoader;
     prepare?(region: TerrainRegion): TerrainPreparationResult;
-    terrainGenerator: TerrainGenerator;
 }
 
 /** Whether a rectangular terrain region is ready to sample. */
 export type TerrainPreparationResult =
     | { status: 'ready' }
     | { status: 'pending' }
-    | { status: 'unavailable'; reason: string }
-    | { status: 'failed'; reason: string };
+    | { status: 'unavailable'; reason: string };
 
 /** One run of material and light values within a captured column. */
 export interface TerrainSegment {

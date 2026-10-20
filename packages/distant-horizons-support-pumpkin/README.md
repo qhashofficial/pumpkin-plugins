@@ -193,7 +193,7 @@ plugin is licensed under
 [GPL-3.0-or-later](https://github.com/filiphsps/pumpkin-plugins/blob/master/packages/distant-horizons-support-pumpkin/LICENSE).
 The separate
 [`@pumpkin-plugins/terrain`](../../tools/terrain/README.md) package is MIT-licensed and contains
-protocol-neutral terrain capture and chunk-access code; it does not include the DH codec or DTO
+protocol-neutral terrain capture and work-budget code; it does not include the DH codec or DTO
 encoder.
 The protocol format follows the Distant Horizons core linked in the generated compatibility
 section, Copyright (C) 2020 James Seibel, originally under [LGPL-3.0-only](LICENSE.LESSER.txt).
