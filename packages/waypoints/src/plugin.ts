@@ -14,7 +14,7 @@ import * as uuid from 'pumpkin:plugin/uuid@0.1.0';
 import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import { WasiDataDir } from '@pumpkin-plugins/plugin-kit/data-dir';
 import { cancelTask, hostLogger, scheduleRepeating } from '@pumpkin-plugins/plugin-kit/host';
-import type { Logger } from '@pumpkin-plugins/plugin-kit/logger';
+import { taggedLogger } from '@pumpkin-plugins/plugin-kit/logger';
 import { PluginBase, registerPlugin } from '@pumpkin-plugins/plugin-kit/plugin';
 import { registerCommands } from '@pumpkin-plugins/plugin-kit/register-commands';
 import { monotonicMs } from '@pumpkin-plugins/plugin-kit/wasi-clock';
@@ -35,13 +35,7 @@ import { WaypointCatalog } from './waypoints/catalog.ts';
 import { normalizeItemIdentifier } from './waypoints/model.ts';
 import { WaypointStore } from './waypoints/store.ts';
 
-const prefix = `${ansi.named.name(info.name)}:`;
-const log: Logger = {
-    debug: (message) => hostLogger.debug(`${prefix} ${message}`),
-    info: (message) => hostLogger.info(`${prefix} ${message}`),
-    warn: (message) => hostLogger.warn(`${prefix} ${message}`),
-    error: (message) => hostLogger.error(`${prefix} ${message}`),
-};
+const log = taggedLogger(`${ansi.named.name(info.name)}:`, hostLogger);
 
 /** The canonical waypoint catalog and its vanilla command surface. */
 class Waypoints extends PluginBase {
