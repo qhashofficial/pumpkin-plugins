@@ -33,7 +33,7 @@ export interface ForcedLodPeer {
     terrain: TerrainAccess;
 }
 
-/** Obtains a fresh player and world handle for a forced-capture tick. */
+/** Obtains a fresh player and world handle for a forced-capture tick; returns false when the player is gone. */
 export interface ForcedLodPeers {
     withPeer(name: string, use: (peer: ForcedLodPeer) => void): boolean;
 }
@@ -168,14 +168,23 @@ export class ForcedLodGeneration {
         const job = this.job;
         if (!job) return false;
 
-        const found = peers.withPeer(job.owner, (peer) => {
-            if (peer.level !== job.level) {
-                this.sendReport(peer, 'Forced LOD capture cancelled because you changed worlds.');
-                this.job = undefined;
-                return;
-            }
-            this.advance(job, peer, serverMspt);
-        });
+        let found: boolean;
+        try {
+            found = peers.withPeer(job.owner, (peer) => {
+                if (peer.level !== job.level) {
+                    this.sendReport(peer, 'Forced LOD capture cancelled because you changed worlds.');
+                    this.job = undefined;
+                    return;
+                }
+                this.advance(job, peer, serverMspt);
+            });
+        } catch (err) {
+            this.log.warn(
+                `${logTag} Cancelled forced LOD capture for ${ansi.named.name(job.owner)} after an error: ${String(err)}.`,
+            );
+            if (this.job === job) this.job = undefined;
+            return true;
+        }
         if (!found && this.job === job) {
             this.log.info(
                 `${logTag} Cancelled forced LOD capture for ${ansi.named.name(job.owner)}: player is no longer available.`,

@@ -292,18 +292,7 @@ export class Sessions {
             });
         }
         const forcedWork = this.forcedGeneration.tick(
-            {
-                withPeer: (name, use) => {
-                    try {
-                        return peers.withTerrain(name, use);
-                    } catch (err) {
-                        this.log.warn(
-                            `${logTag} Forced LOD capture for ${ansi.named.name(name)} failed: ${String(err)}.`,
-                        );
-                        return false;
-                    }
-                },
-            },
+            { withPeer: (name, use) => peers.withTerrain(name, use) },
             serverMspt,
         );
         if (forcedWork) {
