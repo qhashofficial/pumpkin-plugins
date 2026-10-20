@@ -23,8 +23,8 @@ this machine. UPnPumpkin asks the router to do that, with UPnP or NAT-PMP, so yo
 in to it:
 
 - It opens the Java Edition port (TCP 25565) and the Bedrock Edition port (19132, both TCP and UDP:
-  Bedrock players join over TCP and see the server in their list over UDP). Change them in
-  `config.toml` if your server listens elsewhere.
+  Bedrock clients set up the connection over TCP, then use UDP for the server list and for play).
+  Change them in `config.toml` if your server listens elsewhere.
 - Ports are leased and renewed at half the lease time or every five minutes, whichever comes first,
   and they are closed again when the server stops. If the server dies, the router drops them when
   the lease runs out. Routers that only accept permanent mappings keep them after a crash until you
