@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { formatBenchmarkChangeSvgs } from '../src/benchmark-chart.ts';
 import { formatBenchmarkComment } from '../src/benchmark-comment.ts';
-import { compareBenchmarkResults } from '../src/benchmark-regression.ts';
+import { compareBenchmarkResults, formatSignedPercent } from '../src/benchmark-regression.ts';
 import type { EngineResult } from '../src/benchmark-results.ts';
 import type { BenchmarkWorkload } from '../src/benchmark-workloads.ts';
 
@@ -166,6 +166,12 @@ it('escapes benchmark labels in the repeatable PR comment', () => {
     expect(comment).toContain('@\u200breviewer &lt;script&gt;');
     expect(comment).toContain('https://github.com/example/repo/actions/runs/123');
     expect(comment).not.toContain('<script>');
+});
+
+it('prints one sign for negative, zero and positive percentage changes', () => {
+    expect(formatSignedPercent(-3.84)).toBe('−3.8%');
+    expect(formatSignedPercent(0)).toBe('0.0%');
+    expect(formatSignedPercent(12.34)).toBe('+12.3%');
 });
 
 function engine(id: string, workloads: BenchmarkWorkload[]): EngineResult {
