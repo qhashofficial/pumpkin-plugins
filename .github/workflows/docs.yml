@@ -97,7 +97,6 @@ jobs:
               uses: ./.github/common/job-summary
               with:
                   title: Documentation site verification
-                  steps: ${{ toJSON(steps) }}
                   note: Pull requests validate the site; default-branch pushes also publish it.
 
     publish:
@@ -172,7 +171,6 @@ jobs:
               if: always()
               env:
                   CI_JOB_STATUS: ${{ job.status }}
-                  CI_STEPS_JSON: ${{ toJSON(steps) }}
                   CI_ARTIFACT_URL: ${{ steps.deployment.outputs.page_url }}
                   CI_LINK_LABEL: Open the published documentation
               run: node "$RUNNER_TEMP/docs-summary/ci-summary.mjs" --title "Documentation deployment"

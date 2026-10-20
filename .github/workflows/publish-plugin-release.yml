@@ -255,7 +255,6 @@ jobs:
               uses: ./.github/common/job-summary
               with:
                   title: Plugin release
-                  steps: ${{ toJSON(steps) }}
                   artifact-url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ inputs.tag }}
                   link-label: Open the GitHub release
                   facts: |
