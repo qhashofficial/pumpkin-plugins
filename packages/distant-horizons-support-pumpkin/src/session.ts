@@ -2,7 +2,6 @@ import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import type { Logger } from '@pumpkin-plugins/plugin-kit/logger';
 import type { Settings } from './config/schema.ts';
 import { ByteCredit } from './flow/byte-credit.ts';
-import { TransferCursor } from './flow/transfer-cursor.ts';
 import { LodBuilder } from './lod/builder.ts';
 import type { CachedLod, LodCache } from './lod/cache.ts';
 import {
@@ -25,11 +24,11 @@ import {
     reject,
     type SessionConfiguration,
     sessionConfig,
-    unchanged,
 } from './protocol/messages.ts';
 import type { Peer, Peers } from './session/peer.ts';
-import { type Client, type QueuedPacket, type Refresh, type Request, SessionState } from './session/state.ts';
+import { type Client, type Refresh, type Request, SessionState } from './session/state.ts';
 import { describeStatus, type SessionPlaceholderSnapshot, sessionSnapshot } from './session/status.ts';
+import { cancelQueuedResponse, queueResponse, sendQueuedPackets, setBandwidth } from './session/transfer.ts';
 
 export type { Peer, Peers, PlayerTerrain } from './session/peer.ts';
 export type { SessionPlaceholderSnapshot } from './session/status.ts';
@@ -105,9 +104,7 @@ export class Sessions {
         if (message.type === 'config') {
             const config = this.negotiateConfiguration(message.config);
             client.config = config;
-            client.byteCredit.setRate(config.bandwidthKbps, this.state.now());
-            for (const response of client.packets) response.cursor?.setBandwidthRate(config.bandwidthKbps);
-            client.activeTransfer ??= client.packets.find((response) => response.cursor?.hasInFlightBuffer);
+            setBandwidth(this.state, client, config.bandwidthKbps);
             if (config.generationPlan === 3) this.rejectPendingRequestClass(peer, false);
             if (!config.syncEnabled) this.rejectPendingRequestClass(peer, true);
             peer.send(sessionConfig(config));
@@ -126,12 +123,9 @@ export class Sessions {
                 );
                 this.state.drop(request);
             } else {
-                const responseIndex = client.packets.findIndex((response) => response.lod.tracker === message.tracker);
-                const response = client.packets[responseIndex];
-                if (responseIndex >= 0 && response) {
+                const response = cancelQueuedResponse(client, message.tracker);
+                if (response) {
                     this.state.cancelled++;
-                    if (client.activeTransfer === response) client.activeTransfer = undefined;
-                    client.packets.splice(responseIndex, 1);
                     this.state.log.debug(
                         `Cancelled queued DH response ${ansi.named.number(message.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(response.lod.level, response.lod.section.x, response.lod.section.z)}.`,
                     );
@@ -336,72 +330,7 @@ export class Sessions {
         }
         if (!forcedWork && !builderStepped && blocksBudget > 0)
             builderStepped = this.refreshOne(peers, refreshesAtStart, blocksBudget);
-        let remaining = this.state.settings.packets_per_tick;
-        let cachedRemaining = this.state.settings.cached_packets_per_tick;
-        const names = [...this.state.clients.keys()];
-        let next = names.length === 0 ? 0 : this.state.sendCursor % names.length;
-        let idleVisits = 0;
-        while (names.length > 0 && (remaining > 0 || cachedRemaining > 0) && idleVisits < names.length) {
-            const name = names[next] ?? '';
-            next = (next + 1) % names.length;
-            const client = this.state.clients.get(name);
-            if (!client) {
-                idleVisits++;
-                continue;
-            }
-            let sent = false;
-            this.state.withSessionPeer(peers, name, (peer) => {
-                let responseIndex = -1;
-                let response: QueuedPacket | undefined;
-                let bytes: Uint8Array | undefined;
-                const now = this.state.now();
-                if (client.activeTransfer && !client.packets.includes(client.activeTransfer)) {
-                    client.activeTransfer = undefined;
-                }
-                const candidates = client.activeTransfer ? [client.activeTransfer] : client.packets;
-                for (const candidate of candidates) {
-                    if (!candidate || (candidate.cached ? cachedRemaining <= 0 : remaining <= 0)) continue;
-                    const candidateBytes = candidate.cursor?.peek() ?? candidate.bytes;
-                    if (!candidateBytes || !client.byteCredit.canSend(candidateBytes.length, now)) continue;
-                    responseIndex = client.packets.indexOf(candidate);
-                    response = candidate;
-                    bytes = candidateBytes;
-                    break;
-                }
-                if (responseIndex < 0 || !response || !bytes) return;
-                peer.send(bytes);
-                client.byteCredit.consume(bytes.length);
-                this.state.dhPacketBytesSent += bytes.length;
-                response.cursor?.advance();
-                if (response.cursor?.hasInFlightBuffer) client.activeTransfer = response;
-                else if (client.activeTransfer === response) client.activeTransfer = undefined;
-                if (!response.cursor || response.cursor.done) {
-                    client.packets.splice(responseIndex, 1);
-                    this.state.served++;
-                    const {
-                        level,
-                        section,
-                        tracker,
-                        packetCount: originalPacketCount,
-                        dataBytes,
-                        cached,
-                        unchanged: noChange,
-                    } = response.lod;
-                    const packetCount = response.cursor?.packetCount ?? originalPacketCount;
-                    const label = noChange ? 'unchanged LOD response' : cached ? 'cached LOD' : 'captured LOD';
-                    this.state.log.debug(
-                        `Sent ${label} to ${ansi.named.name(peer.name)} for ${lodLocation(level, section.x, section.z)} (request ${ansi.named.number(tracker)}, ${ansi.named.number(packetCount)} packet(s), ${ansi.named.number(dataBytes)} bytes).`,
-                    );
-                }
-                if (response.cached) cachedRemaining--;
-                else remaining--;
-                sent = true;
-            });
-            if (sent) {
-                idleVisits = 0;
-                this.state.sendCursor = next;
-            } else idleVisits++;
-        }
+        sendQueuedPackets(this.state, peers);
         this.state.lastHandlerMs = Math.max(0, this.state.measureNow() - handlerStarted);
     }
     /** Ends a player's DH protocol session and drops its requests and queued responses; operator captures continue. */
@@ -549,23 +478,7 @@ export class Sessions {
     private complete(request: Request, value: CachedLod, cached = false): void {
         this.state.terrainRetries.delete(request.key);
         const client = this.state.clients.get(request.name);
-        if (client) {
-            const isUnchanged = request.timestamp !== undefined && value.updated <= request.timestamp;
-            const cursor = isUnchanged
-                ? undefined
-                : new TransferCursor(request.tracker, this.state.buffer++, value.data, client.config.bandwidthKbps);
-            const lod = {
-                level: request.level,
-                section: request.section,
-                tracker: request.tracker,
-                packetCount: cursor?.packetCount ?? 1,
-                dataBytes: value.data.length,
-                cached,
-                unchanged: isUnchanged,
-                sync: request.timestamp !== undefined,
-            };
-            client.packets.push({ bytes: isUnchanged ? unchanged(request.tracker) : undefined, cursor, cached, lod });
-        }
+        if (client) queueResponse(this.state, client, request, value, cached);
         this.state.drop(request);
     }
     private deferTerrain(request: Request, reason: string): void {
