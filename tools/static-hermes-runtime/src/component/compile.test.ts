@@ -2,9 +2,9 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, expect, it } from 'vitest';
-import { compileAndLinkComponent } from '../src/component/compile.ts';
-import type { ComponentGeneratedFiles } from '../src/component/generate.ts';
-import type { ComponentBuildOptions } from '../src/component/types.ts';
+import { compileAndLinkComponent } from './compile.ts';
+import type { ComponentGeneratedFiles } from './generate.ts';
+import type { ComponentBuildOptions } from './types.ts';
 
 const directories: string[] = [];
 

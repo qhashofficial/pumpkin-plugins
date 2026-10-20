@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderEmbeddedBytecode } from '../src/component/embed-bytecode.ts';
+import { renderEmbeddedBytecode } from './embed-bytecode.ts';
 
 describe('embedded Hermes bytecode', () => {
     it('embeds the bytecode file from the header directory and keeps its size symbol', () => {
