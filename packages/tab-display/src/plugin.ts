@@ -1,6 +1,5 @@
 import type { Context } from 'pumpkin:plugin/context@0.1.0';
 import type { Server } from 'pumpkin:plugin/server@0.1.0';
-import { now as monotonicNow } from 'wasi:clocks/monotonic-clock@0.2.3';
 import { type ConfigStore, defaultValues } from '@pumpkin-plugins/config';
 import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import { WasiDataDir } from '@pumpkin-plugins/plugin-kit/data-dir';
@@ -8,6 +7,7 @@ import { cancelTask, hostLogger, scheduleRepeating } from '@pumpkin-plugins/plug
 import { ipcSend } from '@pumpkin-plugins/plugin-kit/ipc';
 import { PluginBase, registerPlugin } from '@pumpkin-plugins/plugin-kit/plugin';
 import { registerCommands } from '@pumpkin-plugins/plugin-kit/register-commands';
+import { monotonicMs } from '@pumpkin-plugins/plugin-kit/wasi-clock';
 import { disposeWasiResource } from '@pumpkin-plugins/plugin-kit/wasi-resource';
 import { PieSession } from '@pumpkin-plugins/pumpkin-pie-api';
 import { strFromU8, strToU8 } from 'fflate';
@@ -41,7 +41,7 @@ class TabDisplay extends PluginBase {
         const session = new PieSession({
             provider: config.placeholders.provider,
             send: ipcSend,
-            now: monotonicMilliseconds,
+            now: monotonicMs,
             onTransition: (state) =>
                 hostLogger.info(`${PLUGIN_NAME}: PumpkinPIE provider is ${ansi.named.value(state.kind)}`),
         });
@@ -53,7 +53,7 @@ class TabDisplay extends PluginBase {
                 },
                 resolveBatch: (requests) => session.client.resolveBatch(requests),
             },
-            now: monotonicMilliseconds,
+            now: monotonicMs,
             config,
             log: (message) => hostLogger.warn(`${PLUGIN_NAME}: ${message}`),
         });
@@ -170,10 +170,6 @@ class TabDisplay extends PluginBase {
             write: (text) => files.writeFile(CONFIG_FILE, strToU8(text)),
         };
     }
-}
-
-function monotonicMilliseconds(): number {
-    return Number(monotonicNow() / 1_000_000n);
 }
 
 function errorMessage(error: unknown): string {
