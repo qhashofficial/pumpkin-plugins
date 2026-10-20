@@ -3,8 +3,8 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { expect, it } from 'vitest';
-import type { EngineResult } from './benchmark-results.ts';
-import { createEngineVariants } from './engine-variants.ts';
+import type { EngineResult } from '../src/benchmark-results.ts';
+import { createEngineVariants } from '../src/engine-variants.ts';
 
 const benchmarkDirectory = path.resolve(import.meta.dirname, '..');
 

@@ -1,4 +1,4 @@
-import type { BenchmarkWorkload } from '../src/benchmark-workloads.ts';
+import type { BenchmarkWorkload } from './benchmark-workloads.ts';
 
 /** Pumpkin API behavior counters every engine reports alongside its workload timings. */
 export const API_BEHAVIOR_KEYS = [

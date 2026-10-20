@@ -1,4 +1,3 @@
-import type { BenchmarkWorkload } from '../src/benchmark-workloads.ts';
 import {
     type EngineResult,
     formatInteger,
@@ -6,8 +5,12 @@ import {
     median,
     sameWorkloadDefinition,
 } from './benchmark-results.ts';
+import type { BenchmarkWorkload } from './benchmark-workloads.ts';
 
+/** How one workload timing moved against the baseline once runner jitter is ignored. */
 export type BenchmarkChangeStatus = 'regression' | 'improvement' | 'within-jitter';
+
+/** Overall tone of the pull request comment: any regression warns, otherwise any improvement celebrates. */
 export type BenchmarkCommentStatus = 'warning' | 'celebration' | 'regular';
 
 /** Smallest absolute median change, in milliseconds, that can count as a regression or improvement. */

@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
+import type { EngineResult } from '../src/benchmark-results.ts';
 import type { BenchmarkWorkload } from '../src/benchmark-workloads.ts';
-import type { EngineResult } from './benchmark-results.ts';
-import { formatConsoleReport, formatReport } from './engine-comparison-report.ts';
+import { formatConsoleReport, formatReport } from '../src/engine-comparison-report.ts';
 
 const workloads: BenchmarkWorkload[] = [
     {
