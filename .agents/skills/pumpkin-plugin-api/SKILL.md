@@ -66,6 +66,9 @@ handler and task IDs remain `u32` (`number`).
 | The plugin's data folder | `@pumpkin-plugins/plugin-kit/data-dir` (behind the `DataFiles` interface in `/files`) |
 | Messages to other plugins | `@pumpkin-plugins/plugin-kit/ipc` |
 | Errors from WASI calls | `@pumpkin-plugins/plugin-kit/wasi-error` |
+| Socket steps that report `would-block`, and IPv4 socket addresses | `@pumpkin-plugins/plugin-kit/wasi-socket` |
+| Monotonic time in milliseconds; WASI `u64` values as numbers | `@pumpkin-plugins/plugin-kit/wasi-clock`, `/wasi-number` |
+| Parsing and formatting IPv4 addresses | `@pumpkin-plugins/port-mapping/ipv4` |
 | Settings | `@pumpkin-plugins/config` ([Plugin config](../../../docs/plugin-config.md)) |
 | Opening a router port | `@pumpkin-plugins/upnpumpkin-api` ([Port forwarding](../../../docs/port-forwarding.md)) |
 | Fakes of all of the above for unit tests | `@pumpkin-plugins/plugin-kit/testing` |
