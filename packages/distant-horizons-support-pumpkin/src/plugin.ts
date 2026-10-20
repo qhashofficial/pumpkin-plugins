@@ -82,7 +82,12 @@ class DistantHorizonsSupportPumpkin extends PluginBase {
             sessions.playerLeft(event.player.getName());
         });
         this.registerEvent(ctx, 'server-tick-end-event', (server) => {
-            sessions.tick(serverPeers(server, settings), server.getMspt());
+            const peers = serverPeers(server, settings);
+            try {
+                sessions.tick(peers, server.getMspt());
+            } finally {
+                peers[Symbol.dispose]();
+            }
             try {
                 this.placeholders?.tick();
             } catch (err) {
