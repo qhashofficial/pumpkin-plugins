@@ -8,12 +8,12 @@ import type {
     PlayerLeaveEventData,
 } from 'pumpkin:plugin/event@0.1.0';
 import type { IpcMessage, PluginId } from 'pumpkin:plugin/ipc@0.1.0';
-import { now as monotonicNow } from 'wasi:clocks/monotonic-clock@0.2.3';
 import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import { WasiDataDir } from '@pumpkin-plugins/plugin-kit/data-dir';
 import { hostLogger } from '@pumpkin-plugins/plugin-kit/host';
 import { PluginBase, registerPlugin } from '@pumpkin-plugins/plugin-kit/plugin';
 import { registerCommands } from '@pumpkin-plugins/plugin-kit/register-commands';
+import { monotonicMs } from '@pumpkin-plugins/plugin-kit/wasi-clock';
 import { disposeWasiResource } from '@pumpkin-plugins/plugin-kit/wasi-resource';
 import { commandHandlers } from './commands/handlers.ts';
 import { commands } from './commands/spec.ts';
@@ -59,11 +59,11 @@ class DistantHorizonsSupportPumpkin extends PluginBase {
             settings.disk_cache_entries,
             settings.memory_cache_mb * 1024 * 1024,
         );
-        const sessions = new Sessions(settings, cache, hostLogger, Date.now, monotonicMilliseconds);
+        const sessions = new Sessions(settings, cache, hostLogger, Date.now, monotonicMs);
         this.placeholders = new DistantHorizonsPlaceholderService({
             sessions,
             cache,
-            now: monotonicMilliseconds,
+            now: monotonicMs,
             onTransition: (state) =>
                 hostLogger.info(`${logTag} PumpkinPIE provider is ${ansi.named.value(state.kind)}`),
         });
@@ -147,10 +147,6 @@ class DistantHorizonsSupportPumpkin extends PluginBase {
         this.dataDir = undefined;
         files?.[Symbol.dispose]();
     }
-}
-
-function monotonicMilliseconds(): number {
-    return Number(monotonicNow()) / 1_000_000;
 }
 
 registerPlugin(new DistantHorizonsSupportPumpkin());
