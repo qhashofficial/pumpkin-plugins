@@ -25,12 +25,6 @@ const blocks = {
         '',
         `Asynchronous requests time out after ${timeoutSeconds} seconds. Response bodies larger than ${responseLimitKiB} KiB are rejected.`,
     ].join('\n'),
-    'release-notes': [
-        '<!-- Generated from docs.ts. Run `pnpm readme`. -->',
-        '',
-        'When Market returns optional `release_notes`, the checker converts its Markdown to plain text for the update notice.',
-        'The current Market check endpoint does not return this field; a Market API update must add it before plugins can show changelogs.',
-    ].join('\n'),
 };
 
 /** HTTP limits shared by the package README and user guide. */
