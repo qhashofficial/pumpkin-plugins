@@ -4,6 +4,9 @@
         "typecheck": {
             "dependsOn": ["transit", "@pumpkin-plugins/build#build"],
             "outputs": ["build/types/**"]
+        },
+        "test:integration": {
+            "dependsOn": ["build", "@pumpkin-plugins/build#build", "@pumpkin-plugins/upnpumpkin#build"]
         }
     }
 }
