@@ -11,13 +11,13 @@ import type { IpcMessage, PluginId } from 'pumpkin:plugin/ipc@0.1.0';
 import { ItemStack } from 'pumpkin:plugin/item-stack@0.1.0';
 import type { Server } from 'pumpkin:plugin/server@0.1.0';
 import * as uuid from 'pumpkin:plugin/uuid@0.1.0';
-import { now as monotonicNow } from 'wasi:clocks/monotonic-clock@0.2.3';
 import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import { WasiDataDir } from '@pumpkin-plugins/plugin-kit/data-dir';
 import { cancelTask, hostLogger, scheduleRepeating } from '@pumpkin-plugins/plugin-kit/host';
 import type { Logger } from '@pumpkin-plugins/plugin-kit/logger';
 import { PluginBase, registerPlugin } from '@pumpkin-plugins/plugin-kit/plugin';
 import { registerCommands } from '@pumpkin-plugins/plugin-kit/register-commands';
+import { monotonicMs } from '@pumpkin-plugins/plugin-kit/wasi-clock';
 import { disposeWasiResource } from '@pumpkin-plugins/plugin-kit/wasi-resource';
 import {
     commandHandlers,
@@ -80,7 +80,7 @@ class Waypoints extends PluginBase {
         });
         this.hud = hud;
         this.placeholders = new WaypointPlaceholderService(server, catalog, {
-            now: monotonicMilliseconds,
+            now: monotonicMs,
             onTransition: (state) => log.info(`PumpkinPIE provider is ${ansi.named.value(state.kind)}`),
             onFailure: (identifier, reason) =>
                 log.warn(`waypoint placeholder ${ansi.named.identifier(identifier)} declined (${reason})`),
@@ -215,10 +215,6 @@ class Waypoints extends PluginBase {
 }
 
 registerPlugin(new Waypoints());
-
-function monotonicMilliseconds(): number {
-    return Number(monotonicNow() / 1_000_000n);
-}
 
 export { handleCommand, handleTask } from '@pumpkin-plugins/plugin-kit/plugin';
 
