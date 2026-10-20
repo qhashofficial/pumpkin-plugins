@@ -8,6 +8,16 @@ import * as path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
 
 const scripts = import.meta.dirname;
+/** The classifier and the files it imports, copied into each throwaway repo. */
+const classifierFiles = Object.fromEntries(
+    [
+        '.git-blame-ignore-revs',
+        'scripts/changed-areas.mjs',
+        'scripts/utils/commit-log.mjs',
+        'scripts/utils/ignored-commits.mjs',
+        'scripts/utils/workspace-changes.mjs',
+    ].map((file) => [file, fs.readFileSync(path.join(scripts, '..', file), 'utf8')]),
+);
 const dirs = [];
 afterEach(() => {
     for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
@@ -47,7 +57,7 @@ function repo(files) {
     dirs.push(dir);
     git(dir, 'init', '-q');
     const fixtures = {
-        '.git-blame-ignore-revs': fs.readFileSync(path.join(scripts, '../.git-blame-ignore-revs'), 'utf8'),
+        ...classifierFiles,
         'package.json': '{"name":"changed-areas-test","scripts":{}}\n',
         'pnpm-workspace.yaml': 'packages:\n  - "packages/*"\n  - "tools/*"\n',
         'tsconfig.base.json': '{}\n',
@@ -76,8 +86,6 @@ function repo(files) {
             '            - uses: ./.github/common/setup-static-hermes',
             '',
         ].join('\n'),
-        'scripts/changed-areas.mjs': fs.readFileSync(path.join(scripts, 'changed-areas.mjs'), 'utf8'),
-        'scripts/utils/ignored-commits.mjs': fs.readFileSync(path.join(scripts, 'utils/ignored-commits.mjs'), 'utf8'),
         'turbo/generators/config.mjs': 'plugin.setGenerator(() => {});\n',
         'turbo/generators/templates/plugin/package.json.hbs': '{}\n',
         'tools/build/package.json':
@@ -140,15 +148,7 @@ function assertOutputs(actual, expected) {
 
 describe('changed-areas', () => {
     it('classifies changes without installed workspace dependencies', () => {
-        const dir = repo({
-            'scripts/changed-areas.mjs': fs.readFileSync(path.join(scripts, 'changed-areas.mjs'), 'utf8'),
-            'scripts/utils/ignored-commits.mjs': fs.readFileSync(
-                path.join(scripts, 'utils/ignored-commits.mjs'),
-                'utf8',
-            ),
-            '.git-blame-ignore-revs': fs.readFileSync(path.join(scripts, '../.git-blame-ignore-revs'), 'utf8'),
-            'docs/guide.md': '# Guide\n',
-        });
+        const dir = repo({ ...classifierFiles, 'docs/guide.md': '# Guide\n' });
         const script = path.join(dir, 'scripts/changed-areas.mjs');
         const base = change(dir, { 'docs/guide.md': '# Guide\n\nMore.\n' });
         const result = spawnSync('node', [script, base, 'HEAD'], {
