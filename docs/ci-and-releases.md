@@ -566,3 +566,7 @@ Set these once in GitHub; the workflows can't configure them for you:
    Codecov's tokenless upload setting. The existing `codecov.yml` default project status gates
    tooling coverage against the base commit with a 1 percentage-point tolerance. The separate guest
    status is informational because Node coverage cannot measure plugin execution inside WASM.
+
+Forks have neither the release App nor these secrets, so each job that needs them starts its `if:`
+with `!github.event.repository.fork` and skips in a fork; `scripts/workflows.test.mjs` fails when one
+doesn't.

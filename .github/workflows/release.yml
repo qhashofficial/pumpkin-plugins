@@ -24,6 +24,7 @@ env:
 jobs:
     release:
         name: 🚢 Release
+        if: ${{ !github.event.repository.fork }}
         timeout-minutes: 10
         runs-on: ubuntu-26.04
         env:
@@ -208,7 +209,7 @@ jobs:
     release-pr:
         name: 📝 Prepare release PR ${{ matrix.pr.headRefName }}
         needs: [release, release-fanout-check]
-        if: ${{ needs.release.outputs.prs != '' && needs.release.outputs.prs != '[]' }}
+        if: ${{ !github.event.repository.fork && needs.release.outputs.prs != '' && needs.release.outputs.prs != '[]' }}
         timeout-minutes: 10
         runs-on: ubuntu-26.04
         permissions:

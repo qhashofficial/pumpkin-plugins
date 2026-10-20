@@ -48,7 +48,7 @@ jobs:
     update:
         name: ${{ matrix.source.name }}
         needs: [discover]
-        if: needs.discover.outputs.matrix != ''
+        if: ${{ !github.event.repository.fork && needs.discover.outputs.matrix != '' }}
         strategy:
             fail-fast: false
             matrix:
