@@ -87,3 +87,14 @@ Fixes were grouped into topic branches. Each branch was tested on its own, then 
 | [#56](https://github.com/qhashofficial/pumpkin-plugins/pull/56) | `refactor/engine-comparison-scripts` | refactor(scripts): share GitHub API and output helpers in the engine comparison scripts |
 | [#57](https://github.com/qhashofficial/pumpkin-plugins/pull/57) | `docs/repo-skills` | docs(skills): fix errors and repo-rule conflicts in local skills |
 | [#58](https://github.com/qhashofficial/pumpkin-plugins/pull/58) | `perf/static-analysis-probes` | perf(static-analysis): cache browser-field probes and resolve edges in parallel |
+
+## Follow-up pull requests
+
+Pull requests outside the original plan:
+
+- [#45](https://github.com/qhashofficial/pumpkin-plugins/pull/45), [#46](https://github.com/qhashofficial/pumpkin-plugins/pull/46), [#47](https://github.com/qhashofficial/pumpkin-plugins/pull/47), [#48](https://github.com/qhashofficial/pumpkin-plugins/pull/48): second parts of #38 to #41, whose last commits were finished after the first parts merged.
+- [#64](https://github.com/qhashofficial/pumpkin-plugins/pull/64): makes the dev hot-reload and forced-capture budget tests deterministic.
+- [#67](https://github.com/qhashofficial/pumpkin-plugins/pull/67): gives each package its own vitest module cache (fixes `ENOTEMPTY` start-up failures in parallel runs).
+- [#68](https://github.com/qhashofficial/pumpkin-plugins/pull/68), [#69](https://github.com/qhashofficial/pumpkin-plugins/pull/69): leftovers in tooling, CI and docs, and in plugins and APIs. Many of the "partly fixed" items above were completed there.
+
+Found late and not changed: the plugin release selector (`pluginReleaseInputs` in `scripts/utils/release-commits.mjs`) needs the Static Hermes runtime's `dist/`, which the release-please job never builds, so that job has probably failed since f6198b920d7; see #68.
