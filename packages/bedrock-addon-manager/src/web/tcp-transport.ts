@@ -1,6 +1,7 @@
 import type { InputStream, OutputStream } from 'wasi:io/streams@0.2.3';
 import type { TcpSocket } from 'wasi:sockets/tcp@0.2.3';
 import { wasiErrorCode } from '@pumpkin-plugins/plugin-kit/wasi-error';
+import { toSafeNumber } from '@pumpkin-plugins/plugin-kit/wasi-number';
 import { disposeWasiResource } from '@pumpkin-plugins/plugin-kit/wasi-resource';
 import type { Transport } from './session.ts';
 
@@ -29,7 +30,7 @@ export class TcpTransport implements Transport {
 
     /** {@inheritDoc web/session!Transport#writable} */
     writable(): number {
-        return toSafeNumber(this.output.checkWrite());
+        return toSafeNumber(this.output.checkWrite(), 'WASI writable byte count');
     }
 
     /** {@inheritDoc web/session!Transport#write} */
@@ -72,12 +73,4 @@ export class TcpTransport implements Transport {
             }
         }
     }
-}
-
-function toSafeNumber(value: bigint): number {
-    const number = Number(value);
-    if (!Number.isSafeInteger(number) || number < 0) {
-        throw new RangeError("WASI writable byte count exceeds JavaScript's safe integer range");
-    }
-    return number;
 }
