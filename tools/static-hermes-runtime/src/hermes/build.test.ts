@@ -33,6 +33,22 @@ it('keeps the Hermes build fingerprint when runtime sources change but CMake inp
     expect(hermesBuildFingerprint(options)).toBe(original);
 });
 
+it('keeps the Hermes build fingerprint when another GC variant rewrites the same host compiler imports', () => {
+    const { options } = fixture();
+    const imports = path.join(options.hostBuild, 'ImportHostCompilers.cmake');
+    fs.mkdirSync(options.hostBuild, { recursive: true });
+    fs.writeFileSync(imports, 'add_executable(imported-hermesc IMPORTED)\n');
+    const original = hermesBuildFingerprint(options);
+
+    // Every variant reconfigures the shared host build, and CMake rewrites this file each time.
+    const later = new Date(Date.now() + 60_000);
+    fs.utimesSync(imports, later, later);
+    expect(hermesBuildFingerprint(options)).toBe(original);
+
+    fs.writeFileSync(imports, 'add_executable(imported-shermes IMPORTED)\n');
+    expect(hermesBuildFingerprint(options)).not.toBe(original);
+});
+
 it('changes the Hermes build fingerprint when a CMake argument changes', () => {
     const { options } = fixture();
     const original = hermesBuildFingerprint(options);
