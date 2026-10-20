@@ -4,10 +4,14 @@
     // commitlint.config.mjs and release-please reads all of them on master.
     "extends": [
         ":semanticCommits",
-        // Exact versions, the way saveExact: true in pnpm-workspace.yaml and the pinned tags of the
-        // CI actions already do it. The shared versions stay in the catalog, and Renovate edits the
-        // catalog entry instead of every `catalog:` reference.
+        // Exact versions, the way saveExact: true in pnpm-workspace.yaml already does it. The shared
+        // versions stay in the catalog, and Renovate edits the catalog entry instead of every
+        // `catalog:` reference.
         ":pinVersions",
+        // Jobs run the CI actions with write-scoped tokens and secrets, so every action stays pinned
+        // to a commit SHA with its release in a trailing comment. Renovate updates both together and
+        // pins any action that is added by tag.
+        "helpers:pinGitHubActionDigests",
         // Patch and minor updates merge themselves once CI is green. Majors come as a pull request:
         // the plugin ABI, the pinned Pumpkin release and the WASI WITs move on purpose.
         ":automergeMinor",
