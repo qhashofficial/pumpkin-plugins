@@ -76,6 +76,7 @@
         "commitlint": "21.2.3",
         "eslint": "10.12.0",
         "eslint-plugin-jsdoc": "65.1.0",
+        "release-please": "17.11.2",
         "tsc-rs": "catalog:",
         "turbo": "2.11.9",
         "typedoc": "0.28.20",

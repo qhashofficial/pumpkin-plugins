@@ -324,7 +324,7 @@ its own repository-scoped token. The release-PR job uses its token to push prepa
 updates, which then trigger normal pull request checks. The benchmark-comment job uses its token to
 read artifacts from earlier runs and publish the SVG as a GitHub attachment in the PR comment.
 
-`scripts/release.mjs` runs the pinned Release Please version through `pnpm dlx`. The root of
+`scripts/release.mjs` runs the Release Please version pinned in the root `package.json`. The root of
 `release-please-config.json` sets the pre-1.0.0 version policy for every configured component.
 Below `1.0.0`, breaking changes bump the minor version (`0.0.8` to `0.1.0`), while features, fixes
 and performance improvements bump the patch. At `1.0.0` and later, normal SemVer applies: breaking
@@ -353,7 +353,7 @@ conventional-commit scope matching the component so only that component is affec
 To preview a release without changing GitHub, set `GITHUB_REPOSITORY` and `GITHUB_TOKEN`, then run:
 
 ```sh
-pnpm --package=release-please@17.11.2 dlx -c 'node scripts/release.mjs --dry-run "$(command -v release-please)"'
+node scripts/release.mjs --dry-run
 ```
 
 Add a `--component` value, such as `--component=apple-skin-pumpkin`, to preview one plugin or action.

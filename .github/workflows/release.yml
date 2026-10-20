@@ -79,7 +79,7 @@ jobs:
                   # App-token-created PRs trigger CI; GITHUB_TOKEN-created PRs do not.
                   GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
                   RELEASE_COMMIT_FILES_CACHE: .cache/release-commit-files.json
-              run: pnpm --package=release-please@17.11.2 dlx -c 'node scripts/release.mjs "$(command -v release-please)"'
+              run: node scripts/release.mjs
 
             - name: 💾 Save Release Please commit file cache
               id: save-release-please-commit-file-cache

@@ -1,4 +1,4 @@
-// Tests the plugin publish workflow's steps.
+// Tests the plugin publish workflow's steps and where release-please is pinned.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
@@ -58,4 +58,24 @@ describe('release workflow', () => {
         const step = publishWorkflow.jobs.publish.steps.find(({ run }) => run?.includes('prepare-market-plugin.mjs'));
         assert.equal(step?.env?.PLUGIN_SIGNING_KEY, ['$', '{{ secrets.PLUGIN_SIGNING_KEY }}'].join(''));
     });
+});
+
+it('pins release-please only in the root package.json', () => {
+    const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).devDependencies?.[
+        'release-please'
+    ];
+    assert.match(version ?? '', /^\d+\.\d+\.\d+$/, 'the root package.json needs an exact release-please version');
+    // Tracked files that name release-please, apart from the root manifest and pnpm's lockfile.
+    const grep = spawnSync('git', ['grep', '-lIF', 'release-please', '--', '.', ':!package.json', ':!pnpm-lock.yaml'], {
+        cwd: root,
+        encoding: 'utf8',
+    });
+    assert.ok(grep.status === 0 || grep.status === 1, grep.stderr);
+    // A versioned `release-please@` package spec or a copy of the version is a second pin.
+    const pins = grep.stdout.split('\n').filter((file) => {
+        if (!file) return false;
+        const text = fs.readFileSync(path.join(root, file), 'utf8');
+        return /release-please@\d/.test(text) || text.includes(version);
+    });
+    assert.deepEqual(pins, [], `read the release-please version from the root package.json (${version})`);
 });

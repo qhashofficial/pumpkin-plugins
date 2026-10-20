@@ -1,4 +1,4 @@
-// Run with the pinned release-please runtime supplied by pnpm dlx. --dry-run makes no GitHub writes.
+// Runs the release-please version pinned in the root package.json. --dry-run makes no GitHub writes.
 
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -16,12 +16,10 @@ import { enableLegacyReleaseTitleParsing } from './utils/release-title-compat.mj
 const program = new Command()
     .name('release')
     .description('Create release PRs with the pinned release-please runtime.')
-    .argument('<release-please-cli>', 'Path to the release-please executable supplied by pnpm dlx')
     .option('--dry-run', 'Preview release PRs without publishing or writing workflow outputs')
     .option('--pull-requests-only', 'Create or update release PRs without publishing releases')
     .option('--component <name>', 'Limit a dry-run or PR-only run to one component')
     .parse(process.argv);
-const [cliPath] = program.args;
 const { dryRun, pullRequestsOnly, component } = program.opts();
 const toolOnly = process.env.RELEASE_TOOL_ONLY === 'true';
 if (process.env.RELEASE_TOOL_ONLY && !['true', 'false'].includes(process.env.RELEASE_TOOL_ONLY)) {
@@ -29,9 +27,8 @@ if (process.env.RELEASE_TOOL_ONLY && !['true', 'false'].includes(process.env.REL
 }
 if (component && !dryRun && !pullRequestsOnly)
     throw new Error('--component requires --dry-run or --pull-requests-only');
-const requireRuntime = createRequire(resolve(cliPath));
-const { GitHub, Manifest, VERSION } = requireRuntime('release-please');
-if (VERSION !== '17.11.2') throw new Error(`Expected release-please 17.11.2, received ${VERSION}`);
+// ponytail: untyped require on purpose; this script patches Manifest members its types mark private.
+const { GitHub, Manifest } = createRequire(import.meta.url)('release-please');
 const [owner, repo] = (process.env.GITHUB_REPOSITORY ?? '').split('/');
 if (!owner || !repo || !process.env.GITHUB_TOKEN) throw new Error('GITHUB_REPOSITORY and GITHUB_TOKEN are required');
 const github = await GitHub.create({ owner, repo, token: process.env.GITHUB_TOKEN });
