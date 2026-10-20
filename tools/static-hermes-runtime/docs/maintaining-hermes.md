@@ -97,7 +97,7 @@ pnpm --filter @pumpkin-plugins/static-hermes-runtime test:integration
 pnpm test:integration
 ```
 
-For a performance patch, compare the [engine benchmark](../../../benchmarks/engine-comparison/README.md)
+For a performance patch, compare the [engine benchmark](../../../docs/benchmarking.md)
 before and after the change.
 
 Patch `0007` adds a `JSLibTest` case. The WASI build does not compile Hermes unit tests, so run it
