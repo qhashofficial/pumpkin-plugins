@@ -1,10 +1,16 @@
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
 import { PIE_RELEASE, resolvePieProvider } from '@pumpkin-plugins/pumpkin-pie-api/testing/provider';
 import { builtPluginPath, type PumpkinInstance, startPumpkin } from '@pumpkin-plugins/test-harness';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { run as buildPlugin } from '../../../tools/build/src/cli.ts';
+
+// Build fixtures through the builder's published CLI, as a standalone plugin would.
+const buildCli = createRequire(import.meta.url).resolve('@pumpkin-plugins/build/dist/cli.js');
+const buildPlugin = (cwd: string) => promisify(execFile)(process.execPath, [buildCli, '--no-update-notifier'], { cwd });
 
 describe('TabDisplay PumpkinPIE integration', () => {
     let server: PumpkinInstance;
@@ -12,7 +18,7 @@ describe('TabDisplay PumpkinPIE integration', () => {
 
     beforeAll(async () => {
         const fixtureDir = join(process.cwd(), 'test/fixtures/pie-expansion');
-        await buildPlugin([], fixtureDir);
+        await buildPlugin(fixtureDir);
         providerPath = await resolvePieProvider();
         server = await startPumpkin({
             name: 'tab-display-pie',
