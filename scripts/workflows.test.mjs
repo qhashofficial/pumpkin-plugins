@@ -617,3 +617,24 @@ describe('engine comparison comment workflow', () => {
         assert.equal(fs.existsSync(path.join(dir, 'pwned')), false);
     });
 });
+
+describe('third-party actions', () => {
+    it('pins every action from another repository to a commit, with its release in a comment', () => {
+        const root = path.join(scripts, '..');
+        const files = fs.globSync(
+            ['.github/workflows/*.{yml,yaml}', '.github/common/*/action.{yml,yaml}', 'actions/*/action.{yml,yaml}'],
+            { cwd: root },
+        );
+        const unpinned = [];
+        for (const file of files) {
+            const source = fs.readFileSync(path.join(root, file), 'utf8');
+            for (const [line, ref] of source.matchAll(/^\s*(?:-\s*)?uses:\s*(\S+).*$/gm)) {
+                if (!ref.startsWith('./') && !/@[0-9a-f]{40} # v\d\S*$/.test(line)) {
+                    unpinned.push(`${file}: ${line.trim()}`);
+                }
+            }
+        }
+        assert.ok(files.includes('.github/workflows/ci.yml'));
+        assert.deepEqual(unpinned, []);
+    });
+});
