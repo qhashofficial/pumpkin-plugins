@@ -502,6 +502,7 @@ describe('server player lookup', () => {
             peers.withTerrain('Steve', (peer) => seen.push(`${peer.name} in ${peer.level}, ${peer.terrain.height}`)),
         ).toBe(true);
         expect(seen).toEqual(['Steve in world, 384']);
+        peers[Symbol.dispose]();
         expect(world[Symbol.dispose]).toHaveBeenCalledTimes(1);
     });
 
@@ -517,6 +518,7 @@ describe('server player lookup', () => {
         const peers = serverPeers({ getPlayerByName: () => player } as unknown as Server, settings);
 
         expect(() => peers.withPeer('Alice', () => {})).toThrow('world unavailable');
+        peers[Symbol.dispose]();
         expect(java[Symbol.dispose]).toHaveBeenCalledOnce();
         expect(player[Symbol.dispose]).toHaveBeenCalledOnce();
     });

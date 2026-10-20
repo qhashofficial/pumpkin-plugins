@@ -2,6 +2,7 @@ import type { Context } from 'pumpkin:plugin/context@0.1.0';
 import type { Server } from 'pumpkin:plugin/server@0.1.0';
 import { MemoryFiles } from '@pumpkin-plugins/plugin-kit/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { CHANNEL, encodeSection, packet } from './protocol/messages.ts';
 
 // Only the host is fake here: Pumpkin's lifecycle base, WIT imports, the data folder and command
 // registration. Sessions, the cache, settings and the PumpkinPIE service are the real modules.
@@ -57,7 +58,9 @@ vi.mock('pumpkin:plugin/logging@0.1.0', () => ({
 }));
 vi.mock('pumpkin:plugin/scheduler@0.1.0', () => ({}));
 vi.mock('pumpkin:plugin/text@0.1.0', () => ({ TextComponent: class {} }));
-vi.mock('pumpkin:plugin/world@0.1.0', () => ({ blockStateToInfo: vi.fn() }));
+vi.mock('pumpkin:plugin/world@0.1.0', () => ({
+    blockStateToInfo: () => ({ name: 'minecraft:stone', properties: [] }),
+}));
 // PumpkinPIE is not installed until a test sets the provider's reply.
 vi.mock('pumpkin:plugin/ipc@0.1.0', () => ({
     sendIpcMessage: () =>
@@ -80,10 +83,62 @@ function workerTicks(): number {
     return Number(ticks);
 }
 
-function tickEnd(): void {
+function tickEnd(tickServer = server): void {
     const handler = host.events.get('server-tick-end-event');
     if (!handler) throw new Error('Tick-end handler was not registered');
-    handler(server);
+    handler(tickServer);
+}
+
+/** Java players in one loaded overworld, counting server lookups and the host handles still open. */
+function javaPlayers(names: readonly string[]) {
+    const lookups = new Map<string, number>();
+    let open = 0;
+    const handle = <T extends object>(value: T): T => {
+        open++;
+        return Object.assign(value, { [Symbol.dispose]: () => open-- });
+    };
+    const player = (name: string) =>
+        handle({
+            getName: () => name,
+            getPosition: () => [0, 64, 0],
+            asJava: () => handle({ sendCustomPayload: () => {} }),
+            getWorld: () =>
+                handle({
+                    getName: () => 'world',
+                    getDimension: () => 'minecraft:overworld',
+                    getMinY: () => 0,
+                    getWorldBorder: () =>
+                        handle({ getCenterX: () => 0, getCenterZ: () => 0, getSize: () => 60_000_000 }),
+                    getChunk: () => handle({}),
+                    getBlockStateId: () => 1,
+                    getBiome: () => 'plains',
+                    getTopBlockY: () => 0,
+                    getSkyLight: () => 15,
+                    getBlockLight: () => 0,
+                }),
+        });
+    const server = {
+        getMspt: () => 10,
+        getPlayerByName: (name: string) => {
+            lookups.set(name, (lookups.get(name) ?? 0) + 1);
+            return names.includes(name) ? player(name) : undefined;
+        },
+    } as unknown as Server;
+    const send = (name: string, data: Uint8Array) => {
+        const handler = host.events.get('player-custom-payload-event');
+        if (!handler) throw new Error('Custom payload handler was not registered');
+        handler(server, { channel: CHANNEL, player: player(name), data });
+    };
+    const reset = () => {
+        lookups.clear();
+        open = 0;
+    };
+    return { server, lookups, send, reset, open: () => open };
+}
+
+function lodRequest(tracker: number, x: number, z: number): Uint8Array {
+    const section = encodeSection(x, z);
+    return packet(7).int(tracker).string('world').words(section.high, section.low).bool(false).finish();
 }
 
 describe('DistantHorizonsSupportPumpkin lifecycle', () => {
@@ -132,6 +187,24 @@ describe('DistantHorizonsSupportPumpkin lifecycle', () => {
         });
         plugin.onPluginUnload(context);
         expect(host.filesReleased).toBe(true);
+    });
+
+    it('looks up each DH player once per server tick and releases the handles when it ends', () => {
+        const plugin = loadedPlugin();
+        plugin.onPluginLoad(context);
+        const players = javaPlayers(['Alice', 'Bob', 'Carol']);
+        const init = packet(3).string('minecraft:overworld').finish();
+        for (const name of ['Alice', 'Bob', 'Carol']) players.send(name, init);
+        players.send('Alice', lodRequest(1, 0, 0));
+        players.send('Alice', lodRequest(2, 1, 0));
+        players.send('Bob', lodRequest(3, 0, 1));
+        players.reset();
+
+        tickEnd(players.server);
+
+        expect(Object.fromEntries(players.lookups)).toEqual({ Alice: 1, Bob: 1, Carol: 1 });
+        expect(players.open()).toBe(0);
+        plugin.onPluginUnload(context);
     });
 
     it('releases its data folder when loading fails', () => {
