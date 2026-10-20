@@ -337,6 +337,9 @@ jobs:
             - name: 🔨 Build All
               id: build-all
               run: node scripts/ci-run.mjs "Build production components" -- pnpm run build
+              env:
+                  # Standalone builds only warn; the repository keeps every component under 5 MiB.
+                  PUMPKIN_PLUGINS_FAIL_ON_SIZE_LIMIT: '1'
 
             # A quick check that a Static Hermes build loads on a real server before anything is
             # signed, even when the change selects no integration suites. The test only reads build/.

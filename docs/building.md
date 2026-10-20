@@ -49,10 +49,10 @@ produces 55 MB plugins and can't run the WASI socket code.
 
 Production builds are minified. A component larger than 5 MiB (5,242,880 bytes) produces a warning,
 but the build still writes it. Set `PUMPKIN_PLUGINS_FAIL_ON_SIZE_LIMIT=1` to make an oversized
-component fail the build before it replaces the existing `.wasm` output. Development bundles stay
-readable and skip the size check. Static Hermes development
-components optimize native code for size while retaining Hermes source locations and native line
-tables for backtraces.
+component fail the build before it replaces the existing `.wasm` output; CI sets it for the
+production build. Development bundles stay readable and skip the size check. Static Hermes
+development components optimize native code for size while retaining Hermes source locations and
+native line tables for backtraces.
 
 ### Choose build outputs and options
 
