@@ -19,7 +19,7 @@ const tag = ansi.named.name(PLUGIN_NAME);
  * tooltips AppleSkin draws with both values behind. So the plugin reads every online player once
  * per tick, walking the worlds so that each world's game rule is read once rather than per player,
  * and sends only what moved since the last packet. Every send is logged at debug level, which
- * Pumpkin hides until its `log.level` is set to `debug`.
+ * Pumpkin hides until its `logging.level` is set to `debug`.
  */
 export class PlayerSync {
     private readonly sent = new SyncTracker();
