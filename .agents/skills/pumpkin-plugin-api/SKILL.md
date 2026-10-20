@@ -62,7 +62,7 @@ handler and task IDs remain `u32` (`number`).
 | Need | Use |
 | --- | --- |
 | Commands and their permissions, documented in the README from the same declaration | `defineCommands` from `@pumpkin-plugins/docs`, `registerCommands` from `@pumpkin-plugins/plugin-kit/register-commands` |
-| Logging, repeating tasks, command callbacks | `@pumpkin-plugins/plugin-kit/host` |
+| Logging, repeating tasks, command callbacks | `@pumpkin-plugins/plugin-kit/host`; wrap `hostLogger` with `taggedLogger` from `/logger` so every line names the plugin |
 | The plugin's data folder | `@pumpkin-plugins/plugin-kit/data-dir` (behind the `DataFiles` interface in `/files`) |
 | Messages to other plugins | `@pumpkin-plugins/plugin-kit/ipc` |
 | Errors from WASI calls | `@pumpkin-plugins/plugin-kit/wasi-error` |

@@ -10,7 +10,7 @@ const start = pluginServers();
 describe('first start', () => {
     it('creates the config and the packs folder, touches nothing else, and loads without errors', async () => {
         const r = await start({ name: 'first-start' });
-        await r.server.waitForLog(/Created config\.toml with the default settings/);
+        await r.server.waitForLog(new RegExp(`${PLUGIN_NAME}: Created config\\.toml with the default settings`));
         await r.server.waitForLog(/No packs in packs\//);
 
         const config = r.read('config.toml');
