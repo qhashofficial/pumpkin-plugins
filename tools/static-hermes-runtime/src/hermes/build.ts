@@ -120,7 +120,8 @@ export async function buildHermesWithLockHeld(options: HermesBuildOptions): Prom
  * Build a SHA-256 fingerprint from the source checkout, patches, toolchain, CMake commands, and artifacts.
  *
  * @param options - Source, build paths, pin, patches, and injected dependencies.
- * @param requiredArtifacts - Files whose sizes and modification times participate in cache validation.
+ * @param requiredArtifacts - Files whose sizes and modification times participate in cache validation; the
+ *   host compiler imports file counts by its contents instead.
  * @param environment - Compiler and platform environment values used by the build.
  * @param filesystem - Filesystem implementation used to inspect inputs and artifacts.
  * @param runner - Process runner used to read Git and compiler versions.
@@ -138,6 +139,7 @@ export function hermesBuildFingerprint(
     runner: HermesProcessRunner = options.process ?? hermesProcess,
 ): string {
     const platform = options.platform ?? process.platform;
+    const hostCompilerImports = path.join(options.hostBuild, 'ImportHostCompilers.cmake');
     const status = runner.output('git', ['-C', options.source, 'status', '--porcelain', '--untracked-files=all']);
     const untrackedFiles = runner
         .output('git', ['-C', options.source, 'ls-files', '--others', '--exclude-standard', '-z'])
@@ -229,7 +231,14 @@ export function hermesBuildFingerprint(
             const filename = path.join(buildDirectory, 'CMakeCache.txt');
             return filesystem.existsSync(filename) ? fileDigest(filename, filesystem) : null;
         }),
-        artifacts: requiredArtifacts.map((filename) => [filename, artifactState(filename, filesystem)]),
+        artifacts: requiredArtifacts.map((filename) => [
+            filename,
+            // Each GC variant reconfigures the shared host build, which rewrites this file with the same
+            // content, so its mtime would make the variants invalidate each other.
+            filename === hostCompilerImports && filesystem.existsSync(filename)
+                ? fileDigest(filename, filesystem)
+                : artifactState(filename, filesystem),
+        ]),
     };
     return createHash('sha256').update(JSON.stringify(inputs)).digest('hex');
 }
