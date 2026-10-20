@@ -1,7 +1,6 @@
 import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import type { Logger } from '@pumpkin-plugins/plugin-kit/logger';
 import type { Settings } from './config/schema.ts';
-import { ByteCredit } from './flow/byte-credit.ts';
 import { LodBuilder } from './lod/builder.ts';
 import type { CachedLod, LodCache } from './lod/cache.ts';
 import {
@@ -12,24 +11,14 @@ import {
 } from './lod/force-generation.ts';
 import { sectionKey, sectionRegion } from './lod/generation.ts';
 import { lodLocation } from './lod/location.ts';
-import { PLUGIN_NAME } from './name.ts';
-import { CHUNK_SIZE_BLOCKS, SECTION_DETAIL, SECTION_SIZE_BLOCKS } from './protocol/constants.ts';
-import {
-    closeSession,
-    DH_VERSION,
-    decode,
-    levelInit,
-    type Message,
-    PROTOCOL,
-    reject,
-    type SessionConfiguration,
-    sessionConfig,
-} from './protocol/messages.ts';
+import { SECTION_SIZE_BLOCKS } from './protocol/constants.ts';
+import { reject } from './protocol/messages.ts';
 import type { Peer, Peers } from './session/peer.ts';
+import { announce, receiveMessage, validate } from './session/protocol.ts';
 import { refreshOne, scheduleRefresh } from './session/refresh.ts';
-import { type Client, type Request, SessionState } from './session/state.ts';
+import { type Request, SessionState } from './session/state.ts';
 import { describeStatus, type SessionPlaceholderSnapshot, sessionSnapshot } from './session/status.ts';
-import { cancelQueuedResponse, queueResponse, sendQueuedPackets, setBandwidth } from './session/transfer.ts';
+import { queueResponse, sendQueuedPackets } from './session/transfer.ts';
 
 export type { Peer, Peers, PlayerTerrain } from './session/peer.ts';
 export type { SessionPlaceholderSnapshot } from './session/status.ts';
@@ -64,109 +53,7 @@ export class Sessions {
     }
     /** Accepts and validates a DH packet from a Java player. */
     receive(peer: Peer, bytes: Uint8Array): void {
-        let message: Message;
-        try {
-            message = decode(bytes);
-        } catch (err) {
-            const reason = err instanceof Error ? err.message : String(err);
-            const clientProtocol = bytes.length >= 2 ? (bytes[0] ?? 0) * 256 + (bytes[1] ?? 0) : PROTOCOL;
-            if (clientProtocol !== PROTOCOL) {
-                if (!this.state.protocolWarnings.has(peer.name)) {
-                    this.state.protocolWarnings.add(peer.name);
-                    this.state.log.warn(
-                        `${ansi.named.name(peer.name)} uses DH protocol ${ansi.named.number(clientProtocol)}, but this plugin supports protocol ${ansi.named.number(PROTOCOL)} (Distant Horizons ${ansi.named.version(DH_VERSION)}); closed the DH session.`,
-                    );
-                }
-            } else {
-                this.state.log.debug(
-                    `Closed DH session for ${ansi.named.name(peer.name)} after malformed message: ${reason}.`,
-                );
-            }
-            peer.send(closeSession(`${PLUGIN_NAME}: ${reason}`));
-            this.state.endSession(peer.name);
-            return;
-        }
-        if (message.type === 'close') {
-            this.state.endSession(peer.name);
-            return;
-        }
-        if (message.type === 'init') {
-            if (message.dimension !== peer.dimension) {
-                this.state.log.debug(
-                    'Ignored DH initialization for a dimension other than the current player dimension.',
-                );
-                return;
-            }
-            this.announce(peer);
-            return;
-        }
-        const client = this.state.clients.get(peer.name);
-        if (!client) return;
-        if (message.type === 'config') {
-            const config = this.negotiateConfiguration(message.config);
-            client.config = config;
-            setBandwidth(this.state, client, config.bandwidthKbps);
-            if (config.generationPlan === 3) this.rejectPendingRequestClass(peer, false);
-            if (!config.syncEnabled) this.rejectPendingRequestClass(peer, true);
-            peer.send(sessionConfig(config));
-            this.state.log.debug(
-                `${ansi.named.name(peer.name)} configured DH requests: generation ${config.generationPlan === 3 ? 'disabled' : 'enabled'} (${ansi.named.number(config.generationDistance)} chunks, ${ansi.named.number(config.generationRate)}/s), sync ${config.syncEnabled ? 'enabled' : 'disabled'} (${ansi.named.number(config.syncDistance)} chunks, ${ansi.named.number(config.syncRate)}/s), bandwidth ${config.bandwidthKbps === 0 ? 'unlimited' : `${ansi.named.number(config.bandwidthKbps)} KB/s`}.`,
-            );
-            return;
-        }
-        if (message.type === 'cancel') {
-            const index = this.state.requests.findIndex((r) => r.name === peer.name && r.tracker === message.tracker);
-            const request = this.state.requests[index];
-            if (request) {
-                this.state.cancelled++;
-                this.state.log.debug(
-                    `Cancelled DH request ${ansi.named.number(request.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(request.level, request.section.x, request.section.z)}.`,
-                );
-                this.state.drop(request);
-            } else {
-                const response = cancelQueuedResponse(client, message.tracker);
-                if (response) {
-                    this.state.cancelled++;
-                    this.state.log.debug(
-                        `Cancelled queued DH response ${ansi.named.number(message.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(response.lod.level, response.lod.section.x, response.lod.section.z)}.`,
-                    );
-                }
-            }
-            return;
-        }
-        if (message.type !== 'request') return;
-        if (
-            this.state.requests.some((r) => r.name === peer.name && r.tracker === message.tracker) ||
-            client.packets.some((response) => response.lod.tracker === message.tracker)
-        ) {
-            this.state.log.debug(
-                `Ignored duplicate DH request ${ansi.named.number(message.tracker)} from ${ansi.named.name(peer.name)}.`,
-            );
-            return;
-        }
-        const failure = this.validate(peer, client, message);
-        if (failure) {
-            this.state.rejected++;
-            this.state.lastFailure = failure.reason;
-            this.state.log.debug(
-                `Rejected DH request ${ansi.named.number(message.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(peer.level, message.section.x, message.section.z)}: ${failure.reason}.`,
-            );
-            peer.send(reject(message.tracker, failure.reason, failure.kind));
-            return;
-        }
-        const key = sectionKey(peer.level, message.section.x, message.section.z);
-        this.state.log.debug(
-            `Queued DH request ${ansi.named.number(message.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(peer.level, message.section.x, message.section.z)}.`,
-        );
-        this.state.requests.push({
-            name: peer.name,
-            tracker: message.tracker,
-            key,
-            level: peer.level,
-            section: message.section,
-            timestamp: message.timestamp,
-            revision: this.state.revisions.get(key) ?? 0,
-        });
+        receiveMessage(this.state, peer, bytes);
     }
     /** Advances sampling and transfers within global per-tick budgets. */
     tick(peers: Peers, serverMspt = 0): void {
@@ -176,7 +63,7 @@ export class Sessions {
         const refreshesAtStart = [...this.state.refreshes.values()];
         for (const [name, client] of this.state.clients) {
             this.state.withSessionPeer(peers, name, (peer) => {
-                if (peer.level !== client.level || peer.dimension !== client.dimension) this.announce(peer);
+                if (peer.level !== client.level || peer.dimension !== client.dimension) announce(this.state, peer);
             });
         }
         const forcedWork = this.forcedGeneration.tick(
@@ -203,7 +90,7 @@ export class Sessions {
                 try {
                     const client = this.state.clients.get(peer.name);
                     if (!client) return;
-                    const failure = this.validate(peer, client, { ...request, type: 'request' }, false);
+                    const failure = validate(this.state, peer, client, { ...request, type: 'request' }, false);
                     if (failure) {
                         this.state.rejected++;
                         this.state.lastFailure = failure.reason;
@@ -371,42 +258,6 @@ export class Sessions {
     status(): string {
         return describeStatus(this.state, this.forcedGeneration.status());
     }
-    private announce(peer: Peer): void {
-        if (peer.terrain.height <= 0) {
-            if (!this.state.heightWarnings.has(peer.level)) {
-                this.state.heightWarnings.add(peer.level);
-                this.state.log.warn(
-                    `World ${ansi.named.identifier(peer.level)} (${ansi.named.identifier(peer.dimension)}) has no known height, so DH sessions there are closed. Set height under [worlds."${peer.level}"] in config.toml.`,
-                );
-            }
-            peer.send(closeSession(`${PLUGIN_NAME}: no world height is configured for ${peer.level}.`));
-            this.state.removeClient(peer.name);
-            return;
-        }
-        const existing = this.state.clients.get(peer.name);
-        if (existing?.level === peer.level && existing.dimension === peer.dimension) {
-            peer.send(levelInit(peer.dimension, this.state.settings.server_key, peer.level, this.state.now()));
-            peer.send(sessionConfig(existing.config));
-            return;
-        }
-        if (existing) {
-            peer.send(closeSession('World changed; restarting the Distant Horizons session.'));
-            this.state.removeClient(peer.name);
-        }
-        const config = this.serverConfiguration();
-        this.state.clients.set(peer.name, {
-            level: peer.level,
-            dimension: peer.dimension,
-            config,
-            byteCredit: new ByteCredit(config.bandwidthKbps, this.state.now()),
-            packets: [],
-        });
-        peer.send(levelInit(peer.dimension, this.state.settings.server_key, peer.level, this.state.now()));
-        peer.send(sessionConfig(config));
-        this.state.log.debug(
-            `Established DH session with ${ansi.named.name(peer.name)} in ${ansi.named.identifier(peer.dimension)} / ${ansi.named.identifier(peer.level)} (generation distance ${ansi.named.number(config.generationDistance)} chunks at ${ansi.named.number(config.generationRate)}/s, sync distance ${ansi.named.number(config.syncDistance)} chunks at ${ansi.named.number(config.syncRate)}/s).`,
-        );
-    }
     private complete(request: Request, value: CachedLod, cached = false): void {
         this.state.terrainRetries.delete(request.key);
         const client = this.state.clients.get(request.name);
@@ -439,29 +290,12 @@ export class Sessions {
                 this.state.terrainRetries.delete(key);
         }
     }
-    private rejectPendingRequestClass(peer: Peer, sync: boolean): void {
-        for (let i = this.state.requests.length - 1; i >= 0; i--) {
-            const request = this.state.requests[i];
-            if (!request || request.name !== peer.name || (request.timestamp !== undefined) !== sync) continue;
-            this.state.rejected++;
-            this.state.lastFailure = 'LOD requests disabled by client';
-            peer.send(reject(request.tracker, this.state.lastFailure, 2));
-            this.state.drop(request);
-        }
-        for (const key of this.state.revisions.keys()) this.state.clearRevisionIfUnused(key);
-    }
     private orderedRequests(): Request[] {
         const requests = [...this.state.requests];
         if (requests.length === 0) return requests;
         const offset = this.state.requestCursor % requests.length;
         this.state.requestCursor = (offset + 1) % requests.length;
         return [...requests.slice(offset), ...requests.slice(0, offset)];
-    }
-    private pendingWorkCount(): number {
-        return (
-            this.state.requests.length +
-            [...this.state.clients.values()].reduce((count, client) => count + client.packets.length, 0)
-        );
     }
     private captureRequestCount(name: string, except: Request): number {
         return this.state.requests.filter(
@@ -470,71 +304,6 @@ export class Sessions {
                 request.name === name &&
                 (request.builder !== undefined || (request.cacheChecked === true && request.cached === null)),
         ).length;
-    }
-    private serverConfiguration(): SessionConfiguration {
-        return {
-            generationPlan: 2,
-            generationDistance: this.state.settings.render_distance,
-            generationRate: Math.min(
-                this.state.settings.generation_requests_per_second,
-                this.state.settings.pending_requests,
-            ),
-            realTimeUpdates: false,
-            realTimeDistance: 0,
-            syncEnabled: true,
-            syncDistance: this.state.settings.render_distance,
-            syncRate: Math.min(this.state.settings.sync_requests_per_second, this.state.settings.pending_requests),
-            bandwidthKbps: 0,
-        };
-    }
-    private negotiateConfiguration(request: SessionConfiguration): SessionConfiguration {
-        const server = this.serverConfiguration();
-        return {
-            generationPlan: request.generationPlan,
-            generationDistance: Math.min(request.generationDistance, server.generationDistance),
-            generationRate: Math.min(request.generationRate, server.generationRate),
-            realTimeUpdates: false,
-            realTimeDistance: 0,
-            syncEnabled: request.syncEnabled && server.syncEnabled,
-            syncDistance: Math.min(request.syncDistance, server.syncDistance),
-            syncRate: Math.min(request.syncRate, server.syncRate),
-            bandwidthKbps: request.bandwidthKbps,
-        };
-    }
-    private validate(
-        peer: Peer,
-        client: Client,
-        request: Extract<Message, { type: 'request' }>,
-        capacity = true,
-    ): { reason: string; kind: number } | undefined {
-        if (request.level !== peer.level || client.level !== peer.level) return { reason: 'Wrong world', kind: 2 };
-        const sync = request.timestamp !== undefined;
-        const enabled = sync ? client.config.syncEnabled : client.config.generationPlan !== 3;
-        if (!enabled) return { reason: 'LOD requests disabled by client', kind: 2 };
-        if (request.section.detail !== SECTION_DETAIL) return { reason: 'Request block-detail sections', kind: 3 };
-        const x = request.section.x * SECTION_SIZE_BLOCKS,
-            z = request.section.z * SECTION_SIZE_BLOCKS,
-            playerX = Math.floor(peer.x),
-            playerZ = Math.floor(peer.z),
-            distance = sync ? client.config.syncDistance : client.config.generationDistance,
-            rate = sync ? client.config.syncRate : client.config.generationRate,
-            range = distance * CHUNK_SIZE_BLOCKS,
-            signedEdgeDistance =
-                Math.max(
-                    Math.abs(x + SECTION_SIZE_BLOCKS / 2 - playerX),
-                    Math.abs(z + SECTION_SIZE_BLOCKS / 2 - playerZ),
-                ) -
-                SECTION_SIZE_BLOCKS / 2;
-        if (
-            signedEdgeDistance > range ||
-            !peer.insideBorder(x, z) ||
-            !peer.insideBorder(x + SECTION_SIZE_BLOCKS - 1, z + SECTION_SIZE_BLOCKS - 1)
-        )
-            return { reason: 'Section outside request range or world border', kind: 1 };
-        // Wire rates shape client demand; this queue is the server's combined backpressure bound.
-        if (capacity && (rate === 0 || this.pendingWorkCount() >= this.state.settings.pending_requests))
-            return { reason: 'LOD request limit reached', kind: 0 };
-        return undefined;
     }
 }
 
