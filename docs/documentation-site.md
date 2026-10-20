@@ -28,9 +28,11 @@ remains available as a separate **README** entry. Otherwise, the README is the o
 exists; if it doesn't, the first docs page is used.
 
 Write links from component docs to repository docs as relative Markdown links. `pnpm check` checks
-relative links, and the site rewrites those links to their site routes during the build. The site
-build fails if a link points to a page the site doesn't publish, such as the root README or a
-benchmark page.
+relative links, and the site rewrites those links to their site routes during the build. Source
+files and folders have no page on the site, so the build points relative links to them at GitHub.
+The build fails if a link points to a Markdown page the site doesn't publish, such as the root
+README or a benchmark page. Link a published page that covers the same ground, or use the file's
+GitHub URL.
 
 ## Set page titles and navigation
 
