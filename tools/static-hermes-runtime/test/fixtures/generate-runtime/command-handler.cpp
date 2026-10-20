@@ -10,37 +10,35 @@
 
 #include "runtime-contract-support.hpp"
 
-enum class ResourceKind { CommandSender, Server, ConsumedArgs };
 int senderDrops = 0;
 int serverDrops = 0;
 int argsDrops = 0;
 
 struct ResourceState {
-    ResourceKind kind;
     std::int32_t handle;
     bool owned;
+    std::string interfaceName;
+    std::string resourceName;
     void drop() {
         if (!owned) return;
         owned = false;
-        if (kind == ResourceKind::CommandSender) senderDrops++;
-        if (kind == ResourceKind::Server) serverDrops++;
-        if (kind == ResourceKind::ConsumedArgs) argsDrops++;
+        if (interfaceName == "command" && resourceName == "command-sender") senderDrops++;
+        if (interfaceName == "server" && resourceName == "server") serverDrops++;
+        if (interfaceName == "command" && resourceName == "consumed-args") argsDrops++;
     }
 };
 
-Value wrapResourceObject(Runtime &runtime, std::shared_ptr<HostObject> resource) {
+class WitResourceObject : public HostObject {
+  public:
+    explicit WitResourceObject(std::shared_ptr<ResourceState> state) : state(std::move(state)) {}
+    std::shared_ptr<ResourceState> state;
+};
+std::shared_ptr<WitResourceObject> makeWitResourceObject(std::shared_ptr<ResourceState> state) {
+    return std::make_shared<WitResourceObject>(std::move(state));
+}
+Value wrapResourceObject(Runtime &runtime, std::shared_ptr<WitResourceObject> resource) {
     return Object::createFromHostObject(runtime, std::move(resource));
 }
-
-template <typename State>
-class ResourceObject : public HostObject {
-  public:
-    explicit ResourceObject(std::shared_ptr<State> state) : state(std::move(state)) {}
-    std::shared_ptr<State> state;
-};
-class CommandSenderObject : public ResourceObject<ResourceState> { using ResourceObject::ResourceObject; };
-class ServerObject : public ResourceObject<ResourceState> { using ResourceObject::ResourceObject; };
-class ConsumedArgsObject : public ResourceObject<ResourceState> { using ResourceObject::ResourceObject; };
 
 struct plugin_own_command_sender_t { std::int32_t __handle; };
 struct plugin_own_server_instance_t { std::int32_t __handle; };
@@ -89,15 +87,15 @@ int main() {
     assert(invokedExport == "handleCommand");
     assert(receivedArgs.size() == 4);
     assert(receivedArgs[0].isNumber() && receivedArgs[0].asNumber() == 23);
-    const auto sender = std::dynamic_pointer_cast<CommandSenderObject>(
-        receivedArgs[1].asObject(runtime).getHostObject(runtime));
-    const auto server = std::dynamic_pointer_cast<ServerObject>(
-        receivedArgs[2].asObject(runtime).getHostObject(runtime));
-    const auto args = std::dynamic_pointer_cast<ConsumedArgsObject>(
-        receivedArgs[3].asObject(runtime).getHostObject(runtime));
-    assert(sender && sender->state->handle == 41);
-    assert(server && server->state->handle == 42);
-    assert(args && args->state->handle == 43);
+    const auto resource = [&](std::size_t index) {
+        const auto object = std::dynamic_pointer_cast<WitResourceObject>(
+            receivedArgs[index].asObject(runtime).getHostObject(runtime));
+        assert(object);
+        return object->state;
+    };
+    assert(resource(1)->handle == 41 && resource(1)->resourceName == "command-sender");
+    assert(resource(2)->handle == 42 && resource(2)->resourceName == "server");
+    assert(resource(3)->handle == 43 && resource(3)->resourceName == "consumed-args");
     assert(senderDrops == 1 && serverDrops == 1 && argsDrops == 1);
 
     // A result outside the WIT s32 range fails the command instead of being truncated.

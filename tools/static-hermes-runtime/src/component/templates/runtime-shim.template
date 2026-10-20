@@ -50,22 +50,6 @@ class PluginBundleBuffer final : public Buffer {
     const uint8_t *data() const override { return pluginBundleBytecode; }
 };
 
-enum class ResourceKind {
-    Context,
-    Server,
-    Entity,
-    ChunkBuffer,
-    Player,
-    World,
-    JavaPlayer,
-    Command,
-    CommandNode,
-    CommandSender,
-    ConsumedArgs,
-    Text,
-    Wit
-};
-
 struct ResourceState;
 
 void generatedWitDropResource(const std::string &interfaceName,
@@ -81,8 +65,10 @@ Value generatedWasiResourceMethod(
     const std::string &methodName, std::shared_ptr<ResourceState> state);
 void installGeneratedWasiApiFunctions(Runtime &runtime);
 
+// A WIT resource handle given to JavaScript, named by its WIT interface and
+// resource. WASI resources also carry their package; Pumpkin resources leave
+// it empty.
 struct ResourceState {
-    ResourceKind kind;
     int32_t handle;
     bool owned;
     std::string interfaceName{};
@@ -95,63 +81,11 @@ struct ResourceState {
             return;
         owned = false;
         valid = false;
-        switch (kind) {
-        case ResourceKind::Context:
-            pumpkin_plugin_context_context_drop_own(
-                pumpkin_plugin_context_own_context_t{handle});
-            break;
-        case ResourceKind::Server:
-            pumpkin_plugin_server_server_drop_own(
-                pumpkin_plugin_server_own_server_t{handle});
-            break;
-        case ResourceKind::Entity:
-            pumpkin_plugin_world_entity_drop_own(
-                pumpkin_plugin_world_own_entity_t{handle});
-            break;
-        case ResourceKind::ChunkBuffer:
-            pumpkin_plugin_world_chunk_buffer_drop_own(
-                pumpkin_plugin_world_own_chunk_buffer_t{handle});
-            break;
-        case ResourceKind::Player:
-            pumpkin_plugin_player_player_drop_own(
-                pumpkin_plugin_player_own_player_t{handle});
-            break;
-        case ResourceKind::World:
-            pumpkin_plugin_world_world_drop_own(
-                pumpkin_plugin_world_own_world_t{handle});
-            break;
-        case ResourceKind::JavaPlayer:
-            pumpkin_plugin_player_java_player_drop_own(
-                pumpkin_plugin_player_own_java_player_t{handle});
-            break;
-        case ResourceKind::Command:
-            pumpkin_plugin_command_command_drop_own(
-                pumpkin_plugin_command_own_command_t{handle});
-            break;
-        case ResourceKind::CommandNode:
-            pumpkin_plugin_command_command_node_drop_own(
-                pumpkin_plugin_command_own_command_node_t{handle});
-            break;
-        case ResourceKind::CommandSender:
-            pumpkin_plugin_command_command_sender_drop_own(
-                pumpkin_plugin_command_own_command_sender_t{handle});
-            break;
-        case ResourceKind::ConsumedArgs:
-            pumpkin_plugin_command_consumed_args_drop_own(
-                pumpkin_plugin_command_own_consumed_args_t{handle});
-            break;
-        case ResourceKind::Text:
-            pumpkin_plugin_text_text_component_drop_own(
-                pumpkin_plugin_text_own_text_component_t{handle});
-            break;
-        case ResourceKind::Wit:
-            if (packageName.rfind("wasi:", 0) == 0)
-                generatedWasiDropResource(packageName, interfaceName,
-                                          resourceName, handle);
-            else
-                generatedWitDropResource(interfaceName, resourceName, handle);
-            break;
-        }
+        if (packageName.rfind("wasi:", 0) == 0)
+            generatedWasiDropResource(packageName, interfaceName, resourceName,
+                                      handle);
+        else
+            generatedWitDropResource(interfaceName, resourceName, handle);
     }
 
     void transfer() {
@@ -160,14 +94,6 @@ struct ResourceState {
         owned = false;
         valid = false;
     }
-};
-
-class ResourceObject : public HostObject {
-  public:
-    virtual const std::shared_ptr<ResourceState> &state() const = 0;
-    Value get(Runtime &runtime, const PropNameID &name) override final;
-    virtual Value getResourceProperty(Runtime &runtime,
-                                      const PropNameID &name) = 0;
 };
 
 String jsString(Runtime &runtime, const std::string &value) {
@@ -280,10 +206,12 @@ Function dropResourceFunction(Runtime &runtime,
                         });
 }
 
-std::shared_ptr<ResourceObject>
+class WitResourceObject;
+
+std::shared_ptr<WitResourceObject>
 makeWitResourceObject(std::shared_ptr<ResourceState> state);
 Object wrapResourceObject(Runtime &runtime,
-                          std::shared_ptr<ResourceObject> resource);
+                          std::shared_ptr<WitResourceObject> resource);
 std::shared_ptr<ResourceState> getWitResourceState(Runtime &runtime,
                                                    const Value &value,
                                                    const std::string &interfaceName,
@@ -313,46 +241,32 @@ std::string propertyName(Runtime &runtime, const PropNameID &name) {
     return name.utf8(runtime);
 }
 
-Value ResourceObject::get(Runtime &runtime, const PropNameID &name) {
-    const auto key = propertyName(runtime, name);
-    if (key == "__isValid")
-        return Value(state()->valid);
-    const auto disposeSymbol = runtime.global()
-                                   .getPropertyAsObject(runtime, "Symbol")
-                                   .getProperty(runtime, "dispose");
-    const bool isDispose =
-        disposeSymbol.isSymbol() &&
-        PropNameID::compare(
-            runtime, name,
-            PropNameID::forSymbol(runtime, disposeSymbol.asSymbol(runtime)));
-    if (isDispose)
-        return hostFunction(runtime, "dispose", 0,
-                            [resource = state()](Runtime &, const Value &,
-                                                 const Value *,
-                                                 std::size_t) -> Value {
-                                resource->drop();
-                                return Value::undefined();
-                            });
-    return getResourceProperty(runtime, name);
-}
-
-Object wrapResourceObject(Runtime &runtime,
-                          std::shared_ptr<ResourceObject> resource) {
-    auto hostObject = Object::createFromHostObject(runtime, std::move(resource));
-    auto wrap = runtime.global().getPropertyAsFunction(
-        runtime, "__staticHermesWrapResource");
-    Value value = wrap.call(runtime, hostObject);
-    return value.asObject(runtime);
-}
-
-class WitResourceObject final : public ResourceObject {
+class WitResourceObject final : public HostObject {
   public:
     explicit WitResourceObject(std::shared_ptr<ResourceState> state)
         : state_(std::move(state)) {}
-    const std::shared_ptr<ResourceState> &state() const override { return state_; }
+    const std::shared_ptr<ResourceState> &state() const { return state_; }
 
-    Value getResourceProperty(Runtime &runtime, const PropNameID &name) override {
+    Value get(Runtime &runtime, const PropNameID &name) override {
         const auto key = propertyName(runtime, name);
+        if (key == "__isValid")
+            return Value(state_->valid);
+        const auto disposeSymbol = runtime.global()
+                                       .getPropertyAsObject(runtime, "Symbol")
+                                       .getProperty(runtime, "dispose");
+        const bool isDispose =
+            disposeSymbol.isSymbol() &&
+            PropNameID::compare(
+                runtime, name,
+                PropNameID::forSymbol(runtime, disposeSymbol.asSymbol(runtime)));
+        if (isDispose)
+            return hostFunction(runtime, "dispose", 0,
+                                [resource = state_](Runtime &, const Value &,
+                                                    const Value *,
+                                                    std::size_t) -> Value {
+                                    resource->drop();
+                                    return Value::undefined();
+                                });
         auto generated = state_->packageName.rfind("wasi:", 0) == 0
                              ? generatedWasiResourceMethod(
                                    runtime, state_->packageName,
@@ -371,193 +285,18 @@ class WitResourceObject final : public ResourceObject {
     std::shared_ptr<ResourceState> state_;
 };
 
-std::shared_ptr<ResourceObject>
+Object wrapResourceObject(Runtime &runtime,
+                          std::shared_ptr<WitResourceObject> resource) {
+    auto hostObject = Object::createFromHostObject(runtime, std::move(resource));
+    auto wrap = runtime.global().getPropertyAsFunction(
+        runtime, "__staticHermesWrapResource");
+    Value value = wrap.call(runtime, hostObject);
+    return value.asObject(runtime);
+}
+
+std::shared_ptr<WitResourceObject>
 makeWitResourceObject(std::shared_ptr<ResourceState> state) {
     return std::make_shared<WitResourceObject>(std::move(state));
-}
-
-class TextObject final : public ResourceObject {
-  public:
-    explicit TextObject(std::shared_ptr<ResourceState> state)
-        : state_(std::move(state)) {}
-    const std::shared_ptr<ResourceState> &state() const override { return state_; }
-
-    Value getResourceProperty(Runtime &runtime, const PropNameID &name) override {
-        const auto key = propertyName(runtime, name);
-        auto generated = generatedWitSimpleMethod(
-            runtime, "text", "text-component", key, state_);
-        if (!generated.isUndefined())
-            return generated;
-        if (key == "drop") return dropResourceFunction(runtime, state_);
-        return Value::undefined();
-    }
-
-  private:
-    std::shared_ptr<ResourceState> state_;
-};
-
-class ContextObject final : public ResourceObject {
-  public:
-    explicit ContextObject(std::shared_ptr<ResourceState> state)
-        : state_(std::move(state)) {}
-    const std::shared_ptr<ResourceState> &state() const override { return state_; }
-
-    Value getResourceProperty(Runtime &runtime, const PropNameID &name) override {
-        const auto key = propertyName(runtime, name);
-        auto generated = generatedWitSimpleMethod(runtime, "context", "context",
-                                                  key, state_);
-        if (!generated.isUndefined())
-            return generated;
-        if (key == "drop") return dropResourceFunction(runtime, state_);
-        return Value::undefined();
-    }
-
-  private:
-    std::shared_ptr<ResourceState> state_;
-};
-
-class ServerObject final : public ResourceObject {
-  public:
-    explicit ServerObject(std::shared_ptr<ResourceState> state)
-        : state_(std::move(state)) {}
-    const std::shared_ptr<ResourceState> &state() const override { return state_; }
-    Value getResourceProperty(Runtime &runtime, const PropNameID &name) override;
-
-  private:
-    std::shared_ptr<ResourceState> state_;
-};
-
-class WorldObject final : public ResourceObject {
-  public:
-    explicit WorldObject(std::shared_ptr<ResourceState> state)
-        : state_(std::move(state)) {}
-    const std::shared_ptr<ResourceState> &state() const override { return state_; }
-
-    Value getResourceProperty(Runtime &runtime, const PropNameID &name) override {
-        const auto key = propertyName(runtime, name);
-        auto generated =
-            generatedWitSimpleMethod(runtime, "world", "world", key, state_);
-        if (!generated.isUndefined())
-            return generated;
-        if (key == "drop") return dropResourceFunction(runtime, state_);
-        return Value::undefined();
-    }
-
-  private:
-    std::shared_ptr<ResourceState> state_;
-};
-
-class JavaPlayerObject final : public ResourceObject {
-  public:
-    explicit JavaPlayerObject(std::shared_ptr<ResourceState> state)
-        : state_(std::move(state)) {}
-    const std::shared_ptr<ResourceState> &state() const override { return state_; }
-
-    Value getResourceProperty(Runtime &runtime, const PropNameID &name) override {
-        const auto key = propertyName(runtime, name);
-        auto generated = generatedWitSimpleMethod(runtime, "player",
-                                                  "java-player", key, state_);
-        if (!generated.isUndefined())
-            return generated;
-        if (key == "drop") return dropResourceFunction(runtime, state_);
-        return Value::undefined();
-    }
-
-  private:
-    std::shared_ptr<ResourceState> state_;
-};
-
-class PlayerObject final : public ResourceObject {
-  public:
-    explicit PlayerObject(std::shared_ptr<ResourceState> state)
-        : state_(std::move(state)) {}
-    const std::shared_ptr<ResourceState> &state() const override { return state_; }
-
-    Value getResourceProperty(Runtime &runtime, const PropNameID &name) override {
-        const auto key = propertyName(runtime, name);
-        auto generated =
-            generatedWitSimpleMethod(runtime, "player", "player", key, state_);
-        if (!generated.isUndefined())
-            return generated;
-        if (key == "drop") return dropResourceFunction(runtime, state_);
-        return Value::undefined();
-    }
-
-  private:
-    std::shared_ptr<ResourceState> state_;
-};
-
-Value ServerObject::getResourceProperty(Runtime &runtime, const PropNameID &name) {
-    const auto key = propertyName(runtime, name);
-    auto generated =
-        generatedWitSimpleMethod(runtime, "server", "server", key, state_);
-    if (!generated.isUndefined())
-        return generated;
-    if (key == "drop") return dropResourceFunction(runtime, state_);
-    return Value::undefined();
-}
-
-class CommandSenderObject final : public ResourceObject {
-  public:
-    explicit CommandSenderObject(std::shared_ptr<ResourceState> state)
-        : state_(std::move(state)) {}
-    const std::shared_ptr<ResourceState> &state() const override { return state_; }
-
-    Value getResourceProperty(Runtime &runtime, const PropNameID &name) override {
-        const auto key = propertyName(runtime, name);
-        auto generated = generatedWitSimpleMethod(
-            runtime, "command", "command-sender", key, state_);
-        if (!generated.isUndefined())
-            return generated;
-        if (key == "drop") return dropResourceFunction(runtime, state_);
-        return Value::undefined();
-    }
-
-  private:
-    std::shared_ptr<ResourceState> state_;
-};
-
-class ConsumedArgsObject final : public ResourceObject {
-  public:
-    explicit ConsumedArgsObject(std::shared_ptr<ResourceState> state)
-        : state_(std::move(state)) {}
-    const std::shared_ptr<ResourceState> &state() const override { return state_; }
-
-    Value getResourceProperty(Runtime &runtime, const PropNameID &name) override {
-        const auto key = propertyName(runtime, name);
-        auto generated = generatedWitSimpleMethod(
-            runtime, "command", "consumed-args", key, state_);
-        if (!generated.isUndefined())
-            return generated;
-        if (key == "drop") return dropResourceFunction(runtime, state_);
-        return Value::undefined();
-    }
-
-  private:
-    std::shared_ptr<ResourceState> state_;
-};
-
-std::pair<std::string, std::string>
-resourceIdentity(const ResourceState &state) {
-    if (state.kind == ResourceKind::Wit)
-        return {state.interfaceName, state.resourceName};
-
-    switch (state.kind) {
-    case ResourceKind::Context: return {"context", "context"};
-    case ResourceKind::Server: return {"server", "server"};
-    case ResourceKind::Entity: return {"world", "entity"};
-    case ResourceKind::ChunkBuffer: return {"world", "chunk-buffer"};
-    case ResourceKind::Player: return {"player", "player"};
-    case ResourceKind::World: return {"world", "world"};
-    case ResourceKind::JavaPlayer: return {"player", "java-player"};
-    case ResourceKind::Command: return {"command", "command"};
-    case ResourceKind::CommandNode: return {"command", "command-node"};
-    case ResourceKind::CommandSender: return {"command", "command-sender"};
-    case ResourceKind::ConsumedArgs: return {"command", "consumed-args"};
-    case ResourceKind::Text: return {"text", "text-component"};
-    case ResourceKind::Wit: break;
-    }
-    return {};
 }
 
 std::shared_ptr<ResourceState>
@@ -565,20 +304,21 @@ getWitResourceState(Runtime &runtime, const Value &value,
                     const std::string &interfaceName,
                     const std::string &resourceName,
                     const std::string &packageName) {
-    auto resource = std::dynamic_pointer_cast<ResourceObject>(
+    auto resource = std::dynamic_pointer_cast<WitResourceObject>(
         nativeResource(runtime, value));
     if (!resource)
         throw JSError(runtime, "Expected a Pumpkin resource");
 
     const auto state = resource->state();
-    const auto [actualInterface, actualResource] = resourceIdentity(*state);
     if (!state->valid)
         throw JSError(runtime, "Cannot use a disposed or transferred resource");
-    if (actualInterface != interfaceName || actualResource != resourceName ||
+    if (state->interfaceName != interfaceName ||
+        state->resourceName != resourceName ||
         (!packageName.empty() && state->packageName != packageName))
         throw JSError(runtime, "Expected " + interfaceName + "." + resourceName +
-                                   " resource, received " + actualInterface +
-                                   "." + actualResource);
+                                   " resource, received " +
+                                   state->interfaceName + "." +
+                                   state->resourceName);
     return state;
 }
 
@@ -784,10 +524,10 @@ bool exports_plugin_on_load(plugin_own_context_t context,
     });
     try {
         state = std::make_shared<ResourceState>(
-            ResourceState{ResourceKind::Context, context.__handle, true});
+            ResourceState{context.__handle, true, "context", "context"});
         initializeRuntime();
         auto contextObject = wrapResourceObject(
-            *jsRuntime, std::make_shared<ContextObject>(state));
+            *jsRuntime, makeWitResourceObject(state));
         Value contextValue(std::move(contextObject));
         callExport("onLoad", &contextValue, 1);
         return true;
@@ -818,11 +558,11 @@ bool exports_plugin_on_unload(plugin_own_context_t context,
     bool unloaded = false;
     try {
         state = std::make_shared<ResourceState>(
-            ResourceState{ResourceKind::Context, context.__handle, true});
+            ResourceState{context.__handle, true, "context", "context"});
         jsRuntime->global().setProperty(
             *jsRuntime, "__staticHermesPluginUnloading", Value(true));
         Value contextValue(wrapResourceObject(
-            *jsRuntime, std::make_shared<ContextObject>(state)));
+            *jsRuntime, makeWitResourceObject(state)));
         callExport("onUnload", &contextValue, 1);
         unloaded = true;
     } catch (const std::exception &exception) {
@@ -850,9 +590,9 @@ void exports_plugin_handle_event(uint32_t event_id,
     try {
         initializeRuntime();
         serverState = std::make_shared<ResourceState>(
-            ResourceState{ResourceKind::Server, server.__handle, true});
+            ResourceState{server.__handle, true, "server", "server"});
         auto serverObject = wrapResourceObject(
-            *jsRuntime, std::make_shared<ServerObject>(serverState));
+            *jsRuntime, makeWitResourceObject(serverState));
         auto eventObject = makeEvent(*jsRuntime, event, &eventResources);
         Value args[] = {Value(static_cast<double>(event_id)),
                         std::move(serverObject), std::move(eventObject)};
@@ -893,17 +633,17 @@ bool exports_plugin_handle_command(uint32_t command_id,
     try {
         initializeRuntime();
         senderState = std::make_shared<ResourceState>(
-            ResourceState{ResourceKind::CommandSender, sender.__handle, true});
+            ResourceState{sender.__handle, true, "command", "command-sender"});
         serverState = std::make_shared<ResourceState>(
-            ResourceState{ResourceKind::Server, server.__handle, true});
+            ResourceState{server.__handle, true, "server", "server"});
         argsState = std::make_shared<ResourceState>(
-            ResourceState{ResourceKind::ConsumedArgs, args.__handle, true});
+            ResourceState{args.__handle, true, "command", "consumed-args"});
         auto senderObject = wrapResourceObject(
-            *jsRuntime, std::make_shared<CommandSenderObject>(senderState));
+            *jsRuntime, makeWitResourceObject(senderState));
         auto serverObject = wrapResourceObject(
-            *jsRuntime, std::make_shared<ServerObject>(serverState));
+            *jsRuntime, makeWitResourceObject(serverState));
         auto argsObject = wrapResourceObject(
-            *jsRuntime, std::make_shared<ConsumedArgsObject>(argsState));
+            *jsRuntime, makeWitResourceObject(argsState));
         Value commandArgs[] = {Value(static_cast<double>(command_id)),
                                std::move(senderObject), std::move(serverObject),
                                std::move(argsObject)};
@@ -975,13 +715,13 @@ void exports_plugin_handle_command_suggestion(
             throw std::runtime_error("Missing command suggestion request");
         initializeRuntime();
         senderState = std::make_shared<ResourceState>(
-            ResourceState{ResourceKind::CommandSender, sender.__handle, true});
+            ResourceState{sender.__handle, true, "command", "command-sender"});
         serverState = std::make_shared<ResourceState>(
-            ResourceState{ResourceKind::Server, server.__handle, true});
+            ResourceState{server.__handle, true, "server", "server"});
         auto senderObject = wrapResourceObject(
-            *jsRuntime, std::make_shared<CommandSenderObject>(senderState));
+            *jsRuntime, makeWitResourceObject(senderState));
         auto serverObject = wrapResourceObject(
-            *jsRuntime, std::make_shared<ServerObject>(serverState));
+            *jsRuntime, makeWitResourceObject(serverState));
 
         Object requestObject(*jsRuntime);
         requestObject.setProperty(
@@ -1068,9 +808,9 @@ void exports_plugin_handle_task(uint32_t handler_id,
     try {
         initializeRuntime();
         serverState = std::make_shared<ResourceState>(
-            ResourceState{ResourceKind::Server, server.__handle, true});
+            ResourceState{server.__handle, true, "server", "server"});
         auto serverObject = wrapResourceObject(
-            *jsRuntime, std::make_shared<ServerObject>(serverState));
+            *jsRuntime, makeWitResourceObject(serverState));
         Value args[] = {Value(static_cast<double>(handler_id)),
                         std::move(serverObject)};
         callExport("handleTask", args, 2);
@@ -1127,10 +867,9 @@ bool exports_plugin_handle_ipc_message(plugin_plugin_id_t *sender,
 }
 
 static std::shared_ptr<ResourceState> makeOwnedWitCallbackResource(
-    int32_t handle, ResourceKind kind, const char *interfaceName,
-    const char *resourceName) {
-    return std::make_shared<ResourceState>(ResourceState{
-        kind, handle, true, interfaceName, resourceName, ""});
+    int32_t handle, const char *interfaceName, const char *resourceName) {
+    return std::make_shared<ResourceState>(
+        ResourceState{handle, true, interfaceName, resourceName});
 }
 
 static bool dispatchAiGoalCallback(
@@ -1155,11 +894,11 @@ static bool dispatchAiGoalCallback(
     try {
         initializeRuntime();
         serverState = makeOwnedWitCallbackResource(
-            server.__handle, ResourceKind::Server, "server", "server");
+            server.__handle, "server", "server");
         entityState = makeOwnedWitCallbackResource(
-            entity.__handle, ResourceKind::Entity, "world", "entity");
+            entity.__handle, "world", "entity");
         auto serverObject = wrapResourceObject(
-            *jsRuntime, std::make_shared<ServerObject>(serverState));
+            *jsRuntime, makeWitResourceObject(serverState));
         auto entityObject = wrapResourceObject(
             *jsRuntime, makeWitResourceObject(entityState));
         Value args[] = {Value(static_cast<double>(goalId)),
@@ -1228,7 +967,7 @@ void exports_plugin_handle_generate_phase(
     try {
         initializeRuntime();
         chunkState = makeOwnedWitCallbackResource(
-            chunk.__handle, ResourceKind::ChunkBuffer, "world", "chunk-buffer");
+            chunk.__handle, "world", "chunk-buffer");
         auto chunkObject = wrapResourceObject(
             *jsRuntime, makeWitResourceObject(chunkState));
         Value args[] = {Value(static_cast<double>(generatorId)),

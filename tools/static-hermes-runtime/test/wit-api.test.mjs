@@ -1002,9 +1002,7 @@ describe('WIT-derived Pumpkin API facades', () => {
     it('wraps event resources with the generic Pumpkin WIT resource adapter', () => {
         const dispatch = eventDispatch(fixture());
 
-        expect(dispatch).toContain(
-            'ResourceState{ResourceKind::Wit, eventData.cursor.val.__handle, true, "item-stack", "item-stack"}',
-        );
+        expect(dispatch).toContain('ResourceState{eventData.cursor.val.__handle, true, "item-stack", "item-stack"}');
         expect(dispatch).toContain('wrapResourceObject(runtime, makeWitResourceObject(eventValueCursorValueState))');
     });
 

@@ -178,7 +178,9 @@ it('generates facades and native adapters for the full pinned Pumpkin and WASI W
             })),
         };
     });
-    expect(emitWasiAdapterDispatch(unresolvedSourceInterfaces, typedAnalysis)).toBe(withErrorMarker(wasiDispatch));
+    expect(emitWasiAdapterDispatch(unresolvedSourceInterfaces, typedAnalysis)).toBe(
+        withCurrentConventions(wasiDispatch),
+    );
 
     const selectedApiOperation = typedApi.interfaces
         .flatMap((apiInterface) => [
@@ -221,7 +223,7 @@ it('generates facades and native adapters for the full pinned Pumpkin and WASI W
     const typedPumpkinDispatch = emitPumpkinMethodDispatch(unresolvedApiTypes, typedAnalysis);
     // The frozen oracle drops only resources that an operation returns directly. Every declared
     // resource now has a drop branch, so compare the rest with the oracle.
-    expect(withoutWitDrops(typedPumpkinDispatch)).toBe(withErrorMarker(withoutWitDrops(pumpkinDispatch)));
+    expect(withoutWitDrops(typedPumpkinDispatch)).toBe(withCurrentConventions(withoutWitDrops(pumpkinDispatch)));
     for (const apiInterface of typedApi.interfaces) {
         for (const resource of apiInterface.resources) {
             expect(typedPumpkinDispatch).toContain(
@@ -294,7 +296,7 @@ it('generates facades and native adapters for the full pinned Pumpkin and WASI W
     );
     expect(typedOutput.runtimeSource).toContain('installGeneratedWasiApiFunctions(*jsRuntime);');
     expect(typedOutput.runtimeSource).toContain(
-        withErrorMarker(withoutWitDrops(generateWitSimpleMethodDispatch(apiPackage, eventSource, apiMethods))),
+        withCurrentConventions(withoutWitDrops(generateWitSimpleMethodDispatch(apiPackage, eventSource, apiMethods))),
     );
     expect(count(typedOutput.runtimeSource, /case PUMPKIN_PLUGIN_EVENT_EVENT_TYPE_/g)).toBe(eventVariant.cases.length);
     expect(count(typedOutput.runtimeSource, /data\.setProperty\(runtime,/g)).toBeGreaterThanOrEqual(eventFieldCount);
@@ -307,12 +309,18 @@ function withoutWitDrops(dispatch) {
     return dispatch.slice(end + 3);
 }
 
-/** The frozen oracle returns { tag: 'err' } for a failed result<T>; the generator now throws through the error marker. */
-function withErrorMarker(oracleDispatch) {
-    return oracleDispatch.replaceAll(
-        'errorValue.setProperty(rt, "tag", "err"); return errorValue;',
-        'errorValue.setProperty(rt, "__staticHermesWitError", Value::null()); return errorValue;',
-    );
+/**
+ * Applies the generator's intended changes to frozen oracle output. The oracle returns { tag: 'err' } for a
+ * failed result<T>, where the generator throws through the error marker, and it tags resource states with a
+ * ResourceKind, which the runtime no longer has.
+ */
+function withCurrentConventions(oracleDispatch) {
+    return oracleDispatch
+        .replaceAll(
+            'errorValue.setProperty(rt, "tag", "err"); return errorValue;',
+            'errorValue.setProperty(rt, "__staticHermesWitError", Value::null()); return errorValue;',
+        )
+        .replaceAll('ResourceState{ResourceKind::Wit, ', 'ResourceState{');
 }
 
 function count(source, expression) {
