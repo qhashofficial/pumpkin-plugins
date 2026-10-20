@@ -5,7 +5,7 @@ export default defineConfig({
         // Keep this package's module cache to itself: concurrent runs clear vitest's workspace-wide default.
         fsModuleCachePath: 'node_modules/.vitest-cache',
         projects: [
-            { extends: true, test: { name: 'unit', include: ['test/**/*.test.ts'] } },
+            { extends: true, test: { name: 'unit', include: ['src/**/*.test.ts', 'test/**/*.test.ts'] } },
             {
                 extends: true,
                 test: {

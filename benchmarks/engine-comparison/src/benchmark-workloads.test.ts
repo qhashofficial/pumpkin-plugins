@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { WORKLOADS } from '../src/benchmark-workloads.ts';
+import { WORKLOADS } from './benchmark-workloads.ts';
 
 it('pins string workload identifiers, operation counts, and checksums', () => {
     const stringWorkloads = WORKLOADS.filter(({ name }) =>
