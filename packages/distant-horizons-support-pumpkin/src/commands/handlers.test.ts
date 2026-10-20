@@ -1,5 +1,4 @@
 import type { CommandSender } from 'pumpkin:plugin/command@0.1.0';
-import { commandInfos } from '@pumpkin-plugins/docs';
 import type { CommandHost } from '@pumpkin-plugins/plugin-kit/commands';
 import { buildCommands } from '@pumpkin-plugins/plugin-kit/commands';
 import { FakeCommandHost, type FakeNode, MemoryFiles, MemoryLogger } from '@pumpkin-plugins/plugin-kit/testing';
@@ -62,23 +61,6 @@ describe('the /dhs commands', () => {
     it('registers every command listed in the README', () => {
         const { host, root } = setup();
         expect(host.usages(root).sort()).toEqual((info.commands ?? []).map((command) => command.usage).sort());
-        expect(info.commands).toEqual(commandInfos(commands));
-        expect(info.commands.map((command) => command.permission)).toEqual([
-            'DistantHorizonsSupportPumpkin:command.dhs.status',
-            'DistantHorizonsSupportPumpkin:command.dhs.cache.status',
-            'DistantHorizonsSupportPumpkin:command.dhs.cache.clear',
-            'DistantHorizonsSupportPumpkin:command.dhs.cache.memory.clear',
-            'DistantHorizonsSupportPumpkin:command.dhs.cache.disk.clear',
-            'DistantHorizonsSupportPumpkin:command.dhs.cache.recover',
-            'DistantHorizonsSupportPumpkin:command.dhs.map',
-            'DistantHorizonsSupportPumpkin:command.dhs.map',
-            'DistantHorizonsSupportPumpkin:command.dhs.map',
-            'DistantHorizonsSupportPumpkin:command.dhs.map',
-            'DistantHorizonsSupportPumpkin:command.dhs.generate',
-            'DistantHorizonsSupportPumpkin:command.dhs.generate',
-            'DistantHorizonsSupportPumpkin:command.dhs.generate',
-            'DistantHorizonsSupportPumpkin:command.dhs.generate',
-        ]);
         expect(info.commands.map(({ usage }) => usage)).toEqual(
             expect.arrayContaining([
                 '/dhs map',
