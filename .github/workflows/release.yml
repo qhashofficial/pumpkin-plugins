@@ -44,7 +44,7 @@ jobs:
         steps:
             - name: 🕶️ Checkout repository
               id: checkout-repository
-              uses: actions/checkout@v7.0.1
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   fetch-depth: 0
                   filter: blob:none
@@ -56,7 +56,7 @@ jobs:
             - name: 💾 Restore Release Please commit file cache
               id: restore-release-please-commit-file-cache
               continue-on-error: true
-              uses: actions/cache/restore@v6.1.0
+              uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
                   path: .cache/release-commit-files.json
                   key: release-commit-files-v1-${{ github.run_id }}-${{ github.run_attempt }}
@@ -65,7 +65,7 @@ jobs:
 
             - name: 🔑 Create release token
               id: app-token
-              uses: actions/create-github-app-token@v3.2.0
+              uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
               with:
                   client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
                   private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
@@ -87,7 +87,7 @@ jobs:
                   steps.release.outcome == 'success' &&
                   github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
               continue-on-error: true
-              uses: actions/cache/save@v6.1.0
+              uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
                   path: .cache/release-commit-files.json
                   key: release-commit-files-v1-${{ github.run_id }}-${{ github.run_attempt }}
@@ -251,7 +251,7 @@ jobs:
         steps:
             - name: 🔑 Create release PR token
               id: app-token
-              uses: actions/create-github-app-token@v3.2.0
+              uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
               with:
                   client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
                   private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
@@ -259,7 +259,7 @@ jobs:
 
             # Release Please rewrites each PR branch on updates. Prepare every returned PR.
             - name: 🕶️ Checkout release PR branch
-              uses: actions/checkout@v7.0.1
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   ref: ${{ matrix.pr.headRefName }}
                   token: ${{ steps.app-token.outputs.token }}
@@ -346,7 +346,7 @@ jobs:
             RELEASE_TOOL_ONLY: ${{ inputs.tool_only }}
         steps:
             - name: 🕶️ Checkout repository
-              uses: actions/checkout@v7.0.1
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   fetch-depth: 0
                   filter: blob:none
@@ -356,7 +356,7 @@ jobs:
 
             - name: 🕶️ Checkout requested release source
               if: ${{ inputs.tool_only }}
-              uses: actions/checkout@v7.0.1
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   ref: ${{ inputs.release_commit }}
                   path: release-source
@@ -373,7 +373,7 @@ jobs:
                   done <<< "$release_tags"
 
             - name: 📦 Configure npm OIDC publishing
-              uses: actions/setup-node@v7.1.0
+              uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
               with:
                   node-version-file: .node-version
                   registry-url: https://registry.npmjs.org
@@ -423,7 +423,7 @@ jobs:
             EXTENSION_DIRECTORY: ${{ matrix.path }}
         steps:
             - name: 🕶️ Checkout repository
-              uses: actions/checkout@v7.0.1
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
             - name: 🚀 Bootstrap
               uses: ./.github/common/bootstrap

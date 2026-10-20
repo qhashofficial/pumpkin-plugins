@@ -9,7 +9,7 @@ it('uses the GitHub App token for artifact access and PR comments', () => {
         'utf8',
     );
 
-    assert.match(workflow, /uses: actions\/create-github-app-token@v3\.2\.0/);
+    assert.match(workflow, /uses: actions\/create-github-app-token@[0-9a-f]{40} # v3\.2\.0/);
     assert.match(workflow, /permission-contents: write/);
     assert.match(workflow, /GITHUB_TOKEN: \$\{\{ steps\.app-token\.outputs\.token \}\}/);
     assert.match(workflow, /GH_TOKEN: \$\{\{ steps\.app-token\.outputs\.token \}\}/);

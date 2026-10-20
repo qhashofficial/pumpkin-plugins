@@ -93,7 +93,7 @@ jobs:
         steps:
             - name: 🕶️ Checkout repository
               id: checkout-repository
-              uses: actions/checkout@v7.0.1
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   # Diffing against the base needs the history behind it, not just the one commit.
                   # Commits and trees are enough; the few blobs read at the base are fetched on demand.
@@ -108,7 +108,7 @@ jobs:
 
             - name: 🟢 Setup Node
               id: setup-node
-              uses: actions/setup-node@v7.1.0
+              uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
               with:
                   node-version-file: .node-version
 
@@ -148,10 +148,10 @@ jobs:
             pull-requests: read
         steps:
             - name: 🕶️ Checkout repository
-              uses: actions/checkout@v7.0.1
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
             - name: 💬 Lint commits
-              uses: wagoid/commitlint-github-action@v6.2.1
+              uses: wagoid/commitlint-github-action@b948419dd99f3fd78a6548d48f94e3df7f6bf3ed # v6.2.1
               with:
                   configFile: commitlint.config.mjs
 
@@ -164,7 +164,7 @@ jobs:
         steps:
             - name: 🕶️ Checkout repository
               id: checkout-repository
-              uses: actions/checkout@v7.0.1
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
             - name: 🚀 Bootstrap
               id: bootstrap
@@ -191,7 +191,7 @@ jobs:
         steps:
             - name: 🕶️ Checkout repository
               id: checkout-repository
-              uses: actions/checkout@v7.0.1
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
             - name: 🚀 Bootstrap
               id: bootstrap
@@ -218,7 +218,7 @@ jobs:
         steps:
             - name: 🕶️ Checkout repository
               id: checkout-repository
-              uses: actions/checkout@v7.0.1
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
             - name: 🚀 Bootstrap
               id: bootstrap
@@ -230,7 +230,7 @@ jobs:
 
             - name: ☂️ Upload coverage
               id: upload-coverage
-              uses: codecov/codecov-action@v7.1.1
+              uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
               with:
                   directory: .
                   flags: tooling,guest
@@ -240,7 +240,7 @@ jobs:
             - name: 📦 Preserve coverage evidence
               id: preserve-coverage-evidence
               if: ${{ !cancelled() && steps.bootstrap.outcome == 'success' }}
-              uses: actions/upload-artifact@v7.0.2
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: coverage-evidence
                   retention-days: 7
@@ -278,7 +278,7 @@ jobs:
         steps:
             - name: 🕶️ Checkout repository
               id: checkout-repository
-              uses: actions/checkout@v7.0.1
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
             - name: 🚀 Bootstrap
               id: bootstrap
@@ -310,7 +310,7 @@ jobs:
         steps:
             - name: 🕶️ Checkout repository
               id: checkout-repository
-              uses: actions/checkout@v7.0.1
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
             - name: 🚀 Bootstrap
               id: bootstrap
@@ -329,7 +329,7 @@ jobs:
             - name: 💾 Save Static Hermes build cache
               id: save-static-hermes-build-cache
               if: steps.prepare-hermes.outcome == 'success' && steps.setup-hermes.outputs.hermes-cache-hit != 'true'
-              uses: actions/cache/save@v6.1.0
+              uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
                   path: ${{ github.workspace }}/.cache/hermes
                   key: ${{ steps.setup-hermes.outputs.hermes-cache-key }}
@@ -390,7 +390,7 @@ jobs:
 
             - name: 📦 Upload build artifact
               id: upload-signed-plugins
-              uses: actions/upload-artifact@v7.0.2
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   retention-days: 1
                   overwrite: true
@@ -401,7 +401,7 @@ jobs:
 
             - name: 📦 Upload plugin builds for integration tests
               id: upload-plugin-builds-for-integration-tests
-              uses: actions/upload-artifact@v7.0.2
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   retention-days: 1
                   overwrite: true
@@ -412,7 +412,7 @@ jobs:
 
             - name: 📦 Upload update-check fixture
               id: upload-update-check-fixture
-              uses: actions/upload-artifact@v7.0.2
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   retention-days: 1
                   overwrite: true
@@ -456,7 +456,7 @@ jobs:
         steps:
             - name: 🕶️ Checkout repository
               id: checkout-repository
-              uses: actions/checkout@v7.0.1
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
             - name: 🚀 Bootstrap
               id: bootstrap
@@ -472,14 +472,14 @@ jobs:
 
             - name: 📥 Download plugin builds
               id: download-plugin-builds
-              uses: actions/download-artifact@v8.0.2
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
                   name: plugin-wasm
                   path: packages/
 
             - name: 📥 Download update-check fixture
               id: download-update-check-fixture
-              uses: actions/download-artifact@v8.0.2
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
                   name: update-check-fixture
                   path: tools/update-check/build/
@@ -514,7 +514,7 @@ jobs:
             - name: 📤 Upload server logs
               id: upload-server-logs
               if: failure()
-              uses: actions/upload-artifact@v7.0.2
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   retention-days: 1
                   overwrite: true
@@ -541,7 +541,7 @@ jobs:
         steps:
             - name: 🕶️ Checkout repository
               id: checkout-repository
-              uses: actions/checkout@v7.0.1
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
             - name: 🚀 Bootstrap
               id: bootstrap
@@ -601,7 +601,7 @@ jobs:
             - name: 📤 Upload server logs
               id: upload-server-logs
               if: failure()
-              uses: actions/upload-artifact@v7.0.2
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   retention-days: 1
                   overwrite: true
@@ -629,7 +629,7 @@ jobs:
         steps:
             - name: 🕶️ Checkout repository
               id: checkout-repository
-              uses: actions/checkout@v7.0.1
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   sparse-checkout: |
                       .node-version
@@ -638,7 +638,7 @@ jobs:
 
             - name: 🟢 Setup Node
               id: setup-node
-              uses: actions/setup-node@v7.1.0
+              uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
               with:
                   node-version-file: .node-version
 

@@ -16,10 +16,10 @@ runs:
     using: composite
     steps:
         - name: 📦 Setup pnpm
-          uses: pnpm/action-setup@v6.1.0
+          uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
         - name: 🟢 Setup Node
-          uses: actions/setup-node@v7.1.0
+          uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
           with:
               node-version-file: .node-version
 
@@ -40,14 +40,14 @@ runs:
 
         - name: ♻️ Restore and save pnpm store
           if: steps.cache-policy.outputs.save == 'true'
-          uses: actions/cache@v6.1.0
+          uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
           with:
               path: ${{ steps.cache-policy.outputs.pnpm-store }}
               key: pnpm-store-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
 
         - name: ♻️ Restore pnpm store
           if: steps.cache-policy.outputs.save != 'true'
-          uses: actions/cache/restore@v6.1.0
+          uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
           with:
               path: ${{ steps.cache-policy.outputs.pnpm-store }}
               key: pnpm-store-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
@@ -59,7 +59,7 @@ runs:
         # actions/cache skips the save after an exact hit, so a rerun of the same commit adds no entry.
         - name: ♻️ Restore and save shared Turborepo cache
           if: steps.cache-policy.outputs.save == 'true'
-          uses: actions/cache@v6.1.0
+          uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
           with:
               path: .turbo
               key: turbo-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}${{ inputs.cache-suffix }}-${{ github.sha }}
@@ -70,7 +70,7 @@ runs:
 
         - name: ♻️ Restore shared Turborepo cache
           if: steps.cache-policy.outputs.save != 'true'
-          uses: actions/cache/restore@v6.1.0
+          uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
           with:
               path: .turbo
               key: turbo-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}${{ inputs.cache-suffix }}-${{ github.sha }}
