@@ -107,6 +107,13 @@ test('a generated plugin defines the parse-ts build every plugin needs', { skip:
     assert.equal(manifest.scripts['build:parse-ts'], 'pumpkin-plugins-build --parse-ts');
 });
 
+test('a generated plugin gets the turbo.json that restores its generated types', { skip: skipOnWindows }, () => {
+    const root = generate('plugin', ['my-plugin', 'MyPlugin', 'Does a thing']);
+    const turbo = readJson(path.join(root, 'packages/my-plugin/turbo.json'));
+
+    assert.ok(turbo.tasks.typecheck.outputs.length > 0);
+});
+
 test('the starter command is named after the plugin, not the built-in /plugin', { skip: skipOnWindows }, () => {
     const root = generate('plugin', ['my-plugin', 'MyPlugin', 'Does a thing']);
     const spec = fs.readFileSync(path.join(root, 'packages/my-plugin/src/commands/spec.ts'), 'utf8');

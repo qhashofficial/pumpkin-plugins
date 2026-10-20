@@ -8,29 +8,6 @@ const KEBAB_CASE = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 const PASCAL_CASE = /^[A-Z][A-Za-z0-9]*$/;
 // Same limit as scripts/package-metadata.mjs, which checks every package.json.
 const MAX_DESCRIPTION = 70;
-const ACTION_FILES = ['README.md', 'CHANGELOG.md', 'version.txt', 'action.yml', 'src/index.mjs', 'src/index.test.mjs'];
-const EXTENSION_FILES = [
-    'README.md',
-    'CHANGELOG.md',
-    'package.json',
-    'tsconfig.json',
-    '.vscodeignore',
-    'src/extension.ts',
-    'src/command.ts',
-    'src/extension.test.ts',
-];
-
-const FILES = [
-    'README.md',
-    'package.json',
-    'tsconfig.json',
-    'vitest.config.ts',
-    'src/name.ts',
-    'src/commands/spec.ts',
-    'src/info.ts',
-    'src/plugin.ts',
-    'test/plugin.itest.ts',
-];
 
 type Answers = { name: string; displayName: string; description: string; turbo: { paths: { root: string } } };
 
@@ -56,6 +33,15 @@ function titleCase(name: string): string {
         .split('-')
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(' ');
+}
+
+// Every template in templates/<group>, without its .hbs suffix, so a new template can't be left out.
+function templateFiles(plop: PlopTypes.NodePlopAPI, group: string): string[] {
+    const dir = path.join(plop.getPlopfilePath(), 'templates', group);
+    return fs
+        .readdirSync(dir, { encoding: 'utf8', recursive: true })
+        .filter((file) => file.endsWith('.hbs'))
+        .map((file) => file.slice(0, -'.hbs'.length).replaceAll(path.sep, '/'));
 }
 
 function modifyJson(file: string, update: (json: Record<string, unknown>, name: string) => Record<string, unknown>) {
@@ -147,7 +133,7 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
             const name = (data as Answers).name;
             const rootPackage = readRootPackage(root);
             return [
-                ...FILES.map((file) => ({
+                ...templateFiles(plop, 'plugin').map((file) => ({
                     type: 'add',
                     path: `{{ turbo.paths.root }}/packages/{{ name }}/${file}`,
                     templateFile: `templates/plugin/${file}.hbs`,
@@ -221,7 +207,7 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
             const author = readRootPackage(root).author as string | { name: string };
             const authorName = (typeof author === 'string' ? author : author.name).replace(/\s*[<(].*$/, '');
             return [
-                ...ACTION_FILES.map((file) => ({
+                ...templateFiles(plop, 'action').map((file) => ({
                     type: 'add',
                     path: `{{ turbo.paths.root }}/actions/{{ name }}/${file}`,
                     templateFile: `templates/action/${file}.hbs`,
@@ -293,7 +279,7 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
             const vscodeVersion = catalogVersion(root, '@types/vscode');
             const rootPackage = readRootPackage(root);
             return [
-                ...EXTENSION_FILES.map((file) => ({
+                ...templateFiles(plop, 'extension').map((file) => ({
                     type: 'add',
                     path: `{{ turbo.paths.root }}/extensions/{{ name }}/${file}`,
                     templateFile: `templates/extension/${file}.hbs`,
