@@ -36,3 +36,15 @@ it('restores package.json when packaging is interrupted', { skip: process.platfo
 
     assert.equal(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'), manifest);
 });
+
+it('declares every bundled workspace package as a dev dependency, so Turbo rebuilds the extension when it changes', () => {
+    const extensions = path.join(import.meta.dirname, '../extensions');
+    for (const name of fs.readdirSync(extensions)) {
+        const manifestFile = path.join(extensions, name, 'package.json');
+        if (!fs.existsSync(manifestFile)) continue;
+        const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
+        for (const bundled of manifest.pumpkinBundleDependencies ?? []) {
+            assert.equal(manifest.devDependencies?.[bundled], 'workspace:*', `${name} bundles ${bundled}`);
+        }
+    }
+});
