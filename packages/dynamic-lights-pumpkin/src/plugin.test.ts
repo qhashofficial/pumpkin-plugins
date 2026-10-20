@@ -19,7 +19,6 @@ const state = vi.hoisted(() => ({
     nextTask: 0,
 }));
 
-vi.mock('pumpkin:plugin/logging@0.1.0', () => ({ log: vi.fn() }));
 vi.mock('pumpkin:plugin/uuid@0.1.0', () => ({ toString: (id: string) => id }));
 vi.mock('@pumpkin-plugins/pumpkin-api', () => ({ handleCommand: vi.fn() }));
 vi.mock('@pumpkin-plugins/plugin-kit/plugin', () => ({
@@ -39,6 +38,7 @@ vi.mock('@pumpkin-plugins/plugin-kit/host', () => ({
     scheduleDelayed: (_delay: number, run: (server: Server) => void) => schedule(run, false),
     scheduleRepeating: (_delay: number, run: (server: Server) => void) => schedule(run, true),
     cancelTask: (id: number) => state.tasks.delete(id),
+    hostLogger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     runCommand: vi.fn(),
 }));
 vi.mock('./commands/register.ts', () => ({ registerCommands: state.registerCommands }));

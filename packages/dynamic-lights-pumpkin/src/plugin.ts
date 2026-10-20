@@ -1,10 +1,10 @@
 import type { Context } from 'pumpkin:plugin/context@0.1.0';
 import type { PlayerJoinEventData } from 'pumpkin:plugin/event@0.1.0';
-import * as logging from 'pumpkin:plugin/logging@0.1.0';
 import type { Server } from 'pumpkin:plugin/server@0.1.0';
 import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import { WasiDataDir } from '@pumpkin-plugins/plugin-kit/data-dir';
-import { cancelTask, scheduleRepeating } from '@pumpkin-plugins/plugin-kit/host';
+import { cancelTask, hostLogger, scheduleRepeating } from '@pumpkin-plugins/plugin-kit/host';
+import { taggedLogger } from '@pumpkin-plugins/plugin-kit/logger';
 import { PluginBase, registerPlugin } from '@pumpkin-plugins/plugin-kit/plugin';
 import { disposeWasiResource } from '@pumpkin-plugins/plugin-kit/wasi-resource';
 import { registerCommands } from './commands/register.ts';
@@ -21,6 +21,8 @@ import { PlayerLightPreferences } from './lights/player-preferences.ts';
 import { resolveClientLightStates } from './platform/client-light-states.ts';
 import { PumpkinLightWorld } from './platform/pumpkin-light-world.ts';
 
+const log = taggedLogger(ansi.named.name(info.name), hostLogger);
+
 /** The plugin. Pumpkin creates it once and calls `onLoad` when the server starts. */
 class DynamicLightsPumpkin extends PluginBase {
     private dataDir: WasiDataDir | undefined;
@@ -36,12 +38,12 @@ class DynamicLightsPumpkin extends PluginBase {
     protected onPluginLoad(ctx: Context): void {
         const clientLightStates = resolveClientLightStates();
         if (clientLightStates === undefined) {
-            logging.log('error', `${ansi.named.name(info.name)} could not resolve Minecraft light block states`);
+            log.error('could not resolve Minecraft light block states');
             return;
         }
         const files = WasiDataDir.open();
         if (files === undefined) {
-            logging.log('error', `${ansi.named.name(info.name)} needs its data-folder permissions to run`);
+            log.error('needs its data-folder permissions to run');
             return;
         }
         this.dataDir = files;
@@ -59,9 +61,7 @@ class DynamicLightsPumpkin extends PluginBase {
     }
 
     private initializePlugin(ctx: Context, files: WasiDataDir, clientLightStates: (level: number) => number): void {
-        const config = loadPluginConfig(files, (level, message) =>
-            logging.log(level, `${ansi.named.name(info.name)}: ${message}`),
-        );
+        const config = loadPluginConfig(files, (level, message) => log[level](message));
         const journal = new LightJournal(files);
         const preferences = new PlayerLightPreferences(files);
         const tracker = new ClientLightTracker(clientLightStates);
@@ -77,9 +77,8 @@ class DynamicLightsPumpkin extends PluginBase {
         registerCommands(ctx, this);
         if (droppedItemLevels !== undefined) {
             registerDroppedItemEvents(this, ctx, droppedItemLevels);
-            logging.log(
-                'info',
-                `${ansi.named.name(info.name)} entity lights enabled for ${ansi.named.number(entityLevels.size)} type${entityLevels.size === 1 ? '' : 's'} every ${ansi.named.number(config.entities.refresh_interval_ticks)} ticks`,
+            log.info(
+                `entity lights enabled for ${ansi.named.number(entityLevels.size)} type${entityLevels.size === 1 ? '' : 's'} every ${ansi.named.number(config.entities.refresh_interval_ticks)} ticks`,
             );
             this.entityTask = scheduleRepeating(config.entities.refresh_interval_ticks, (server) =>
                 sync.syncEntityLights(server),
@@ -113,9 +112,8 @@ class DynamicLightsPumpkin extends PluginBase {
             for (const world of worlds) disposeWasiResource(world);
         }
         if (recovered > 0)
-            logging.log(
-                'warn',
-                `${ansi.named.name(info.name)} restored ${ansi.named.number(recovered)} stale temporary light level${recovered === 1 ? '' : 's'}`,
+            log.warn(
+                `restored ${ansi.named.number(recovered)} stale temporary light level${recovered === 1 ? '' : 's'}`,
             );
         const players = server.getAllPlayers();
         try {
