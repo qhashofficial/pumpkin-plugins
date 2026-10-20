@@ -21,7 +21,7 @@ CI runs each engine configuration as its own matrix job, along with a stack-guar
 
 After a pull-request CI run produces a complete report, a separate trusted workflow updates one benchmark comment on the PR, even if another CI job failed. It compares the results with the newest successful default-branch benchmark that is an ancestor of the PR base. By default, changes within 10% count as runner jitter; set the repository variable `BENCHMARK_JITTER_PERCENT` to change that threshold. A median that moves by less than 1 ms also counts as jitter, whatever the percentage, so very short workloads don't raise warnings on small timing noise. A slower result beyond the threshold gets a warning. A significant improvement gets a celebration if there are no regressions; otherwise, the comment reports the run without a performance alert. The comment links to the full matrix report, embeds an SVG chart of the largest changes, and links to the chart for download. If no matching baseline artifact exists, it says so and leaves timing changes unclassified.
 
-The benchmark plugin and workload definitions live in [benchmark-plugin.ts](../benchmarks/engine-comparison/src/benchmark-plugin.ts) and [benchmark-workloads.ts](../benchmarks/engine-comparison/src/benchmark-workloads.ts).
+The benchmark plugin lives in [benchmark-plugin.ts](../benchmarks/engine-comparison/src/benchmark-plugin.ts). [benchmark-workloads.ts](../benchmarks/engine-comparison/src/benchmark-workloads.ts) lists the workloads in report order and times them; the workloads themselves are grouped by topic in [src/workloads](../benchmarks/engine-comparison/src/workloads/).
 
 ## What the comparison runs
 

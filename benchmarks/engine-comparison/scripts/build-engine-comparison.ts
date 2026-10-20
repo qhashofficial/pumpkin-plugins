@@ -50,6 +50,7 @@ try {
             path.join(benchmarkDir, 'src/benchmark-workloads.ts'),
             path.join(sourceDir, 'benchmark-workloads.ts'),
         );
+        fs.cpSync(path.join(benchmarkDir, 'src/workloads'), path.join(sourceDir, 'workloads'), { recursive: true });
 
         const wasmPath = buildPlugin(packageDir, variant.label, variant.parseTypeScript, false);
         publishComponent(wasmPath, getEngineVariantBuildOutput(benchmarkDir, variant.id));
