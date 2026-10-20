@@ -17,6 +17,7 @@ permissions:
 jobs:
     sync:
         name: 🏷️ Sync label catalog
+        if: ${{ !github.event.repository.fork }}
         timeout-minutes: 10
         runs-on: ubuntu-26.04
         steps:

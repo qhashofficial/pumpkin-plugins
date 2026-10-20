@@ -29,6 +29,7 @@ permissions:
 jobs:
     publish:
         name: 📎 Publish ${{ inputs.tag }}
+        if: ${{ !github.event.repository.fork }}
         timeout-minutes: 90
         runs-on: ubuntu-26.04
         permissions:

@@ -537,7 +537,7 @@ describe('engine comparison comment workflow', () => {
     const runsFor = (workflowRun) =>
         runInNewContext(job.if.trim().replace(/^\$\{\{|\}\}$/g, ''), {
             startsWith,
-            github: { event: { workflow_run: workflowRun } },
+            github: { event: { repository: { fork: false }, workflow_run: workflowRun } },
         });
     const forkRun = {
         event: 'pull_request',
@@ -615,6 +615,75 @@ describe('engine comparison comment workflow', () => {
         const { args, dir } = findPullRequest([], { ...head, HEAD_BRANCH: '$(touch pwned)`touch pwned`' });
         assert.match(args, /^head=contributor:\$\(touch pwned\)`touch pwned`$/m);
         assert.equal(fs.existsSync(path.join(dir, 'pwned')), false);
+    });
+});
+
+describe('workflows in forks', () => {
+    const directory = path.join(scripts, '../.github/workflows');
+    /** Every workflow, keyed by the path a calling job's `uses:` gives. */
+    const workflows = Object.fromEntries(
+        fs
+            .readdirSync(directory)
+            .filter((name) => /\.ya?ml$/.test(name))
+            .map((name) => [`./.github/workflows/${name}`, parse(fs.readFileSync(path.join(directory, name), 'utf8'))]),
+    );
+    // Events that also fire inside a fork: a sync pushes its default branch, schedules keep running, and
+    // its owner can dispatch or release. A pull request from a fork runs in this repository instead.
+    const forkEvents = new Set(['schedule', 'push', 'workflow_dispatch', 'workflow_run', 'release']);
+    // Every run has GITHUB_TOKEN, and Test's Codecov upload doesn't fail the job without CODECOV_TOKEN.
+    const notNeeded = new Set(['GITHUB_TOKEN', 'CODECOV_TOKEN']);
+
+    /** The events a workflow runs for; a reusable workflow runs for the events of its callers. */
+    const events = (file) => {
+        const { on } = workflows[file];
+        return (typeof on === 'object' && !Array.isArray(on) ? Object.keys(on) : [on].flat()).flatMap((event) =>
+            event === 'workflow_call'
+                ? Object.keys(workflows)
+                      .filter((caller) => Object.values(workflows[caller].jobs).some((job) => job.uses === file))
+                      .flatMap(events)
+                : [event],
+        );
+    };
+
+    /** Evaluates a job condition that may read only the fork flag; `undefined` when it reads anything else. */
+    const withForkFlag = (condition, fork) => {
+        const only = (key, value) =>
+            new Proxy(
+                { [key]: value },
+                {
+                    get: (target, name) => {
+                        if (Object.hasOwn(target, name)) return target[name];
+                        throw new Error(`reads ${String(name)}`);
+                    },
+                },
+            );
+        const expression = `${condition}`.trim().replace(/^\$\{\{|\}\}$/g, '');
+        try {
+            return runInNewContext(expression, { github: only('event', only('repository', only('fork', fork))) });
+        } catch {
+            return undefined;
+        }
+    };
+
+    it('skips each job that needs repository secrets or the release App in a fork', () => {
+        const checked = [];
+        const unguarded = [];
+        for (const file of Object.keys(workflows)) {
+            const triggers = [...new Set(events(file))].filter((event) => forkEvents.has(event));
+            if (triggers.length === 0) continue;
+            for (const [name, job] of Object.entries(workflows[file].jobs)) {
+                const secrets = new Set(JSON.stringify(job).match(/(?<=\bsecrets\.)\w+/g)).difference(notNeeded);
+                if (secrets.size === 0) continue;
+                checked.push(`${file} ${name}`);
+                // Skipping must follow from the fork flag alone, whatever else the run looks like.
+                const condition = job.if ?? 'true';
+                if (withForkFlag(condition, true) !== false || withForkFlag(condition, false) === false) {
+                    unguarded.push(`${file} ${name} reads ${[...secrets].join(', ')} on ${triggers.join(', ')}`);
+                }
+            }
+        }
+        assert.ok(checked.includes('./.github/workflows/update-upstream-pins.yml update'), checked.join('\n'));
+        assert.deepEqual(unguarded, [], "start each job's if: with !github.event.repository.fork");
     });
 });
 
