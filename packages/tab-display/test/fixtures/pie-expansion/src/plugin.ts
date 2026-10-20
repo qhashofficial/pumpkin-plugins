@@ -5,7 +5,7 @@ import * as logging from 'pumpkin:plugin/logging@0.1.0';
 import type { PluginMetadata } from 'pumpkin:plugin/metadata@0.1.0';
 import { ipcSend } from '@pumpkin-plugins/plugin-kit/ipc';
 import { handleIpcMessage as apiHandleIpcMessage, Plugin, registerPlugin } from '@pumpkin-plugins/pumpkin-api';
-import { PieSession } from '@pumpkin-plugins/pumpkin-pie-api';
+import { PieSession, UnavailableError } from '@pumpkin-plugins/pumpkin-pie-api';
 import { strFromU8, strToU8 } from 'fflate';
 
 const fixtureName = 'TabDisplayPIEFixture';
@@ -13,6 +13,8 @@ let session: PieSession | undefined;
 
 /** Minimal guest fixture that registers an argument-aware expansion with the real provider. */
 class PieExpansionFixture extends Plugin {
+    private taskId: number | undefined;
+
     metadata(): PluginMetadata {
         return {
             name: fixtureName,
@@ -31,7 +33,7 @@ class PieExpansionFixture extends Plugin {
             echo: ({ viewer, argument }) => `${viewer ?? 'server'}:${argument ?? 'none'}`,
             decline: () => undefined,
         });
-        this.scheduleDelayedTask(1, () => this.verifyProvider());
+        this.taskId = this.scheduleRepeatingTask(1, 10, () => this.verifyProvider());
 
         const command = new Command(['piefixture'], 'Stop the PumpkinPIE integration fixture');
         this.registerCommand(ctx, command, (_sender, _server, _args) => {
@@ -42,6 +44,7 @@ class PieExpansionFixture extends Plugin {
     }
 
     override onUnload(ctx: Context): void {
+        this.stopVerification();
         session?.stop();
         session = undefined;
         super.onUnload(ctx);
@@ -50,6 +53,14 @@ class PieExpansionFixture extends Plugin {
     private verifyProvider(): void {
         const current = session;
         if (current === undefined) return;
+        try {
+            // PumpkinPIE may load after this plugin; keep polling until it answers, because the
+            // session waits out its retry backoff after a failed first attempt.
+            current.client.ping();
+        } catch (error) {
+            if (error instanceof UnavailableError) return;
+        }
+        this.stopVerification();
         try {
             current.tick();
             if (current.state.kind !== 'ready') {
@@ -80,6 +91,11 @@ class PieExpansionFixture extends Plugin {
         } catch (error) {
             logging.log('error', `${fixtureName}: provider verification failed: ${String(error)}`);
         }
+    }
+
+    private stopVerification(): void {
+        if (this.taskId !== undefined) this.cancelTask(this.taskId);
+        this.taskId = undefined;
     }
 }
 
