@@ -287,7 +287,7 @@ describe('PlayerSync', () => {
         sync.tick(server.host);
 
         expect(log.of('debug').filter((line) => line.includes('Java Edition'))).toEqual([
-            `${ansi.named.name('AppleSkinPumpkin')} ${ansi.named.name('ada')} is not on Java Edition, so there is nothing to sync.`,
+            `${ansi.named.name('ada')} is not on Java Edition, so there is nothing to sync.`,
         ]);
     });
 
@@ -309,10 +309,10 @@ describe('PlayerSync', () => {
         sync.joined(player.host);
 
         expect(log.of('debug')).toEqual([
-            `${ansi.named.name('AppleSkinPumpkin')} ${ansi.named.name('ada')} joined, sending their current hunger.`,
-            `${ansi.named.name('AppleSkinPumpkin')} ${ansi.named.name('ada')}: natural regeneration is on in ${ansi.named.name('world')}.`,
-            `${ansi.named.name('AppleSkinPumpkin')} ${ansi.named.name('ada')}: saturation ${ansi.named.number('5')}.`,
-            `${ansi.named.name('AppleSkinPumpkin')} ${ansi.named.name('ada')}: exhaustion ${ansi.named.number('0.4')}.`,
+            `${ansi.named.name('ada')} joined, sending their current hunger.`,
+            `${ansi.named.name('ada')}: natural regeneration is on in ${ansi.named.name('world')}.`,
+            `${ansi.named.name('ada')}: saturation ${ansi.named.number('5')}.`,
+            `${ansi.named.name('ada')}: exhaustion ${ansi.named.number('0.4')}.`,
         ]);
     });
 
@@ -323,9 +323,7 @@ describe('PlayerSync', () => {
         sync.tick(empty);
         sync.tick(empty);
 
-        expect(log.of('debug')).toEqual([
-            `${ansi.named.name('AppleSkinPumpkin')} Finished the first tick, syncing hunger on every tick from now on.`,
-        ]);
+        expect(log.of('debug')).toEqual(['Finished the first tick, syncing hunger on every tick from now on.']);
     });
 
     it('says nothing on a tick where nothing moved, which is most of them', () => {
