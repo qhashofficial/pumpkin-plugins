@@ -126,7 +126,10 @@ describe('DistantHorizonsSupportPumpkin lifecycle', () => {
         expect(() => tickEnd()).not.toThrow();
 
         expect(workerTicks()).toBe(3);
-        expect(host.logs).toContainEqual({ level: 'warn', message: expect.stringContaining('PumpkinPIE') });
+        expect(host.logs).toContainEqual({
+            level: 'warn',
+            message: expect.stringContaining('PumpkinPIE session tick failed: Error: log unavailable'),
+        });
         plugin.onPluginUnload(context);
         expect(host.filesReleased).toBe(true);
     });
