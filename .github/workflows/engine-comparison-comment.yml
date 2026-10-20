@@ -125,7 +125,6 @@ jobs:
                   GITHUB_SERVER_URL: ${{ github.server_url }}
                   BENCHMARK_CHANGE_SVG_LIGHT: ${{ runner.temp }}/engine-comparison-change-light.svg
                   BENCHMARK_CHANGE_SVG_DARK: ${{ runner.temp }}/engine-comparison-change-dark.svg
-                  DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
                   SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
               run: node scripts/engine-comparison-chart.mjs publish
 
