@@ -28,7 +28,8 @@ export function pruneTerrainRetries(state: SessionState): void {
  * Advances queued LOD requests in rotating order: rejects requests that are no longer valid, answers
  * from the cache (scheduling a background refresh for a stale entry), backs off from terrain that is
  * not ready and steps at most one capture builder. `cached_requests_per_tick` bounds the cache and
- * terrain checks.
+ * terrain checks. A request waits while another request captures its section, and a finished capture
+ * answers every request queued for that section.
  *
  * @param blocksBudget - Block samples the builder may take this tick; 0 pauses capture sampling.
  * @returns Whether a builder sampled terrain.
@@ -37,6 +38,7 @@ export function stepRequests(state: SessionState, peers: Peers, blocksBudget: nu
     let cacheChecks = 0;
     let availabilityChecks = 0;
     let builderStepped = false;
+    const captures = state.requests.filter((request) => request.builder);
     for (const request of orderedRequests(state)) {
         if (!state.requests.includes(request)) continue;
         const queuedClient = state.clients.get(request.name);
@@ -65,6 +67,7 @@ export function stepRequests(state: SessionState, peers: Peers, blocksBudget: nu
                     request.revision = revision;
                 }
                 if (!request.builder) {
+                    if (waitsForCapture(state, captures, request)) return;
                     if (!request.cacheChecked) {
                         if (cacheChecks >= state.settings.cached_requests_per_tick) return;
                         request.cached = state.cache.get(request.key) ?? null;
@@ -121,7 +124,10 @@ export function stepRequests(state: SessionState, peers: Peers, blocksBudget: nu
                     return;
                 }
                 builderStepped = true;
-                request.builder ??= new LodBuilder(request.section, peer.terrain.minY, peer.terrain.height);
+                if (!request.builder) {
+                    request.builder = new LodBuilder(request.section, peer.terrain.minY, peer.terrain.height);
+                    captures.push(request);
+                }
                 const sampledBefore = request.builder.samples();
                 const started = state.measureNow();
                 const complete = request.builder.step(peer.terrain, blocksBudget);
@@ -150,7 +156,8 @@ export function stepRequests(state: SessionState, peers: Peers, blocksBudget: nu
                     state.log.debug(
                         `Captured LOD for ${ansi.named.name(request.name)} at ${lodLocation(request.level, request.section.x, request.section.z)} (${ansi.named.number(captured.data.length)} bytes).`,
                     );
-                    completeRequest(state, request, captured);
+                    for (const answered of state.requests.filter((other) => other.key === request.key))
+                        completeRequest(state, answered, captured);
                 }
             } catch (err) {
                 const reason = String(err);
@@ -195,6 +202,17 @@ function deferTerrain(state: SessionState, request: Request, reason: string): vo
     }
     state.log.debug(
         `Deferred DH request ${ansi.named.number(request.tracker)} from ${ansi.named.name(request.name)} for ${lodLocation(request.level, request.section.x, request.section.z)}: ${reason}; retrying in ${ansi.named.number(delay)} ms.`,
+    );
+}
+
+/** Whether another queued request is capturing this request's section; that capture answers both. */
+function waitsForCapture(state: SessionState, captures: readonly Request[], request: Request): boolean {
+    return captures.some(
+        (capture) =>
+            capture !== request &&
+            capture.key === request.key &&
+            capture.builder !== undefined &&
+            state.requests.includes(capture),
     );
 }
 
