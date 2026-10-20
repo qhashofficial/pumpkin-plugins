@@ -1,7 +1,6 @@
 import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import type { Logger } from '@pumpkin-plugins/plugin-kit/logger';
 import { AdaptiveWorkBudget, type TerrainAccess, type TerrainRegion } from '@pumpkin-plugins/terrain';
-import { PLUGIN_NAME } from '../name.ts';
 import { SECTION_SIZE_BLOCKS } from '../protocol/constants.ts';
 import { encodeSection } from '../protocol/messages.ts';
 import { LodBuilder } from './builder.ts';
@@ -16,8 +15,6 @@ import {
     sectionRegion,
 } from './generation.ts';
 import { lodLocation } from './location.ts';
-
-const logTag = ansi.named.name(PLUGIN_NAME);
 
 /** Maximum block samples a forced capture attempts in one server tick; MSPT and sample cost lower it. */
 export const FORCE_BLOCK_SAMPLES_PER_TICK = 32_768;
@@ -158,7 +155,7 @@ export class ForcedLodGeneration {
             lastReportedStep: 0,
         };
         this.log.info(
-            `${logTag} Started forced LOD capture for ${ansi.named.name(peer.name)}: ${ansi.named.number(sections)} requested sections in ${ansi.named.identifier(peer.level)}.`,
+            `Started forced LOD capture for ${ansi.named.name(peer.name)}: ${ansi.named.number(sections)} requested sections in ${ansi.named.identifier(peer.level)}.`,
         );
         return { centerX, centerZ, radius, sections };
     }
@@ -180,14 +177,14 @@ export class ForcedLodGeneration {
             });
         } catch (err) {
             this.log.warn(
-                `${logTag} Cancelled forced LOD capture for ${ansi.named.name(job.owner)} after an error: ${String(err)}.`,
+                `Cancelled forced LOD capture for ${ansi.named.name(job.owner)} after an error: ${String(err)}.`,
             );
             if (this.job === job) this.job = undefined;
             return true;
         }
         if (!found && this.job === job) {
             this.log.info(
-                `${logTag} Cancelled forced LOD capture for ${ansi.named.name(job.owner)}: player is no longer available.`,
+                `Cancelled forced LOD capture for ${ansi.named.name(job.owner)}: player is no longer available.`,
             );
             this.job = undefined;
         }
@@ -217,7 +214,7 @@ export class ForcedLodGeneration {
         ) {
             target.invalidated = true;
             this.log.debug(
-                `${logTag} Invalidated forced LOD for ${ansi.named.name(job.owner)} at ${lodLocation(level, target.coordinate.x, target.coordinate.z)} after a block change.`,
+                `Invalidated forced LOD for ${ansi.named.name(job.owner)} at ${lodLocation(level, target.coordinate.x, target.coordinate.z)} after a block change.`,
             );
         }
     }
@@ -226,7 +223,7 @@ export class ForcedLodGeneration {
     left(name: string): void {
         if (this.job?.owner !== name) return;
         this.job = undefined;
-        this.log.info(`${logTag} Cancelled forced LOD capture for ${ansi.named.name(name)}: player disconnected.`);
+        this.log.info(`Cancelled forced LOD capture for ${ansi.named.name(name)}: player disconnected.`);
     }
 
     private advance(job: ForcedJob, peer: ForcedLodPeer, serverMspt: number): void {
@@ -270,7 +267,7 @@ export class ForcedLodGeneration {
             }
             if (target.invalidated) {
                 this.log.debug(
-                    `${logTag} Skipped invalidated forced LOD for ${ansi.named.name(job.owner)} at ${lodLocation(job.level, target.coordinate.x, target.coordinate.z)}.`,
+                    `Skipped invalidated forced LOD for ${ansi.named.name(job.owner)} at ${lodLocation(job.level, target.coordinate.x, target.coordinate.z)}.`,
                 );
                 job.skipped++;
                 job.current = undefined;
@@ -310,7 +307,7 @@ export class ForcedLodGeneration {
                 const data = target.builder.finish(this.now());
                 this.cache.put(target.key, { updated: this.now(), data });
                 this.log.debug(
-                    `${logTag} Built forced LOD for ${ansi.named.name(peer.name)} at ${lodLocation(job.level, target.coordinate.x, target.coordinate.z)} (${ansi.named.number(data.length)} bytes).`,
+                    `Built forced LOD for ${ansi.named.name(peer.name)} at ${lodLocation(job.level, target.coordinate.x, target.coordinate.z)} (${ansi.named.number(data.length)} bytes).`,
                 );
                 job.built++;
                 job.current = undefined;
@@ -332,7 +329,7 @@ export class ForcedLodGeneration {
         job.current = undefined;
         if (target) {
             this.log.debug(
-                `${logTag} Skipped forced LOD for ${ansi.named.name(job.owner)} at ${lodLocation(job.level, target.coordinate.x, target.coordinate.z)}: ${reason}.`,
+                `Skipped forced LOD for ${ansi.named.name(job.owner)} at ${lodLocation(job.level, target.coordinate.x, target.coordinate.z)}: ${reason}.`,
             );
         }
     }
@@ -359,7 +356,7 @@ export class ForcedLodGeneration {
             }
             if (message) {
                 this.sendReport(peer, message);
-                this.log.info(`${logTag} ${message} ${this.jobSummary(job)}`);
+                this.log.info(`${message} ${this.jobSummary(job)}`);
                 this.job = undefined;
                 return;
             }
@@ -367,7 +364,7 @@ export class ForcedLodGeneration {
         const skipped = this.skipped(job);
         const message = `Forced LOD capture complete: ${job.built} built, ${skipped} skipped (${job.skippedAlreadyGenerated} already generated).`;
         this.sendReport(peer, message);
-        this.log.info(`${logTag} ${message} ${this.jobSummary(job)}`);
+        this.log.info(`${message} ${this.jobSummary(job)}`);
         this.job = undefined;
     }
 
@@ -417,9 +414,7 @@ export class ForcedLodGeneration {
         try {
             peer.report(message);
         } catch (err) {
-            this.log.warn(
-                `${logTag} Could not report forced LOD progress to ${ansi.named.name(peer.name)}: ${String(err)}`,
-            );
+            this.log.warn(`Could not report forced LOD progress to ${ansi.named.name(peer.name)}: ${String(err)}`);
         }
     }
 }

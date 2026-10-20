@@ -20,7 +20,9 @@ describe(info.name, () => {
     });
     it('loads, installs settings, and reports supported capabilities through its command', async () => {
         await server.waitForLog(new RegExp(`Loaded ${info.name}`));
-        await server.waitForLog(new RegExp(`serving DH protocol ${PROTOCOL} from loaded chunks and cached terrain`));
+        await server.waitForLog(
+            new RegExp(`${info.name} serving DH protocol ${PROTOCOL} from loaded chunks and cached terrain`),
+        );
         const config = await readFile(path.join(server.pluginDataDir(info.name), 'config.toml'), 'utf8');
         expect(config).toContain('render_distance = 128');
         expect(config).toContain('generation_requests_per_second = 20');
