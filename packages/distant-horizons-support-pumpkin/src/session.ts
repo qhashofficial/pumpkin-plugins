@@ -1,13 +1,11 @@
 import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import type { Logger } from '@pumpkin-plugins/plugin-kit/logger';
-import { AdaptiveWorkBudget } from '@pumpkin-plugins/terrain';
 import type { Settings } from './config/schema.ts';
 import { ByteCredit } from './flow/byte-credit.ts';
 import { TransferCursor } from './flow/transfer-cursor.ts';
 import { LodBuilder } from './lod/builder.ts';
 import type { CachedLod, LodCache } from './lod/cache.ts';
 import {
-    FORCE_BLOCK_SAMPLES_PER_TICK,
     ForcedLodGeneration,
     type ForcedLodPeer,
     type ForcedLodRecovery,
@@ -25,122 +23,27 @@ import {
     type Message,
     PROTOCOL,
     reject,
-    type Section,
     type SessionConfiguration,
     sessionConfig,
     unchanged,
 } from './protocol/messages.ts';
+import type { Peer, Peers } from './session/peer.ts';
+import { type Client, type QueuedPacket, type Refresh, type Request, SessionState } from './session/state.ts';
+import { describeStatus, type SessionPlaceholderSnapshot, sessionSnapshot } from './session/status.ts';
+
+export type { Peer, Peers, PlayerTerrain } from './session/peer.ts';
+export type { SessionPlaceholderSnapshot } from './session/status.ts';
 
 const INITIAL_TERRAIN_RETRY_MS = 1000;
 const MAX_TERRAIN_RETRY_MS = 30_000;
 const TERRAIN_RETRY_RETENTION_MS = 60_000;
 
-/** A player snapshot and terrain access, valid only during an adapter callback. */
-export interface PlayerTerrain extends ForcedLodPeer {
-    dimension: string;
-    x: number;
-    z: number;
-}
-/** A Java player that can exchange DH messages, valid only during an adapter callback. */
-export interface Peer extends PlayerTerrain {
-    send(bytes: Uint8Array): void;
-}
-/** Obtains fresh host handles for one player, releasing them after the callback. */
-export interface Peers {
-    /** Returns false when the player is offline or has no Java handle for DH messages. */
-    withPeer(name: string, use: (peer: Peer) => void): boolean;
-    /** Returns false when the player is offline; Bedrock players get terrain access too. */
-    withTerrain(name: string, use: (peer: PlayerTerrain) => void): boolean;
-}
-/** Scalar live-session values for placeholder callbacks, excluding client queues and identities. */
-export interface SessionPlaceholderSnapshot {
-    readonly cacheRefreshes: number;
-    readonly cancelled: number;
-    readonly clients: number;
-    readonly packetBytesSent: number;
-    readonly pendingRequests: number;
-    readonly rejected: number;
-    readonly served: number;
-    readonly workerTicks: number;
-}
-interface Client {
-    activeTransfer?: QueuedPacket;
-    byteCredit: ByteCredit;
-    config: SessionConfiguration;
-    dimension: string;
-    level: string;
-    packets: QueuedPacket[];
-}
-interface QueuedPacket {
-    bytes?: Uint8Array;
-    cached: boolean;
-    cursor?: TransferCursor;
-    lod: {
-        level: string;
-        section: Section;
-        tracker: number;
-        packetCount: number;
-        dataBytes: number;
-        cached: boolean;
-        unchanged: boolean;
-        sync: boolean;
-    };
-}
-interface Request {
-    builder?: LodBuilder;
-    cacheChecked?: boolean;
-    cached?: CachedLod | null;
-    key: string;
-    level: string;
-    name: string;
-    revision: number;
-    section: Section;
-    timestamp?: number;
-    tracker: number;
-}
-interface TerrainRetry {
-    attempts: number;
-    retryAt: number;
-    updatedAt: number;
-}
-interface Refresh {
-    builder?: LodBuilder;
-    key: string;
-    level: string;
-    name: string;
-    revision: number;
-    section: Section;
-}
 /** Runs bounded LOD work, keeping client state separate from short-lived Pumpkin handles. */
 export class Sessions {
-    private readonly clients = new Map<string, Client>();
-    private readonly requests: Request[] = [];
-    private readonly terrainRetries = new Map<string, TerrainRetry>();
-    private readonly refreshes = new Map<string, Refresh>();
-    private readonly revisions = new Map<string, number>();
-    private readonly protocolWarnings = new Set<string>();
-    private readonly heightWarnings = new Set<string>();
-    private readonly workBudget = new AdaptiveWorkBudget({ initialUnits: 8192 });
+    private readonly state: SessionState;
     private readonly forcedGeneration: ForcedLodGeneration;
-    private buffer = 1;
-    private sendCursor = 0;
-    private requestCursor = 0;
-    private ticks = 0;
-    private served = 0;
-    private rejected = 0;
-    private cancelled = 0;
-    private dhPacketBytesSent = 0;
-    private lastHandlerMs = 0;
-    private lastFailure = '';
-    private lastBlocksBudget = 0;
-    private lastServerMspt = 0;
-    constructor(
-        private readonly settings: Settings,
-        private readonly cache: LodCache,
-        private readonly log: Logger,
-        private readonly now = Date.now,
-        private readonly measureNow = Date.now,
-    ) {
+    constructor(settings: Settings, cache: LodCache, log: Logger, now = Date.now, measureNow = Date.now) {
+        this.state = new SessionState(settings, cache, log, now, measureNow);
         this.forcedGeneration = new ForcedLodGeneration(cache, log, now, measureNow);
     }
     /** Starts a cache-refreshing capture that takes priority over ordinary DH work. */
@@ -153,20 +56,11 @@ export class Sessions {
     }
     /** Returns scalar live counters without traversing per-client packet queues. */
     placeholderSnapshot(): SessionPlaceholderSnapshot {
-        return Object.freeze({
-            clients: this.clients.size,
-            pendingRequests: this.requests.length,
-            workerTicks: this.ticks,
-            served: this.served,
-            rejected: this.rejected,
-            cancelled: this.cancelled,
-            packetBytesSent: this.dhPacketBytesSent,
-            cacheRefreshes: this.refreshes.size,
-        });
+        return sessionSnapshot(this.state);
     }
     /** Checks whether an exact current player name has an active DH session. */
     hasClient(name: string): boolean {
-        return this.clients.has(name);
+        return this.state.clients.has(name);
     }
     /** Accepts and validates a DH packet from a Java player. */
     receive(peer: Peer, bytes: Uint8Array): void {
@@ -177,66 +71,68 @@ export class Sessions {
             const reason = err instanceof Error ? err.message : String(err);
             const clientProtocol = bytes.length >= 2 ? (bytes[0] ?? 0) * 256 + (bytes[1] ?? 0) : PROTOCOL;
             if (clientProtocol !== PROTOCOL) {
-                if (!this.protocolWarnings.has(peer.name)) {
-                    this.protocolWarnings.add(peer.name);
-                    this.log.warn(
+                if (!this.state.protocolWarnings.has(peer.name)) {
+                    this.state.protocolWarnings.add(peer.name);
+                    this.state.log.warn(
                         `${ansi.named.name(peer.name)} uses DH protocol ${ansi.named.number(clientProtocol)}, but this plugin supports protocol ${ansi.named.number(PROTOCOL)} (Distant Horizons ${ansi.named.version(DH_VERSION)}); closed the DH session.`,
                     );
                 }
             } else {
-                this.log.debug(
+                this.state.log.debug(
                     `Closed DH session for ${ansi.named.name(peer.name)} after malformed message: ${reason}.`,
                 );
             }
             peer.send(closeSession(`${PLUGIN_NAME}: ${reason}`));
-            this.endSession(peer.name);
+            this.state.endSession(peer.name);
             return;
         }
         if (message.type === 'close') {
-            this.endSession(peer.name);
+            this.state.endSession(peer.name);
             return;
         }
         if (message.type === 'init') {
             if (message.dimension !== peer.dimension) {
-                this.log.debug('Ignored DH initialization for a dimension other than the current player dimension.');
+                this.state.log.debug(
+                    'Ignored DH initialization for a dimension other than the current player dimension.',
+                );
                 return;
             }
             this.announce(peer);
             return;
         }
-        const client = this.clients.get(peer.name);
+        const client = this.state.clients.get(peer.name);
         if (!client) return;
         if (message.type === 'config') {
             const config = this.negotiateConfiguration(message.config);
             client.config = config;
-            client.byteCredit.setRate(config.bandwidthKbps, this.now());
+            client.byteCredit.setRate(config.bandwidthKbps, this.state.now());
             for (const response of client.packets) response.cursor?.setBandwidthRate(config.bandwidthKbps);
             client.activeTransfer ??= client.packets.find((response) => response.cursor?.hasInFlightBuffer);
             if (config.generationPlan === 3) this.rejectPendingRequestClass(peer, false);
             if (!config.syncEnabled) this.rejectPendingRequestClass(peer, true);
             peer.send(sessionConfig(config));
-            this.log.debug(
+            this.state.log.debug(
                 `${ansi.named.name(peer.name)} configured DH requests: generation ${config.generationPlan === 3 ? 'disabled' : 'enabled'} (${ansi.named.number(config.generationDistance)} chunks, ${ansi.named.number(config.generationRate)}/s), sync ${config.syncEnabled ? 'enabled' : 'disabled'} (${ansi.named.number(config.syncDistance)} chunks, ${ansi.named.number(config.syncRate)}/s), bandwidth ${config.bandwidthKbps === 0 ? 'unlimited' : `${ansi.named.number(config.bandwidthKbps)} KB/s`}.`,
             );
             return;
         }
         if (message.type === 'cancel') {
-            const index = this.requests.findIndex((r) => r.name === peer.name && r.tracker === message.tracker);
-            const request = this.requests[index];
+            const index = this.state.requests.findIndex((r) => r.name === peer.name && r.tracker === message.tracker);
+            const request = this.state.requests[index];
             if (request) {
-                this.cancelled++;
-                this.log.debug(
+                this.state.cancelled++;
+                this.state.log.debug(
                     `Cancelled DH request ${ansi.named.number(request.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(request.level, request.section.x, request.section.z)}.`,
                 );
-                this.drop(request);
+                this.state.drop(request);
             } else {
                 const responseIndex = client.packets.findIndex((response) => response.lod.tracker === message.tracker);
                 const response = client.packets[responseIndex];
                 if (responseIndex >= 0 && response) {
-                    this.cancelled++;
+                    this.state.cancelled++;
                     if (client.activeTransfer === response) client.activeTransfer = undefined;
                     client.packets.splice(responseIndex, 1);
-                    this.log.debug(
+                    this.state.log.debug(
                         `Cancelled queued DH response ${ansi.named.number(message.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(response.lod.level, response.lod.section.x, response.lod.section.z)}.`,
                     );
                 }
@@ -245,46 +141,46 @@ export class Sessions {
         }
         if (message.type !== 'request') return;
         if (
-            this.requests.some((r) => r.name === peer.name && r.tracker === message.tracker) ||
+            this.state.requests.some((r) => r.name === peer.name && r.tracker === message.tracker) ||
             client.packets.some((response) => response.lod.tracker === message.tracker)
         ) {
-            this.log.debug(
+            this.state.log.debug(
                 `Ignored duplicate DH request ${ansi.named.number(message.tracker)} from ${ansi.named.name(peer.name)}.`,
             );
             return;
         }
         const failure = this.validate(peer, client, message);
         if (failure) {
-            this.rejected++;
-            this.lastFailure = failure.reason;
-            this.log.debug(
+            this.state.rejected++;
+            this.state.lastFailure = failure.reason;
+            this.state.log.debug(
                 `Rejected DH request ${ansi.named.number(message.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(peer.level, message.section.x, message.section.z)}: ${failure.reason}.`,
             );
             peer.send(reject(message.tracker, failure.reason, failure.kind));
             return;
         }
         const key = sectionKey(peer.level, message.section.x, message.section.z);
-        this.log.debug(
+        this.state.log.debug(
             `Queued DH request ${ansi.named.number(message.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(peer.level, message.section.x, message.section.z)}.`,
         );
-        this.requests.push({
+        this.state.requests.push({
             name: peer.name,
             tracker: message.tracker,
             key,
             level: peer.level,
             section: message.section,
             timestamp: message.timestamp,
-            revision: this.revisions.get(key) ?? 0,
+            revision: this.state.revisions.get(key) ?? 0,
         });
     }
     /** Advances sampling and transfers within global per-tick budgets. */
     tick(peers: Peers, serverMspt = 0): void {
-        const handlerStarted = this.measureNow();
-        this.ticks++;
+        const handlerStarted = this.state.measureNow();
+        this.state.ticks++;
         this.pruneTerrainRetries();
-        const refreshesAtStart = [...this.refreshes.values()];
-        for (const [name, client] of this.clients) {
-            this.withSessionPeer(peers, name, (peer) => {
+        const refreshesAtStart = [...this.state.refreshes.values()];
+        for (const [name, client] of this.state.clients) {
+            this.state.withSessionPeer(peers, name, (peer) => {
                 if (peer.level !== client.level || peer.dimension !== client.dimension) this.announce(peer);
             });
         }
@@ -293,35 +189,37 @@ export class Sessions {
             serverMspt,
         );
         if (forcedWork) {
-            this.lastBlocksBudget = 0;
-            this.lastServerMspt = serverMspt;
+            this.state.lastBlocksBudget = 0;
+            this.state.lastServerMspt = serverMspt;
         }
         let cacheChecks = 0;
         let availabilityChecks = 0;
         let builderStepped = false;
-        const blocksBudget = forcedWork ? 0 : this.workBudget.next(serverMspt, this.settings.blocks_per_tick);
-        this.lastBlocksBudget = blocksBudget;
-        if (!forcedWork) this.lastServerMspt = serverMspt;
+        const blocksBudget = forcedWork
+            ? 0
+            : this.state.workBudget.next(serverMspt, this.state.settings.blocks_per_tick);
+        this.state.lastBlocksBudget = blocksBudget;
+        if (!forcedWork) this.state.lastServerMspt = serverMspt;
         for (const request of this.orderedRequests()) {
-            if (!this.requests.includes(request)) continue;
-            const queuedClient = this.clients.get(request.name);
+            if (!this.state.requests.includes(request)) continue;
+            const queuedClient = this.state.clients.get(request.name);
             if (!queuedClient) continue;
-            this.withSessionPeer(peers, request.name, (peer) => {
+            this.state.withSessionPeer(peers, request.name, (peer) => {
                 try {
-                    const client = this.clients.get(peer.name);
+                    const client = this.state.clients.get(peer.name);
                     if (!client) return;
                     const failure = this.validate(peer, client, { ...request, type: 'request' }, false);
                     if (failure) {
-                        this.rejected++;
-                        this.lastFailure = failure.reason;
-                        this.log.debug(
+                        this.state.rejected++;
+                        this.state.lastFailure = failure.reason;
+                        this.state.log.debug(
                             `Rejected DH request ${ansi.named.number(request.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(request.level, request.section.x, request.section.z)}: ${failure.reason}.`,
                         );
                         peer.send(reject(request.tracker, failure.reason, failure.kind));
-                        this.drop(request);
+                        this.state.drop(request);
                         return;
                     }
-                    const revision = this.revisions.get(request.key) ?? 0;
+                    const revision = this.state.revisions.get(request.key) ?? 0;
                     if (revision !== request.revision) {
                         // A block changed in this section; start again from current terrain.
                         request.builder = undefined;
@@ -331,11 +229,11 @@ export class Sessions {
                     }
                     if (!request.builder) {
                         if (!request.cacheChecked) {
-                            if (cacheChecks >= this.settings.cached_requests_per_tick) return;
-                            request.cached = this.cache.get(request.key) ?? null;
+                            if (cacheChecks >= this.state.settings.cached_requests_per_tick) return;
+                            request.cached = this.state.cache.get(request.key) ?? null;
                             request.cacheChecked = true;
                             cacheChecks++;
-                            this.log.debug(
+                            this.state.log.debug(
                                 `LOD cache ${request.cached ? 'hit' : 'miss'} for ${ansi.named.name(request.name)} at ${lodLocation(request.level, request.section.x, request.section.z)}.`,
                             );
                         }
@@ -343,7 +241,8 @@ export class Sessions {
                         if (cached) {
                             const clientHasNewerData =
                                 request.timestamp !== undefined && cached.updated <= request.timestamp;
-                            const fresh = this.now() - cached.updated < this.settings.refresh_seconds * 1000;
+                            const fresh =
+                                this.state.now() - cached.updated < this.state.settings.refresh_seconds * 1000;
                             if (clientHasNewerData || fresh) {
                                 this.complete(request, cached, true);
                                 return;
@@ -354,9 +253,9 @@ export class Sessions {
                         }
                     }
                     const region = sectionRegion(request.section, peer.terrain);
-                    const retry = this.terrainRetries.get(request.key);
-                    if (retry && this.now() < retry.retryAt) return;
-                    if (availabilityChecks >= this.settings.cached_requests_per_tick) return;
+                    const retry = this.state.terrainRetries.get(request.key);
+                    if (retry && this.state.now() < retry.retryAt) return;
+                    if (availabilityChecks >= this.state.settings.cached_requests_per_tick) return;
                     availabilityChecks++;
                     let prepared: ReturnType<NonNullable<typeof peer.terrain.prepare>> | undefined;
                     try {
@@ -372,10 +271,10 @@ export class Sessions {
                         );
                         return;
                     }
-                    this.terrainRetries.delete(request.key);
+                    this.state.terrainRetries.delete(request.key);
                     if (
                         !request.builder &&
-                        this.captureRequestCount(request.name, request) >= this.settings.requests_per_player
+                        this.captureRequestCount(request.name, request) >= this.state.settings.requests_per_player
                     ) {
                         request.cacheChecked = false;
                         return;
@@ -387,10 +286,13 @@ export class Sessions {
                     builderStepped = true;
                     request.builder ??= new LodBuilder(request.section, peer.terrain.minY, peer.terrain.height);
                     const sampledBefore = request.builder.samples();
-                    const started = this.measureNow();
+                    const started = this.state.measureNow();
                     const complete = request.builder.step(peer.terrain, blocksBudget);
                     // Charge only sampling to the cost estimate, not the terrain recheck or cache write.
-                    this.workBudget.observe(request.builder.samples() - sampledBefore, this.measureNow() - started);
+                    this.state.workBudget.observe(
+                        request.builder.samples() - sampledBefore,
+                        this.state.measureNow() - started,
+                    );
                     if (complete) {
                         let stillLoaded: ReturnType<NonNullable<typeof peer.terrain.prepare>> | undefined;
                         try {
@@ -408,51 +310,51 @@ export class Sessions {
                             );
                             return;
                         }
-                        const captured = { updated: this.now(), data: request.builder.finish(this.now()) };
-                        this.cache.put(request.key, captured);
-                        this.log.debug(
+                        const captured = { updated: this.state.now(), data: request.builder.finish(this.state.now()) };
+                        this.state.cache.put(request.key, captured);
+                        this.state.log.debug(
                             `Captured LOD for ${ansi.named.name(request.name)} at ${lodLocation(request.level, request.section.x, request.section.z)} (${ansi.named.number(captured.data.length)} bytes).`,
                         );
                         this.complete(request, captured);
                     }
                 } catch (err) {
                     const reason = String(err);
-                    this.log.debug(
+                    this.state.log.debug(
                         `DH request ${ansi.named.number(request.tracker)} for ${lodLocation(request.level, request.section.x, request.section.z)} failed: ${reason}.`,
                     );
-                    this.rejected++;
-                    this.lastFailure = reason;
+                    this.state.rejected++;
+                    this.state.lastFailure = reason;
                     peer.send(
                         reject(
                             request.tracker,
                             'Terrain unavailable or changed; only loaded chunks and cached LODs can be served',
                         ),
                     );
-                    this.drop(request);
+                    this.state.drop(request);
                 }
             });
         }
         if (!forcedWork && !builderStepped && blocksBudget > 0)
             builderStepped = this.refreshOne(peers, refreshesAtStart, blocksBudget);
-        let remaining = this.settings.packets_per_tick;
-        let cachedRemaining = this.settings.cached_packets_per_tick;
-        const names = [...this.clients.keys()];
-        let next = names.length === 0 ? 0 : this.sendCursor % names.length;
+        let remaining = this.state.settings.packets_per_tick;
+        let cachedRemaining = this.state.settings.cached_packets_per_tick;
+        const names = [...this.state.clients.keys()];
+        let next = names.length === 0 ? 0 : this.state.sendCursor % names.length;
         let idleVisits = 0;
         while (names.length > 0 && (remaining > 0 || cachedRemaining > 0) && idleVisits < names.length) {
             const name = names[next] ?? '';
             next = (next + 1) % names.length;
-            const client = this.clients.get(name);
+            const client = this.state.clients.get(name);
             if (!client) {
                 idleVisits++;
                 continue;
             }
             let sent = false;
-            this.withSessionPeer(peers, name, (peer) => {
+            this.state.withSessionPeer(peers, name, (peer) => {
                 let responseIndex = -1;
                 let response: QueuedPacket | undefined;
                 let bytes: Uint8Array | undefined;
-                const now = this.now();
+                const now = this.state.now();
                 if (client.activeTransfer && !client.packets.includes(client.activeTransfer)) {
                     client.activeTransfer = undefined;
                 }
@@ -469,13 +371,13 @@ export class Sessions {
                 if (responseIndex < 0 || !response || !bytes) return;
                 peer.send(bytes);
                 client.byteCredit.consume(bytes.length);
-                this.dhPacketBytesSent += bytes.length;
+                this.state.dhPacketBytesSent += bytes.length;
                 response.cursor?.advance();
                 if (response.cursor?.hasInFlightBuffer) client.activeTransfer = response;
                 else if (client.activeTransfer === response) client.activeTransfer = undefined;
                 if (!response.cursor || response.cursor.done) {
                     client.packets.splice(responseIndex, 1);
-                    this.served++;
+                    this.state.served++;
                     const {
                         level,
                         section,
@@ -487,7 +389,7 @@ export class Sessions {
                     } = response.lod;
                     const packetCount = response.cursor?.packetCount ?? originalPacketCount;
                     const label = noChange ? 'unchanged LOD response' : cached ? 'cached LOD' : 'captured LOD';
-                    this.log.debug(
+                    this.state.log.debug(
                         `Sent ${label} to ${ansi.named.name(peer.name)} for ${lodLocation(level, section.x, section.z)} (request ${ansi.named.number(tracker)}, ${ansi.named.number(packetCount)} packet(s), ${ansi.named.number(dataBytes)} bytes).`,
                     );
                 }
@@ -497,37 +399,29 @@ export class Sessions {
             });
             if (sent) {
                 idleVisits = 0;
-                this.sendCursor = next;
+                this.state.sendCursor = next;
             } else idleVisits++;
         }
-        this.lastHandlerMs = Math.max(0, this.measureNow() - handlerStarted);
+        this.state.lastHandlerMs = Math.max(0, this.state.measureNow() - handlerStarted);
     }
     /** Ends a player's DH protocol session and drops its requests and queued responses; operator captures continue. */
     endSession(name: string): void {
-        const client = this.clients.get(name);
-        const pending = this.requests.filter((request) => request.name === name).length;
-        const queued = client?.packets.length ?? 0;
-        this.removeClient(name);
-        if (client) {
-            this.log.debug(
-                `Removed DH session for ${ansi.named.name(name)}; discarded ${ansi.named.number(pending)} pending request(s) and ${ansi.named.number(queued)} queued response(s).`,
-            );
-        }
+        this.state.endSession(name);
     }
     /** Removes a leaving player and cancels their operator capture. */
     playerLeft(name: string): void {
         this.forcedGeneration.left(name);
-        this.protocolWarnings.delete(name);
-        this.removeClient(name);
+        this.state.protocolWarnings.delete(name);
+        this.state.removeClient(name);
     }
     /** Invalidates a known changed section so pending captures of it start again. */
     changed(level: string, x: number, z: number): void {
         const key = sectionKey(level, Math.floor(x / SECTION_SIZE_BLOCKS), Math.floor(z / SECTION_SIZE_BLOCKS));
-        this.cache.remove(key);
+        this.state.cache.remove(key);
         this.forcedGeneration.changed(level, x, z);
         // Running requests and background refreshes share revisions to prevent stale writes.
-        if (this.requests.some((request) => request.key === key) || this.refreshes.has(key))
-            this.revisions.set(key, (this.revisions.get(key) ?? 0) + 1);
+        if (this.state.requests.some((request) => request.key === key) || this.state.refreshes.has(key))
+            this.state.revisions.set(key, (this.state.revisions.get(key) ?? 0) + 1);
     }
     /** Invalidates each affected LOD section once for a bulk world mutation. */
     changedMany(level: string, positions: readonly { x: number; z: number }[]): void {
@@ -543,63 +437,14 @@ export class Sessions {
             this.changed(level, position.x, position.z);
         }
     }
-    /** Runs work for one session player, ending only that session when the player is gone or the work fails. */
-    private withSessionPeer(peers: Peers, name: string, use: (peer: Peer) => void): void {
-        let found = false;
-        try {
-            found = peers.withPeer(name, use);
-        } catch (err) {
-            this.log.warn(`Ended DH session for ${ansi.named.name(name)} after an error: ${String(err)}.`);
-        }
-        if (!found) this.endSession(name);
-    }
-    private removeClient(name: string): void {
-        this.clients.delete(name);
-        this.cancelRequests(name);
-    }
     /** Describes current queues for the operator command. */
     status(): string {
-        const forced = this.forcedGeneration.status();
-        // Requests are served in rotating order, so show the capture closest to finishing.
-        let request: Request | undefined;
-        for (const candidate of this.requests) {
-            if ((candidate.builder?.progress() ?? -1) > (request?.builder?.progress() ?? -1)) request = candidate;
-        }
-        const progress = request?.builder
-            ? forced
-                ? ` Paused DH capture ${request.level} ${request.section.x}, ${request.section.z}: ${(request.builder.progress() * 100).toFixed(1)}%.`
-                : ` Capturing ${request.level} ${request.section.x}, ${request.section.z}: ${(request.builder.progress() * 100).toFixed(1)}%.`
-            : '';
-        let queuedPackets = 0;
-        let queuedResponses = 0;
-        let queuedBytes = 0;
-        for (const client of this.clients.values()) {
-            for (const response of client.packets) {
-                queuedResponses++;
-                queuedPackets += response.cursor?.remainingPackets ?? 1;
-                queuedBytes += response.cursor?.retainedBytes ?? response.bytes?.length ?? 0;
-            }
-        }
-        const budget = forced
-            ? ` Forced budget up to ${FORCE_BLOCK_SAMPLES_PER_TICK} block samples/tick; ordinary capture sampling paused while cache delivery continues.`
-            : ` Capture budget ${this.lastBlocksBudget}/${this.settings.blocks_per_tick} block samples/tick at ${this.lastServerMspt.toFixed(1)} reported MSPT.`;
-        const lines = [
-            `${this.clients.size} Distant Horizons client(s), ${this.requests.length} pending LOD request(s).`,
-            `${this.ticks} worker tick(s), ${this.served} served, ${this.rejected} rejected, ${this.cancelled} cancelled.`,
-            `${queuedPackets} queued packet(s) across ${queuedResponses} response(s); ${queuedBytes} logical queued response bytes retained.`,
-            `${this.dhPacketBytesSent} DH packet bytes sent; ${this.refreshes.size} background cache refresh(es).`,
-            `Last DH tick-end handler: ${this.lastHandlerMs.toFixed(2)} ms; Pumpkin MSPT excludes this handler on the pinned server.`,
-        ];
-        if (progress) lines.push(progress.trim());
-        if (forced) lines.push(forced);
-        lines.push(budget.trim());
-        if (this.lastFailure) lines.push(`Last rejection: ${this.lastFailure}.`);
-        lines.push('Distant chunk generation is unavailable in the pinned Pumpkin API.');
-        return lines.join('\n');
+        return describeStatus(this.state, this.forcedGeneration.status());
     }
     private scheduleRefresh(request: Request): void {
-        if (this.refreshes.has(request.key) || this.refreshes.size >= this.settings.pending_requests) return;
-        this.refreshes.set(request.key, {
+        if (this.state.refreshes.has(request.key) || this.state.refreshes.size >= this.state.settings.pending_requests)
+            return;
+        this.state.refreshes.set(request.key, {
             name: request.name,
             key: request.key,
             level: request.level,
@@ -608,13 +453,13 @@ export class Sessions {
         });
     }
     private refreshOne(peers: Peers, candidates: Refresh[], blocksBudget: number): boolean {
-        const refresh = candidates.find((candidate) => this.refreshes.get(candidate.key) === candidate);
+        const refresh = candidates.find((candidate) => this.state.refreshes.get(candidate.key) === candidate);
         if (!refresh) return false;
         let stepped = false;
         let found = false;
         try {
             found = peers.withPeer(refresh.name, (peer) => {
-                if (peer.level !== refresh.level || (this.revisions.get(refresh.key) ?? 0) !== refresh.revision) {
+                if (peer.level !== refresh.level || (this.state.revisions.get(refresh.key) ?? 0) !== refresh.revision) {
                     this.finishRefresh(refresh);
                     return;
                 }
@@ -622,36 +467,39 @@ export class Sessions {
                     const region = sectionRegion(refresh.section, peer.terrain);
                     const prepared = peer.terrain.prepare?.(region);
                     if (prepared?.status === 'pending') {
-                        this.refreshes.delete(refresh.key);
-                        this.refreshes.set(refresh.key, refresh);
+                        this.state.refreshes.delete(refresh.key);
+                        this.state.refreshes.set(refresh.key, refresh);
                         return;
                     }
                     if (prepared && prepared.status !== 'ready') throw new Error(prepared.reason);
                     refresh.builder ??= new LodBuilder(refresh.section, peer.terrain.minY, peer.terrain.height);
                     const sampledBefore = refresh.builder.samples();
-                    const started = this.measureNow();
+                    const started = this.state.measureNow();
                     const complete = refresh.builder.step(peer.terrain, blocksBudget);
                     stepped = true;
-                    this.workBudget.observe(refresh.builder.samples() - sampledBefore, this.measureNow() - started);
+                    this.state.workBudget.observe(
+                        refresh.builder.samples() - sampledBefore,
+                        this.state.measureNow() - started,
+                    );
                     if (!complete) return;
                     const stillLoaded = peer.terrain.prepare?.(region);
                     if (stillLoaded?.status === 'pending') return;
                     if (stillLoaded && stillLoaded.status !== 'ready') throw new Error(stillLoaded.reason);
-                    const captured = { updated: this.now(), data: refresh.builder.finish(this.now()) };
-                    this.cache.put(refresh.key, captured);
-                    this.log.debug(
+                    const captured = { updated: this.state.now(), data: refresh.builder.finish(this.state.now()) };
+                    this.state.cache.put(refresh.key, captured);
+                    this.state.log.debug(
                         `Refreshed cached LOD for ${ansi.named.name(refresh.name)} at ${lodLocation(refresh.level, refresh.section.x, refresh.section.z)} (${ansi.named.number(captured.data.length)} bytes).`,
                     );
                     this.finishRefresh(refresh);
                 } catch (err) {
-                    this.log.debug(
+                    this.state.log.debug(
                         `Background refresh for ${lodLocation(refresh.level, refresh.section.x, refresh.section.z)} failed: ${String(err)}.`,
                     );
                     this.finishRefresh(refresh);
                 }
             });
         } catch (err) {
-            this.log.debug(
+            this.state.log.debug(
                 `Background refresh for ${lodLocation(refresh.level, refresh.section.x, refresh.section.z)} failed: ${String(err)}.`,
             );
         }
@@ -659,57 +507,53 @@ export class Sessions {
         return stepped;
     }
     private finishRefresh(refresh: Refresh): void {
-        if (this.refreshes.get(refresh.key) === refresh) this.refreshes.delete(refresh.key);
-        this.clearRevisionIfUnused(refresh.key);
-    }
-    private clearRevisionIfUnused(key: string): void {
-        if (!this.requests.some((request) => request.key === key) && !this.refreshes.has(key))
-            this.revisions.delete(key);
+        if (this.state.refreshes.get(refresh.key) === refresh) this.state.refreshes.delete(refresh.key);
+        this.state.clearRevisionIfUnused(refresh.key);
     }
     private announce(peer: Peer): void {
         if (peer.terrain.height <= 0) {
-            if (!this.heightWarnings.has(peer.level)) {
-                this.heightWarnings.add(peer.level);
-                this.log.warn(
+            if (!this.state.heightWarnings.has(peer.level)) {
+                this.state.heightWarnings.add(peer.level);
+                this.state.log.warn(
                     `World ${ansi.named.identifier(peer.level)} (${ansi.named.identifier(peer.dimension)}) has no known height, so DH sessions there are closed. Set height under [worlds."${peer.level}"] in config.toml.`,
                 );
             }
             peer.send(closeSession(`${PLUGIN_NAME}: no world height is configured for ${peer.level}.`));
-            this.removeClient(peer.name);
+            this.state.removeClient(peer.name);
             return;
         }
-        const existing = this.clients.get(peer.name);
+        const existing = this.state.clients.get(peer.name);
         if (existing?.level === peer.level && existing.dimension === peer.dimension) {
-            peer.send(levelInit(peer.dimension, this.settings.server_key, peer.level, this.now()));
+            peer.send(levelInit(peer.dimension, this.state.settings.server_key, peer.level, this.state.now()));
             peer.send(sessionConfig(existing.config));
             return;
         }
         if (existing) {
             peer.send(closeSession('World changed; restarting the Distant Horizons session.'));
-            this.removeClient(peer.name);
+            this.state.removeClient(peer.name);
         }
         const config = this.serverConfiguration();
-        this.clients.set(peer.name, {
+        this.state.clients.set(peer.name, {
             level: peer.level,
             dimension: peer.dimension,
             config,
-            byteCredit: new ByteCredit(config.bandwidthKbps, this.now()),
+            byteCredit: new ByteCredit(config.bandwidthKbps, this.state.now()),
             packets: [],
         });
-        peer.send(levelInit(peer.dimension, this.settings.server_key, peer.level, this.now()));
+        peer.send(levelInit(peer.dimension, this.state.settings.server_key, peer.level, this.state.now()));
         peer.send(sessionConfig(config));
-        this.log.debug(
+        this.state.log.debug(
             `Established DH session with ${ansi.named.name(peer.name)} in ${ansi.named.identifier(peer.dimension)} / ${ansi.named.identifier(peer.level)} (generation distance ${ansi.named.number(config.generationDistance)} chunks at ${ansi.named.number(config.generationRate)}/s, sync distance ${ansi.named.number(config.syncDistance)} chunks at ${ansi.named.number(config.syncRate)}/s).`,
         );
     }
     private complete(request: Request, value: CachedLod, cached = false): void {
-        this.terrainRetries.delete(request.key);
-        const client = this.clients.get(request.name);
+        this.state.terrainRetries.delete(request.key);
+        const client = this.state.clients.get(request.name);
         if (client) {
             const isUnchanged = request.timestamp !== undefined && value.updated <= request.timestamp;
             const cursor = isUnchanged
                 ? undefined
-                : new TransferCursor(request.tracker, this.buffer++, value.data, client.config.bandwidthKbps);
+                : new TransferCursor(request.tracker, this.state.buffer++, value.data, client.config.bandwidthKbps);
             const lod = {
                 level: request.level,
                 section: request.section,
@@ -722,72 +566,60 @@ export class Sessions {
             };
             client.packets.push({ bytes: isUnchanged ? unchanged(request.tracker) : undefined, cursor, cached, lod });
         }
-        this.drop(request);
-    }
-    private drop(request: Request): void {
-        const index = this.requests.indexOf(request);
-        if (index >= 0) this.requests.splice(index, 1);
-        this.clearRevisionIfUnused(request.key);
+        this.state.drop(request);
     }
     private deferTerrain(request: Request, reason: string): void {
-        const now = this.now();
-        const previous = this.terrainRetries.get(request.key);
+        const now = this.state.now();
+        const previous = this.state.terrainRetries.get(request.key);
         const attempts = Math.min((previous?.attempts ?? 0) + 1, 32);
         const delay = Math.min(INITIAL_TERRAIN_RETRY_MS * 2 ** Math.min(attempts - 1, 10), MAX_TERRAIN_RETRY_MS);
         request.builder = undefined;
-        this.terrainRetries.delete(request.key);
-        this.terrainRetries.set(request.key, { attempts, retryAt: now + delay, updatedAt: now });
-        const maximumEntries = Math.max(64, this.settings.pending_requests * 4);
-        while (this.terrainRetries.size > maximumEntries) {
-            const oldestKey = this.terrainRetries.keys().next().value;
+        this.state.terrainRetries.delete(request.key);
+        this.state.terrainRetries.set(request.key, { attempts, retryAt: now + delay, updatedAt: now });
+        const maximumEntries = Math.max(64, this.state.settings.pending_requests * 4);
+        while (this.state.terrainRetries.size > maximumEntries) {
+            const oldestKey = this.state.terrainRetries.keys().next().value;
             if (oldestKey === undefined) break;
-            this.terrainRetries.delete(oldestKey);
+            this.state.terrainRetries.delete(oldestKey);
         }
-        this.log.debug(
+        this.state.log.debug(
             `Deferred DH request ${ansi.named.number(request.tracker)} from ${ansi.named.name(request.name)} for ${lodLocation(request.level, request.section.x, request.section.z)}: ${reason}; retrying in ${ansi.named.number(delay)} ms.`,
         );
     }
     private pruneTerrainRetries(): void {
-        const now = this.now();
-        const activeKeys = new Set(this.requests.map((request) => request.key));
-        for (const [key, retry] of this.terrainRetries) {
+        const now = this.state.now();
+        const activeKeys = new Set(this.state.requests.map((request) => request.key));
+        for (const [key, retry] of this.state.terrainRetries) {
             if (!activeKeys.has(key) && now - retry.updatedAt >= TERRAIN_RETRY_RETENTION_MS)
-                this.terrainRetries.delete(key);
+                this.state.terrainRetries.delete(key);
         }
-    }
-    private cancelRequests(name: string): void {
-        for (let i = this.requests.length - 1; i >= 0; i--) {
-            if (this.requests[i]?.name === name) this.requests.splice(i, 1);
-        }
-        for (const [key, refresh] of this.refreshes) if (refresh.name === name) this.refreshes.delete(key);
-        for (const key of this.revisions.keys()) this.clearRevisionIfUnused(key);
     }
     private rejectPendingRequestClass(peer: Peer, sync: boolean): void {
-        for (let i = this.requests.length - 1; i >= 0; i--) {
-            const request = this.requests[i];
+        for (let i = this.state.requests.length - 1; i >= 0; i--) {
+            const request = this.state.requests[i];
             if (!request || request.name !== peer.name || (request.timestamp !== undefined) !== sync) continue;
-            this.rejected++;
-            this.lastFailure = 'LOD requests disabled by client';
-            peer.send(reject(request.tracker, this.lastFailure, 2));
-            this.drop(request);
+            this.state.rejected++;
+            this.state.lastFailure = 'LOD requests disabled by client';
+            peer.send(reject(request.tracker, this.state.lastFailure, 2));
+            this.state.drop(request);
         }
-        for (const key of this.revisions.keys()) this.clearRevisionIfUnused(key);
+        for (const key of this.state.revisions.keys()) this.state.clearRevisionIfUnused(key);
     }
     private orderedRequests(): Request[] {
-        const requests = [...this.requests];
+        const requests = [...this.state.requests];
         if (requests.length === 0) return requests;
-        const offset = this.requestCursor % requests.length;
-        this.requestCursor = (offset + 1) % requests.length;
+        const offset = this.state.requestCursor % requests.length;
+        this.state.requestCursor = (offset + 1) % requests.length;
         return [...requests.slice(offset), ...requests.slice(0, offset)];
     }
     private pendingWorkCount(): number {
         return (
-            this.requests.length +
-            [...this.clients.values()].reduce((count, client) => count + client.packets.length, 0)
+            this.state.requests.length +
+            [...this.state.clients.values()].reduce((count, client) => count + client.packets.length, 0)
         );
     }
     private captureRequestCount(name: string, except: Request): number {
-        return this.requests.filter(
+        return this.state.requests.filter(
             (request) =>
                 request !== except &&
                 request.name === name &&
@@ -797,13 +629,16 @@ export class Sessions {
     private serverConfiguration(): SessionConfiguration {
         return {
             generationPlan: 2,
-            generationDistance: this.settings.render_distance,
-            generationRate: Math.min(this.settings.generation_requests_per_second, this.settings.pending_requests),
+            generationDistance: this.state.settings.render_distance,
+            generationRate: Math.min(
+                this.state.settings.generation_requests_per_second,
+                this.state.settings.pending_requests,
+            ),
             realTimeUpdates: false,
             realTimeDistance: 0,
             syncEnabled: true,
-            syncDistance: this.settings.render_distance,
-            syncRate: Math.min(this.settings.sync_requests_per_second, this.settings.pending_requests),
+            syncDistance: this.state.settings.render_distance,
+            syncRate: Math.min(this.state.settings.sync_requests_per_second, this.state.settings.pending_requests),
             bandwidthKbps: 0,
         };
     }
@@ -852,7 +687,7 @@ export class Sessions {
         )
             return { reason: 'Section outside request range or world border', kind: 1 };
         // Wire rates shape client demand; this queue is the server's combined backpressure bound.
-        if (capacity && (rate === 0 || this.pendingWorkCount() >= this.settings.pending_requests))
+        if (capacity && (rate === 0 || this.pendingWorkCount() >= this.state.settings.pending_requests))
             return { reason: 'LOD request limit reached', kind: 0 };
         return undefined;
     }
