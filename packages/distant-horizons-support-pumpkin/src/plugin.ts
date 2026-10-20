@@ -9,6 +9,7 @@ import type {
 } from 'pumpkin:plugin/event@0.1.0';
 import type { IpcMessage, PluginId } from 'pumpkin:plugin/ipc@0.1.0';
 import { now as monotonicNow } from 'wasi:clocks/monotonic-clock@0.2.3';
+import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import { WasiDataDir } from '@pumpkin-plugins/plugin-kit/data-dir';
 import { hostLogger } from '@pumpkin-plugins/plugin-kit/host';
 import { PluginBase, registerPlugin } from '@pumpkin-plugins/plugin-kit/plugin';
@@ -25,6 +26,8 @@ import { serverPeers, withPlayer } from './platform/peers.ts';
 import { invalidateBlockGrow, invalidateBlockSpread } from './platform/world-mutations.ts';
 import { CHANNEL, PROTOCOL } from './protocol/messages.ts';
 import { Sessions } from './session.ts';
+
+const logTag = ansi.named.name(PLUGIN_NAME);
 
 /** Serves Distant Horizons requests from loaded chunks and previously captured terrain. */
 class DistantHorizonsSupportPumpkin extends PluginBase {
@@ -61,7 +64,8 @@ class DistantHorizonsSupportPumpkin extends PluginBase {
             sessions,
             cache,
             now: monotonicMilliseconds,
-            onTransition: (state) => hostLogger.info(`${PLUGIN_NAME}: PumpkinPIE provider is ${state.kind}`),
+            onTransition: (state) =>
+                hostLogger.info(`${logTag} PumpkinPIE provider is ${ansi.named.value(state.kind)}`),
         });
         registerCommands(ctx, commands, commandHandlers(sessions, cache, settings));
         this.registerEvent(ctx, 'player-custom-payload-event', (_server, event: PlayerCustomPayloadEventData) => {
@@ -71,7 +75,7 @@ class DistantHorizonsSupportPumpkin extends PluginBase {
             } catch (err) {
                 const name = event.player.getName();
                 sessions.endSession(name);
-                hostLogger.warn(`${PLUGIN_NAME}: DH message from ${name} failed: ${String(err)}`);
+                hostLogger.warn(`${logTag} DH message from ${ansi.named.name(name)} failed: ${String(err)}`);
             }
         });
         this.registerEvent(ctx, 'player-leave-event', (_server, event: PlayerLeaveEventData) => {
@@ -81,8 +85,8 @@ class DistantHorizonsSupportPumpkin extends PluginBase {
             sessions.tick(serverPeers(server, settings), server.getMspt());
             try {
                 this.placeholders?.tick();
-            } catch {
-                hostLogger.warn(`${PLUGIN_NAME}: PumpkinPIE session tick failed`);
+            } catch (err) {
+                hostLogger.warn(`${logTag} PumpkinPIE session tick failed: ${String(err)}`);
             }
         });
         this.registerEvent(ctx, 'block-place-event', (_server, event: BlockPlaceEventData) => {
@@ -110,7 +114,7 @@ class DistantHorizonsSupportPumpkin extends PluginBase {
             invalidateBlockSpread(sessions, event);
         });
         hostLogger.info(
-            `${PLUGIN_NAME}: serving DH protocol ${PROTOCOL} from loaded chunks and cached terrain. This plugin cannot load saved chunks or request normal terrain generation; see the README's Compatibility and terrain section.`,
+            `${logTag} serving DH protocol ${ansi.named.number(PROTOCOL)} from loaded chunks and cached terrain. This plugin cannot load saved chunks or request normal terrain generation; see the README's Compatibility and terrain section.`,
         );
     }
 
@@ -125,8 +129,8 @@ class DistantHorizonsSupportPumpkin extends PluginBase {
         this.placeholders = undefined;
         try {
             placeholders?.stop();
-        } catch {
-            hostLogger.warn(`${PLUGIN_NAME}: failed to stop PumpkinPIE session`);
+        } catch (err) {
+            hostLogger.warn(`${logTag} failed to stop PumpkinPIE session: ${String(err)}`);
         }
     }
 
