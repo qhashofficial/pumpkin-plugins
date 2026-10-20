@@ -71,6 +71,9 @@
         "typecheck": {
             "dependsOn": ["transit"]
         },
+        "@pumpkin-plugins/build#typecheck": {
+            "dependsOn": ["transit", "@pumpkin-plugins/static-hermes-runtime#build"]
+        },
         "test": {
             "dependsOn": ["transit"]
         },

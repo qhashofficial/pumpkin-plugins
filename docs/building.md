@@ -243,7 +243,8 @@ declarations that builds and editors need, so their `build/types/**` output is c
 The `@pumpkin-plugins/build` build and test tasks also build `@pumpkin-plugins/static-hermes-runtime`
 and `@pumpkin-plugins/wasi-capabilities` first. The build tool imports their compiled package
 entries, so both public tools declare their `dist/**` output for Turbo to restore when those builds
-come from cache.
+come from cache. Its typecheck builds `@pumpkin-plugins/static-hermes-runtime` first, because that
+package's declarations come from `dist/`.
 
 Run `pnpm clean` to remove workspace `node_modules`, root and workspace `build/` and `dist/` output,
 and `.turbo/cache/`. It preserves `.cache/`.
