@@ -665,24 +665,30 @@ describe('workflows in forks', () => {
         }
     };
 
-    it('skips each job that needs repository secrets or the release App in a fork', () => {
+    it('skips each job that needs repository secrets, the release App or GitHub Pages in a fork', () => {
         const checked = [];
         const unguarded = [];
         for (const file of Object.keys(workflows)) {
             const triggers = [...new Set(events(file))].filter((event) => forkEvents.has(event));
             if (triggers.length === 0) continue;
             for (const [name, job] of Object.entries(workflows[file].jobs)) {
-                const secrets = new Set(JSON.stringify(job).match(/(?<=\bsecrets\.)\w+/g)).difference(notNeeded);
-                if (secrets.size === 0) continue;
+                const requires = [...new Set(JSON.stringify(job).match(/(?<=\bsecrets\.)\w+/g)).difference(notNeeded)];
+                // A fork shouldn't deploy the docs site, and Pages may be off there.
+                if (job.steps?.some((step) => /^actions\/(?:configure|deploy)-pages@/.test(step.uses ?? ''))) {
+                    requires.push('GitHub Pages');
+                }
+                if (requires.length === 0) continue;
                 checked.push(`${file} ${name}`);
                 // Skipping must follow from the fork flag alone, whatever else the run looks like.
                 const condition = job.if ?? 'true';
                 if (withForkFlag(condition, true) !== false || withForkFlag(condition, false) === false) {
-                    unguarded.push(`${file} ${name} reads ${[...secrets].join(', ')} on ${triggers.join(', ')}`);
+                    unguarded.push(`${file} ${name} needs ${requires.join(', ')} on ${triggers.join(', ')}`);
                 }
             }
         }
-        assert.ok(checked.includes('./.github/workflows/update-upstream-pins.yml update'), checked.join('\n'));
+        for (const job of ['update-upstream-pins.yml update', 'docs.yml publish']) {
+            assert.ok(checked.includes(`./.github/workflows/${job}`), checked.join('\n'));
+        }
         assert.deepEqual(unguarded, [], "start each job's if: with !github.event.repository.fork");
     });
 });

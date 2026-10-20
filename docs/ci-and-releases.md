@@ -14,7 +14,7 @@ external-consumer workflow at `.github/workflows/external-consumer.yml` to make 
 work outside this monorepo.
 
 After the `🛡️ CI result` check passes, `.github/workflows/release.yml` handles releases. The reusable
-`.github/workflows/extensions.yml` checks changed extensions. `.github/workflows/docs.yml` checks the documentation and publishes the
+`.github/workflows/extensions.yml` checks changed extensions. `.github/workflows/docs.yml` checks the documentation and, outside forks, publishes the
 VitePress site, then mirrors it to `gh-pages`. GitHub workflow validation runs separately in
 `.github/workflows/actionlint.yml`. `.github/workflows/issue-forms.yml` validates the chooser, the
 issue forms and the label catalog; `.github/workflows/issue-intake.yml` checks new and edited issue
