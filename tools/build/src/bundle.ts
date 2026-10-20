@@ -7,6 +7,7 @@ import * as esbuild from 'esbuild';
 import { BuildError, runtimeBuildError } from './errors.ts';
 import type { BuildOutputMessage } from './output.ts';
 import type { PluginEngine, StaticHermesGc, StaticHermesRuntime } from './plugin-config.ts';
+import { replaceOutput } from './replace-output.ts';
 import { generateTypes } from './types.ts';
 
 const require = createRequire(import.meta.url);
@@ -319,21 +320,13 @@ function publishComponent(
         if (!existing.isFile() && !existing.isSymbolicLink()) throw error;
 
         const previous = path.join(temporaryDir, 'previous.wasm');
-        fs.renameSync(output, previous);
-        try {
-            fs.renameSync(component, output);
-        } catch (publishError) {
-            try {
-                fs.renameSync(previous, output);
-            } catch (restoreError) {
-                preserveForRecovery();
-                throw new AggregateError(
-                    [publishError, restoreError],
-                    `could not publish or restore ${output}; previous artifact preserved at ${previous}`,
-                );
-            }
-            throw publishError;
-        }
+        replaceOutput(
+            component,
+            output,
+            previous,
+            `could not publish or restore ${output}; previous artifact preserved at ${previous}`,
+            preserveForRecovery,
+        );
     }
 }
 

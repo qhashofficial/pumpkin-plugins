@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import { BuildError } from './errors.ts';
+import { replaceOutput } from './replace-output.ts';
 
 const require = createRequire(import.meta.url);
 
@@ -88,19 +89,11 @@ function publishTypes(generated: string, output: string, temporary: string, pres
 
     if (!fs.statSync(output).isDirectory()) throw new Error(`type output is not a directory: ${output}`);
     const previous = path.join(temporary, 'previous');
-    fs.renameSync(output, previous);
-    try {
-        fs.renameSync(generated, output);
-    } catch (publishError) {
-        try {
-            fs.renameSync(previous, output);
-        } catch (restoreError) {
-            preserveForRecovery();
-            throw new AggregateError(
-                [publishError, restoreError],
-                `could not publish or restore ${output}; previous declarations preserved at ${previous}`,
-            );
-        }
-        throw publishError;
-    }
+    replaceOutput(
+        generated,
+        output,
+        previous,
+        `could not publish or restore ${output}; previous declarations preserved at ${previous}`,
+        preserveForRecovery,
+    );
 }
