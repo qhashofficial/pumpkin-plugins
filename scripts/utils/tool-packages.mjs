@@ -118,12 +118,7 @@ export function embeddedPackageManifestEntries(entries) {
  * @throws {Error} When pnpm, tar or a packed manifest fails.
  */
 export function packAndInspect(packageDirectory, destination, packageManager = { command: 'pnpm', args: [] }) {
-    const output = execFileSync(
-        packageManager.command,
-        [...packageManager.args, 'pack', '--pack-destination', destination, '--json'],
-        { cwd: packageDirectory, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] },
-    );
-    const tarballPath = path.resolve(destination, JSON.parse(output).filename);
+    const tarballPath = packTarball(packageDirectory, destination, packageManager);
     const entries = parseTarEntries(execFileSync('tar', ['-tzf', tarballPath], { encoding: 'utf8' }));
     const readPackedJson = (entry) =>
         JSON.parse(execFileSync('tar', ['-xOzf', tarballPath, entry], { encoding: 'utf8' }));
@@ -346,6 +341,28 @@ export function sourcePrerequisitePaths(root, packagePath, pathsByName) {
         ...Object.keys(manifest.optionalDependencies ?? {}),
     ]);
     return new Set(names.map((name) => pathsByName.get(name)).filter(Boolean));
+}
+
+// Lifecycle scripts such as prepack write to pnpm pack's stdout even with --json, so the tarball is
+// found as the only file in an empty pack directory. --use-stderr keeps their output in the log.
+function packTarball(packageDirectory, destination, packageManager) {
+    const packDirectory = fs.mkdtempSync(path.join(destination, '.pack-'));
+    try {
+        execFileSync(
+            packageManager.command,
+            [...packageManager.args, 'pack', '--pack-destination', packDirectory, '--use-stderr'],
+            { cwd: packageDirectory, stdio: ['ignore', 'ignore', 'inherit'] },
+        );
+        const [filename, ...others] = fs.readdirSync(packDirectory);
+        if (!filename || others.length > 0) {
+            throw new Error(`pnpm pack did not write exactly one tarball for ${packageDirectory}`);
+        }
+        const tarballPath = path.join(destination, filename);
+        fs.renameSync(path.join(packDirectory, filename), tarballPath);
+        return tarballPath;
+    } finally {
+        fs.rmSync(packDirectory, { recursive: true, force: true });
+    }
 }
 
 function publicDependencies(packageJson, packageNames) {
