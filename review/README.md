@@ -98,3 +98,11 @@ Pull requests outside the original plan:
 - [#68](https://github.com/qhashofficial/pumpkin-plugins/pull/68), [#69](https://github.com/qhashofficial/pumpkin-plugins/pull/69): leftovers in tooling, CI and docs, and in plugins and APIs. Many of the "partly fixed" items above were completed there.
 
 Found late and not changed: the plugin release selector (`pluginReleaseInputs` in `scripts/utils/release-commits.mjs`) needs the Static Hermes runtime's `dist/`, which the release-please job never builds, so that job has probably failed since f6198b920d7; see #68.
+- [#70](https://github.com/qhashofficial/pumpkin-plugins/pull/70): pins all 92 third-party action references to commit SHAs, with a test and Renovate digest updates.
+- [#71](https://github.com/qhashofficial/pumpkin-plugins/pull/71): drops the step-outcome table and its `toJSON(steps)` plumbing from CI job summaries.
+- [#72](https://github.com/qhashofficial/pumpkin-plugins/pull/72), [#73](https://github.com/qhashofficial/pumpkin-plugins/pull/73): one stage-and-replace routine in the builder; the never-available chunk loader and generator API removed from terrain.
+- [#74](https://github.com/qhashofficial/pumpkin-plugins/pull/74), [#75](https://github.com/qhashofficial/pumpkin-plugins/pull/75), [#76](https://github.com/qhashofficial/pumpkin-plugins/pull/76): DynamicLights plugin.ts split, static-hermes-runtime unit tests beside their modules, shared WASI socket, clock and u64 helpers in plugin-kit.
+- [#77](https://github.com/qhashofficial/pumpkin-plugins/pull/77): every plugin's log lines name the plugin.
+- [#78](https://github.com/qhashofficial/pumpkin-plugins/pull/78), [#79](https://github.com/qhashofficial/pumpkin-plugins/pull/79), [#80](https://github.com/qhashofficial/pumpkin-plugins/pull/80), [#81](https://github.com/qhashofficial/pumpkin-plugins/pull/81): benchmark code moved to src (and the doubled minus sign in the PR comment fixed), WIT method usage analysis split into modules, changed-areas split into modules, benchmark tests beside their modules.
+
+Not merged, for the maintainer: branch `build/release-please-single-pin` pins release-please once as a root devDependency, which adds about 117 packages to every install.
