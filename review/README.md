@@ -11,18 +11,22 @@ Fixes were grouped into topic branches. Each branch was tested on its own, then 
 ## Numbers
 
 - Findings: 419 (critical 1, high 15, medium 168, low 233 after verification).
-- Fixed: 335
-- Deferred: 40
-- Partly fixed: 40
-- Left for the maintainer: 2
+- Fixed: 366
+- Partly fixed: 26
+- Deferred: 21
+- Left for the maintainer: 3
 - Refuted in verification: 2
+- Not a problem on closer reading: 1
+- Merged pull requests: 90 (65 review fixes, 17 follow-ups, 8 CI and test fixes).
 
 ## Files
 
 - [findings.md](findings.md): every finding by area, with its status and where it was fixed.
 - [open-items.md](open-items.md): what is left: deferred findings with the reason, and notes that need a maintainer decision.
 
-## Pull requests
+## Review fixes
+
+One pull request per topic branch of the review plan. A branch whose last commits were finished after it merged has a second part.
 
 | PR | Branch | Title |
 | --- | --- | --- |
@@ -52,57 +56,81 @@ Fixes were grouped into topic branches. Each branch was tested on its own, then 
 | [#24](https://github.com/qhashofficial/pumpkin-plugins/pull/24) | `fix/dynamic-lights-sources` | fix(dynamic-lights): match bare source IDs and key preferences by UUID |
 | [#25](https://github.com/qhashofficial/pumpkin-plugins/pull/25) | `fix/build-bundle-errors-analysis` | fix(build): report bundle failures as build errors and analyze the bundled inputs |
 | [#26](https://github.com/qhashofficial/pumpkin-plugins/pull/26) | `docs/contributor-guides` | docs: fix the testing policy, API pin locations and runtime caveats |
-| [#49](https://github.com/qhashofficial/pumpkin-plugins/pull/49) | `fix/dh-session-requests` | fix(distant-horizons): restart captures on terrain changes and report real rejection reasons |
-| [#50](https://github.com/qhashofficial/pumpkin-plugins/pull/50) | `fix/shr-toolchain-pins` | fix(static-hermes-runtime): read toolchain pins from lock files |
 | [#27](https://github.com/qhashofficial/pumpkin-plugins/pull/27) | `fix/build-wasi-wit-pin` | fix(build): check the WASI WIT version against wasi-capabilities and simplify cache writes |
 | [#28](https://github.com/qhashofficial/pumpkin-plugins/pull/28) | `fix/shr-package-and-readme` | fix(static-hermes-runtime): publish declarations and correct the README coverage text |
-| [#59](https://github.com/qhashofficial/pumpkin-plugins/pull/59) | `ci/cache-and-clone-costs` | ci: save caches only on the default branch and fix the malloc benchmark cache |
 | [#29](https://github.com/qhashofficial/pumpkin-plugins/pull/29) | `docs/waypoints-placeholder-guide` | docs(waypoints): fix the placeholder table and move guide prose back into Markdown |
 | [#30](https://github.com/qhashofficial/pumpkin-plugins/pull/30) | `fix/port-mapping-nat-reasons` | fix(port-mapping): name the real cause of non-public WAN addresses |
-| [#60](https://github.com/qhashofficial/pumpkin-plugins/pull/60) | `fix/docs-pipeline-turbo` | fix(docs): build docs types through Turbo so a fresh clone works |
-| [#61](https://github.com/qhashofficial/pumpkin-plugins/pull/61) | `refactor/docs-generator-hooks` | refactor(docs): drop one-shot README migrations from package doc generators |
 | [#31](https://github.com/qhashofficial/pumpkin-plugins/pull/31) | `fix/npm-publish-scripts` | fix(release): share one pack-and-inspect helper and tag backfill publishes |
 | [#32](https://github.com/qhashofficial/pumpkin-plugins/pull/32) | `fix/port-mapping-discovery` | fix(port-mapping): skip idle WAN services and probe the router web page last |
 | [#33](https://github.com/qhashofficial/pumpkin-plugins/pull/33) | `fix/market-actions-lookup` | fix(actions): share Market listing lookup and skip re-uploading an existing version |
 | [#34](https://github.com/qhashofficial/pumpkin-plugins/pull/34) | `build/turbo-typecheck-outputs` | build(turbo): declare typecheck outputs only where declarations are generated |
 | [#35](https://github.com/qhashofficial/pumpkin-plugins/pull/35) | `fix/release-first-release-history` | fix(release): cut first-release history at the introduction commit |
-| [#62](https://github.com/qhashofficial/pumpkin-plugins/pull/62) | `chore/repo-config-hygiene` | chore: restore the release-age guard and clean up repo config |
-| [#63](https://github.com/qhashofficial/pumpkin-plugins/pull/63) | `docs/ci-release-benchmark-guides` | docs: correct the CI, release and benchmark guides |
 | [#36](https://github.com/qhashofficial/pumpkin-plugins/pull/36) | `ci/labels-and-issue-intake` | ci: generate CodeRabbit labels in Node and test issue intake |
 | [#37](https://github.com/qhashofficial/pumpkin-plugins/pull/37) | `fix/minecraft-colors-nesting` | fix(minecraft-colors): reopen the outer style after nested formatting |
-| [#42](https://github.com/qhashofficial/pumpkin-plugins/pull/42) | `test/shr-retarget-oracle-suites` | test(static-hermes-runtime): test the production WIT generator instead of the legacy oracle |
-| [#65](https://github.com/qhashofficial/pumpkin-plugins/pull/65) | `docs/dh-readme-and-tests` | docs(distant-horizons): trim the README and test behaviour instead of wiring |
-| [#43](https://github.com/qhashofficial/pumpkin-plugins/pull/43) | `fix/plugin-release-scripts` | fix(scripts): absolutize Market README links and share plugin info loading |
 | [#38](https://github.com/qhashofficial/pumpkin-plugins/pull/38) | `fix/test-harness-robustness` | fix(test-harness): pin binary checksums and handle musl and signals |
 | [#39](https://github.com/qhashofficial/pumpkin-plugins/pull/39) | `refactor/shr-component-api` | refactor(static-hermes-runtime): clean up the component build API and its tests |
 | [#40](https://github.com/qhashofficial/pumpkin-plugins/pull/40) | `fix/agent-hooks` | fix(hooks): run script tests for the files they validate and lazy-load workspace imports |
 | [#41](https://github.com/qhashofficial/pumpkin-plugins/pull/41) | `fix/create-pumpkin-plugin-scaffold` | fix(create-pumpkin-plugin): simplify project creation and use the detected package manager |
-| [#51](https://github.com/qhashofficial/pumpkin-plugins/pull/51) | `perf/waypoints-hud-access` | perf(waypoints): cache permission checks in the HUD tick and share distance formatting |
-| [#53](https://github.com/qhashofficial/pumpkin-plugins/pull/53) | `fix/update-check-dev-mode` | fix(update-check): skip checks in dev builds and test the scheduled path |
-| [#66](https://github.com/qhashofficial/pumpkin-plugins/pull/66) | `ci/reusable-plugin-publish` | ci(release): share the plugin publish workflow between release and recovery |
+| [#42](https://github.com/qhashofficial/pumpkin-plugins/pull/42) | `test/shr-retarget-oracle-suites` | test(static-hermes-runtime): test the production WIT generator instead of the legacy oracle |
+| [#43](https://github.com/qhashofficial/pumpkin-plugins/pull/43) | `fix/plugin-release-scripts` | fix(scripts): absolutize Market README links and share plugin info loading |
 | [#44](https://github.com/qhashofficial/pumpkin-plugins/pull/44) | `fix/config-toml-del` | fix(config): escape DEL in TOML strings and table headers |
+| [#45](https://github.com/qhashofficial/pumpkin-plugins/pull/45) | `fix/test-harness-robustness-rest` | fix(test-harness): pin binary checksums and handle musl and signals (part 2) |
+| [#46](https://github.com/qhashofficial/pumpkin-plugins/pull/46) | `refactor/shr-component-api-rest` | refactor(static-hermes-runtime): clean up the component build API and its tests (part 2) |
+| [#47](https://github.com/qhashofficial/pumpkin-plugins/pull/47) | `fix/agent-hooks-rest` | fix(hooks): run script tests for the files they validate and lazy-load workspace imports (part 2) |
+| [#48](https://github.com/qhashofficial/pumpkin-plugins/pull/48) | `fix/create-pumpkin-plugin-scaffold-rest` | fix(create-pumpkin-plugin): simplify project creation and use the detected package manager (part 2) |
+| [#49](https://github.com/qhashofficial/pumpkin-plugins/pull/49) | `fix/dh-session-requests` | fix(distant-horizons): restart captures on terrain changes and report real rejection reasons |
+| [#50](https://github.com/qhashofficial/pumpkin-plugins/pull/50) | `fix/shr-toolchain-pins` | fix(static-hermes-runtime): read toolchain pins from lock files |
+| [#51](https://github.com/qhashofficial/pumpkin-plugins/pull/51) | `perf/waypoints-hud-access` | perf(waypoints): cache permission checks in the HUD tick and share distance formatting |
 | [#52](https://github.com/qhashofficial/pumpkin-plugins/pull/52) | `fix/cspell-minecraft-words` | fix(cspell-dict-minecraft): add common Minecraft terms and test the packaged dictionary |
+| [#53](https://github.com/qhashofficial/pumpkin-plugins/pull/53) | `fix/update-check-dev-mode` | fix(update-check): skip checks in dev builds and test the scheduled path |
 | [#54](https://github.com/qhashofficial/pumpkin-plugins/pull/54) | `perf/apple-skin-tick` | perf(apple-skin): read the regeneration game rule once per world per tick |
 | [#55](https://github.com/qhashofficial/pumpkin-plugins/pull/55) | `fix/signing-verify` | fix(signing): allow pinning the expected signer and validate metadata types |
 | [#56](https://github.com/qhashofficial/pumpkin-plugins/pull/56) | `refactor/engine-comparison-scripts` | refactor(scripts): share GitHub API and output helpers in the engine comparison scripts |
 | [#57](https://github.com/qhashofficial/pumpkin-plugins/pull/57) | `docs/repo-skills` | docs(skills): fix errors and repo-rule conflicts in local skills |
 | [#58](https://github.com/qhashofficial/pumpkin-plugins/pull/58) | `perf/static-analysis-probes` | perf(static-analysis): cache browser-field probes and resolve edges in parallel |
+| [#59](https://github.com/qhashofficial/pumpkin-plugins/pull/59) | `ci/cache-and-clone-costs` | ci: save caches only on the default branch and fix the malloc benchmark cache |
+| [#60](https://github.com/qhashofficial/pumpkin-plugins/pull/60) | `fix/docs-pipeline-turbo` | fix(docs): build docs types through Turbo so a fresh clone works |
+| [#61](https://github.com/qhashofficial/pumpkin-plugins/pull/61) | `refactor/docs-generator-hooks` | refactor(docs): drop one-shot README migrations from package doc generators |
+| [#62](https://github.com/qhashofficial/pumpkin-plugins/pull/62) | `chore/repo-config-hygiene` | chore: restore the release-age guard and clean up repo config |
+| [#63](https://github.com/qhashofficial/pumpkin-plugins/pull/63) | `docs/ci-release-benchmark-guides` | docs: correct the CI, release and benchmark guides |
+| [#65](https://github.com/qhashofficial/pumpkin-plugins/pull/65) | `docs/dh-readme-and-tests` | docs(distant-horizons): trim the README and test behaviour instead of wiring |
+| [#66](https://github.com/qhashofficial/pumpkin-plugins/pull/66) | `ci/reusable-plugin-publish` | ci(release): share the plugin publish workflow between release and recovery |
 
-## Follow-up pull requests
+## Follow-ups
 
-Pull requests outside the original plan:
+Later pull requests that fixed or finished findings: the sweeps over what the first fixes left, and the refactors that were deferred until the branches they touched had merged.
 
-- [#45](https://github.com/qhashofficial/pumpkin-plugins/pull/45), [#46](https://github.com/qhashofficial/pumpkin-plugins/pull/46), [#47](https://github.com/qhashofficial/pumpkin-plugins/pull/47), [#48](https://github.com/qhashofficial/pumpkin-plugins/pull/48): second parts of #38 to #41, whose last commits were finished after the first parts merged.
-- [#64](https://github.com/qhashofficial/pumpkin-plugins/pull/64): makes the dev hot-reload and forced-capture budget tests deterministic.
-- [#67](https://github.com/qhashofficial/pumpkin-plugins/pull/67): gives each package its own vitest module cache (fixes `ENOTEMPTY` start-up failures in parallel runs).
-- [#68](https://github.com/qhashofficial/pumpkin-plugins/pull/68), [#69](https://github.com/qhashofficial/pumpkin-plugins/pull/69): leftovers in tooling, CI and docs, and in plugins and APIs. Many of the "partly fixed" items above were completed there.
+| PR | Branch | Title |
+| --- | --- | --- |
+| [#68](https://github.com/qhashofficial/pumpkin-plugins/pull/68) | `fix/review-leftovers-tooling` | fix: clear review leftovers in tooling, CI and docs |
+| [#69](https://github.com/qhashofficial/pumpkin-plugins/pull/69) | `fix/review-leftovers-plugins` | fix: clear review leftovers in plugins and APIs |
+| [#70](https://github.com/qhashofficial/pumpkin-plugins/pull/70) | `ci/pin-action-digests` | ci: pin third-party actions to commit SHAs |
+| [#71](https://github.com/qhashofficial/pumpkin-plugins/pull/71) | `ci/drop-step-summary-table` | ci: drop the step-outcome table from job summaries |
+| [#72](https://github.com/qhashofficial/pumpkin-plugins/pull/72) | `refactor/build-stage-replace` | refactor(build): share one stage-and-replace routine for build outputs |
+| [#73](https://github.com/qhashofficial/pumpkin-plugins/pull/73) | `refactor/terrain-drop-speculative-api` | refactor(terrain): remove the chunk loader and generator API that is never available |
+| [#74](https://github.com/qhashofficial/pumpkin-plugins/pull/74) | `refactor/dynamic-lights-plugin-split` | refactor(dynamic-lights): split plugin.ts into lifecycle, events and sync modules |
+| [#75](https://github.com/qhashofficial/pumpkin-plugins/pull/75) | `test/shr-colocate-unit-tests` | test(static-hermes-runtime): keep unit tests beside their modules |
+| [#76](https://github.com/qhashofficial/pumpkin-plugins/pull/76) | `refactor/shared-wasi-net-helpers` | refactor: share the WASI socket and IPv4 helpers between plugins |
+| [#77](https://github.com/qhashofficial/pumpkin-plugins/pull/77) | `feat/plugin-named-logger` | feat(plugin-kit): name the plugin in every log line |
+| [#78](https://github.com/qhashofficial/pumpkin-plugins/pull/78) | `refactor/engine-comparison-src` | refactor(engine-comparison): move the benchmark code out of test/ |
+| [#79](https://github.com/qhashofficial/pumpkin-plugins/pull/79) | `refactor/build-wit-method-usage` | refactor(build): split the WIT method usage analysis into modules |
+| [#80](https://github.com/qhashofficial/pumpkin-plugins/pull/80) | `refactor/changed-areas-modules` | refactor(scripts): split changed-areas into modules |
+| [#84](https://github.com/qhashofficial/pumpkin-plugins/pull/84) | `fix/engine-comparison-parser-mode` | fix(engine-comparison): detect the parser mode the builder reports again |
+| [#87](https://github.com/qhashofficial/pumpkin-plugins/pull/87) | `refactor/dh-session-split` | refactor(distant-horizons): split session.ts by responsibility |
+| [#88](https://github.com/qhashofficial/pumpkin-plugins/pull/88) | `refactor/shr-drop-handwritten-host-api` | refactor(static-hermes-runtime): use the generated host API instead of the hand-written copy |
+| [#90](https://github.com/qhashofficial/pumpkin-plugins/pull/90) | `perf/dh-capture-scheduler` | perf(distant-horizons): capture each section once and resolve players once per tick |
 
-Found late and not changed: the plugin release selector (`pluginReleaseInputs` in `scripts/utils/release-commits.mjs`) needs the Static Hermes runtime's `dist/`, which the release-please job never builds, so that job has probably failed since f6198b920d7; see #68.
-- [#70](https://github.com/qhashofficial/pumpkin-plugins/pull/70): pins all 92 third-party action references to commit SHAs, with a test and Renovate digest updates.
-- [#71](https://github.com/qhashofficial/pumpkin-plugins/pull/71): drops the step-outcome table and its `toJSON(steps)` plumbing from CI job summaries.
-- [#72](https://github.com/qhashofficial/pumpkin-plugins/pull/72), [#73](https://github.com/qhashofficial/pumpkin-plugins/pull/73): one stage-and-replace routine in the builder; the never-available chunk loader and generator API removed from terrain.
-- [#74](https://github.com/qhashofficial/pumpkin-plugins/pull/74), [#75](https://github.com/qhashofficial/pumpkin-plugins/pull/75), [#76](https://github.com/qhashofficial/pumpkin-plugins/pull/76): DynamicLights plugin.ts split, static-hermes-runtime unit tests beside their modules, shared WASI socket, clock and u64 helpers in plugin-kit.
-- [#77](https://github.com/qhashofficial/pumpkin-plugins/pull/77): every plugin's log lines name the plugin.
-- [#78](https://github.com/qhashofficial/pumpkin-plugins/pull/78), [#79](https://github.com/qhashofficial/pumpkin-plugins/pull/79), [#80](https://github.com/qhashofficial/pumpkin-plugins/pull/80), [#81](https://github.com/qhashofficial/pumpkin-plugins/pull/81): benchmark code moved to src (and the doubled minus sign in the PR comment fixed), WIT method usage analysis split into modules, changed-areas split into modules, benchmark tests beside their modules.
+## CI and test fixes
 
-Not merged, for the maintainer: branch `build/release-please-single-pin` pins release-please once as a root devDependency, which adds about 117 packages to every install.
+Pull requests that no finding asked for: fixes for CI jobs and flaky tests, and small cleanups.
+
+| PR | Branch | Title |
+| --- | --- | --- |
+| [#64](https://github.com/qhashofficial/pumpkin-plugins/pull/64) | `test/stabilize-timing-tests` | test: make the dev hot-reload and forced-capture budget tests deterministic |
+| [#67](https://github.com/qhashofficial/pumpkin-plugins/pull/67) | `test/vitest-cache-race` | test: give each package its own vitest module cache |
+| [#81](https://github.com/qhashofficial/pumpkin-plugins/pull/81) | `test/engine-comparison-colocate` | test(engine-comparison): keep unit tests beside their modules |
+| [#82](https://github.com/qhashofficial/pumpkin-plugins/pull/82) | `fix/ci-test-cold-cache` | test: make the CI test job pass on a runner with a cold cache |
+| [#83](https://github.com/qhashofficial/pumpkin-plugins/pull/83) | `fix/external-consumer-json-output` | fix(scripts): keep build output out of the JSON the external consumer check parses |
+| [#85](https://github.com/qhashofficial/pumpkin-plugins/pull/85) | `fix/docs-dead-links` | docs: fix the dead links that fail the documentation build |
+| [#86](https://github.com/qhashofficial/pumpkin-plugins/pull/86) | `ci/skip-secret-jobs-on-forks` | ci: skip jobs that need repository secrets when running in a fork |
+| [#89](https://github.com/qhashofficial/pumpkin-plugins/pull/89) | `refactor/benchmark-chart-steps` | refactor(engine-comparison): split the chart renderer into drawing steps |
