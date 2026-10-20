@@ -1,6 +1,6 @@
 import { stripVTControlCharacters } from 'node:util';
-import { expect, it } from 'vitest';
-import { type BuildOutputMessage, formatBuildOutput } from './output.ts';
+import { expect, it, vi } from 'vitest';
+import { type BuildOutputMessage, formatBuildOutput, printBuildOutput } from './output.ts';
 
 function plain(message: BuildOutputMessage): string {
     return stripVTControlCharacters(formatBuildOutput(message));
@@ -73,4 +73,31 @@ it('keeps captured runtime diagnostics in the shared error format', () => {
     expect(plain({ type: 'error', message: 'componentizer failed\nlink failed' })).toBe(
         '[build] Error: componentizer failed\n[build]   link failed',
     );
+});
+
+it('prints each message as one JSON object when the JSON log format is selected', () => {
+    vi.stubEnv('PUMPKIN_PLUGINS_BUILD_LOG_FORMAT', 'json');
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+        printBuildOutput({
+            type: 'componentize',
+            engine: 'static-hermes',
+            runtimeVariant: 'lean',
+            gcVariant: 'hades',
+            parseTypeScript: true,
+        });
+        printBuildOutput({ type: 'error', message: 'componentizer failed\nlink failed' });
+
+        expect(log.mock.calls).toEqual([
+            [
+                '{"type":"componentize","engine":"static-hermes","runtimeVariant":"lean","gcVariant":"hades","parseTypeScript":true}',
+            ],
+        ]);
+        expect(error.mock.calls).toEqual([['{"type":"error","message":"componentizer failed\\nlink failed"}']]);
+    } finally {
+        log.mockRestore();
+        error.mockRestore();
+        vi.unstubAllEnvs();
+    }
 });

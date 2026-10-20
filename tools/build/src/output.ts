@@ -62,9 +62,15 @@ export function formatBuildOutput(message: BuildOutputMessage): string {
     ].join('\n');
 }
 
-/** Write one formatted build event to the appropriate console stream. */
+/**
+ * Write one build event to the appropriate console stream.
+ *
+ * @remarks With `PUMPKIN_PLUGINS_BUILD_LOG_FORMAT=json`, it writes the event as one JSON object instead of a
+ * `[build]` line, so scripts can read what the build selected without parsing text.
+ */
 export function printBuildOutput(message: BuildOutputMessage): void {
-    const formatted = formatBuildOutput(message);
+    const formatted =
+        process.env.PUMPKIN_PLUGINS_BUILD_LOG_FORMAT === 'json' ? JSON.stringify(message) : formatBuildOutput(message);
     if (message.type === 'error') console.error(formatted);
     else if (message.type === 'warning') console.warn(formatted);
     else console.log(formatted);
