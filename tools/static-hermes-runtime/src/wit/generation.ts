@@ -55,13 +55,11 @@ export function generateWitOutputs(input: WitGenerationInput): WitGenerationOutp
         '/* <PUMPKIN_WIT_EVENT_DISPATCH> */',
         generateWitEventDispatch(input.apiPackage, input.analysis.eventFields),
     );
-    if (runtimeSource.includes('/* <PUMPKIN_WIT_EVENT_RESULT> */')) {
-        runtimeSource = replaceMarker(
-            runtimeSource,
-            '/* <PUMPKIN_WIT_EVENT_RESULT> */',
-            generateWitEventResultDispatch(input.apiPackage, input.analysis.eventFields),
-        );
-    }
+    runtimeSource = replaceMarker(
+        runtimeSource,
+        '/* <PUMPKIN_WIT_EVENT_RESULT> */',
+        generateWitEventResultDispatch(input.apiPackage, input.analysis.eventFields),
+    );
     return {
         runtimeSource,
         apiEnumHeader: generateApiEnumHeader(input.apiPackage, input.pluginHeader),

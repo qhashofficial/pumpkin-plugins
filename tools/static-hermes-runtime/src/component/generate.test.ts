@@ -25,6 +25,7 @@ it('runs wit-bindgen with selected features and writes generated runtime outputs
             '/* <PUMPKIN_WASI_INITIALIZATION> */',
             '/* <PUMPKIN_WIT_SIMPLE_METHODS> */',
             '/* <PUMPKIN_WIT_EVENT_DISPATCH> */',
+            '/* <PUMPKIN_WIT_EVENT_RESULT> */',
         ].join('\n'),
     );
     const calls: Array<{ command: string; args: string[] }> = [];
@@ -70,7 +71,7 @@ it('omits the feature option when no WASI features are selected', () => {
     const templatePath = path.join(root, 'runtime.template.cpp');
     fs.writeFileSync(
         templatePath,
-        '/* <PUMPKIN_WASI_RUNTIME> */\n/* <PUMPKIN_WASI_INITIALIZATION> */\n/* <PUMPKIN_WIT_SIMPLE_METHODS> */\n/* <PUMPKIN_WIT_EVENT_DISPATCH> */',
+        '/* <PUMPKIN_WASI_RUNTIME> */\n/* <PUMPKIN_WASI_INITIALIZATION> */\n/* <PUMPKIN_WIT_SIMPLE_METHODS> */\n/* <PUMPKIN_WIT_EVENT_DISPATCH> */\n/* <PUMPKIN_WIT_EVENT_RESULT> */',
     );
     const run = vi.fn((_command: string, args: string[]) => {
         const outputIndex = args.indexOf('--out-dir');
@@ -177,6 +178,7 @@ it('keeps enum lookup entries for computed event tags and priorities', () => {
             '/* <PUMPKIN_WASI_INITIALIZATION> */',
             '/* <PUMPKIN_WIT_SIMPLE_METHODS> */',
             '/* <PUMPKIN_WIT_EVENT_DISPATCH> */',
+            '/* <PUMPKIN_WIT_EVENT_RESULT> */',
         ].join('\n'),
     });
     const lookup = new Map(
