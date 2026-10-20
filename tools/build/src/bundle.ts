@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
+import { EXTERNAL_MODULES } from '@pumpkin-plugins/wasi-capabilities';
 import * as esbuild from 'esbuild';
 import { BuildError, runtimeBuildError } from './errors.ts';
 import type { BuildOutputMessage } from './output.ts';
@@ -93,7 +94,7 @@ export async function bundlePlugin(options: BundleOptions): Promise<number> {
                 target: 'es2022',
                 minify: !options.developmentMode,
                 treeShaking: true,
-                external: ['pumpkin:plugin/*', 'wasi:*'],
+                external: [...EXTERNAL_MODULES],
                 define: {
                     __PLUGIN_VERSION__: JSON.stringify(options.version),
                     __PUMPKIN_DEV_MODE__: JSON.stringify(options.developmentMode ?? false),
