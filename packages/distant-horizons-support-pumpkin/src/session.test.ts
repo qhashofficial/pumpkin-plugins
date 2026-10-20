@@ -6,7 +6,7 @@ import { readSettings } from './config/load.ts';
 import { LodCache } from './lod/cache.ts';
 import { PLUGIN_NAME } from './name.ts';
 import { Reader, Writer } from './protocol/bytes.ts';
-import { packet } from './protocol/messages.ts';
+import { encodeSection, packet } from './protocol/messages.ts';
 import { type Peer, Sessions } from './session.ts';
 
 function fixture(measureNow = () => 1000, now = () => 1000) {
@@ -47,14 +47,16 @@ function fixture(measureNow = () => 1000, now = () => 1000) {
         return true;
     };
     const peers = { withPeer, withTerrain: withPeer };
-    const request = (tracker = 1, level = 'world', x = 0, timestamp?: number) =>
-        packet(7)
+    const request = (tracker = 1, level = 'world', x = 0, timestamp?: number) => {
+        const section = encodeSection(x, 0);
+        return packet(7)
             .int(tracker)
             .string(level)
-            .words((x & 0x0fff_ffff) >>> 24, (((x & 0x0fff_ffff) << 8) | 6) >>> 0)
+            .words(section.high, section.low)
             .bool(timestamp !== undefined)
             .bytes(timestamp === undefined ? new Uint8Array() : packet(0).timestamp(timestamp).finish().subarray(4))
             .finish();
+    };
     sessions.receive(peer, packet(3).string(peer.dimension).finish());
     sent.length = 0;
     const ids = () =>
