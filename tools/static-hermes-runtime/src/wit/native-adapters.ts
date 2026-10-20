@@ -993,7 +993,7 @@ function generateWitResourceObject(
     const stateName = `${name}State`;
     return {
         setup: [
-            `auto ${stateName} = std::make_shared<ResourceState>(ResourceState{ResourceKind::Wit, ${expression}.__handle, true, ${JSON.stringify(type.interfaceName)}, ${JSON.stringify(type.name)}, ${JSON.stringify(ownerPackage)}});`,
+            `auto ${stateName} = std::make_shared<ResourceState>(ResourceState{${expression}.__handle, true, ${JSON.stringify(type.interfaceName)}, ${JSON.stringify(type.name)}, ${JSON.stringify(ownerPackage)}});`,
         ],
         expression: `wrapResourceObject(rt, makeWitResourceObject(${stateName}))`,
     };
@@ -1149,7 +1149,7 @@ function generateWitResourceResult(
         setup: [],
         call: `const auto result = ${functionName}(${argumentsList.join(', ')});`,
         cleanup: [],
-        return: `auto resource = std::make_shared<ResourceState>(ResourceState{ResourceKind::Wit, result.__handle, true, ${JSON.stringify(type.interfaceName)}, ${JSON.stringify(type.name)}, ${JSON.stringify(ownerPackage)}}); return wrapResourceObject(rt, makeWitResourceObject(resource));`,
+        return: `auto resource = std::make_shared<ResourceState>(ResourceState{result.__handle, true, ${JSON.stringify(type.interfaceName)}, ${JSON.stringify(type.name)}, ${JSON.stringify(ownerPackage)}}); return wrapResourceObject(rt, makeWitResourceObject(resource));`,
     };
 }
 
@@ -1160,7 +1160,7 @@ function generateWitResourceValue(
     expression: string,
 ): string {
     const ownerPackage = apiPackage.packageName.startsWith('wasi:') ? (type.packageName ?? apiPackage.packageName) : '';
-    return `auto resourceState = std::make_shared<ResourceState>(ResourceState{ResourceKind::Wit, ${expression}.__handle, true, ${JSON.stringify(type.interfaceName)}, ${JSON.stringify(type.name)}, ${JSON.stringify(ownerPackage)}}); return wrapResourceObject(rt, makeWitResourceObject(resourceState));`;
+    return `auto resourceState = std::make_shared<ResourceState>(ResourceState{${expression}.__handle, true, ${JSON.stringify(type.interfaceName)}, ${JSON.stringify(type.name)}, ${JSON.stringify(ownerPackage)}}); return wrapResourceObject(rt, makeWitResourceObject(resourceState));`;
 }
 
 /** Return the generated C type corresponding to a resolved WIT type. */

@@ -36,9 +36,7 @@ void pumpkin_plugin_world_chunk_buffer_drop_own(pumpkin_plugin_world_own_chunk_b
     droppedChunkHandles.push_back(resource.__handle);
 }
 
-enum class ResourceKind { Server, Entity, ChunkBuffer, Wit };
 struct ResourceState {
-    ResourceKind kind;
     std::int32_t handle;
     bool owned;
     std::string interfaceName;
@@ -61,17 +59,16 @@ struct ResourceState {
     }
 };
 
-class ResourceObject : public HostObject {
+class WitResourceObject : public HostObject {
   public:
-    explicit ResourceObject(std::shared_ptr<ResourceState> state) : state(std::move(state)) {}
+    explicit WitResourceObject(std::shared_ptr<ResourceState> state) : state(std::move(state)) {}
     std::shared_ptr<ResourceState> state;
 };
-class ServerObject : public ResourceObject { using ResourceObject::ResourceObject; };
 
-std::shared_ptr<ResourceObject> makeWitResourceObject(std::shared_ptr<ResourceState> state) {
-    return std::make_shared<ResourceObject>(std::move(state));
+std::shared_ptr<WitResourceObject> makeWitResourceObject(std::shared_ptr<ResourceState> state) {
+    return std::make_shared<WitResourceObject>(std::move(state));
 }
-Object wrapResourceObject(Runtime &runtime, std::shared_ptr<ResourceObject> resource) {
+Object wrapResourceObject(Runtime &runtime, std::shared_ptr<WitResourceObject> resource) {
     return Object::createFromHostObject(runtime, std::move(resource));
 }
 Value jsString(Runtime &, const char *value) { return Value(value); }
@@ -96,7 +93,7 @@ void logPluginError(const std::string &message) {
 
 std::shared_ptr<ResourceState> receivedResource(std::size_t index) {
     auto &runtime = *jsRuntime;
-    const auto resource = std::dynamic_pointer_cast<ResourceObject>(
+    const auto resource = std::dynamic_pointer_cast<WitResourceObject>(
         receivedArguments.at(index).asObject(runtime).getHostObject(runtime));
     assert(resource);
     return resource->state;

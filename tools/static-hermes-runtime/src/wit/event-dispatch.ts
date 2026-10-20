@@ -12,11 +12,6 @@ interface GeneratedEventValue {
     setup: string[];
 }
 
-interface EventResourceAdapter {
-    host: 'PlayerObject' | 'WorldObject' | 'TextObject';
-    kind: 'Player' | 'World' | 'Text';
-}
-
 type ScalarEventConversion = (value: string) => string;
 
 /**
@@ -81,13 +76,6 @@ const scalarEventConversions = new Map<string, ScalarEventConversion>([
     ['string', (value) => `jsString(runtime, wasiStringValue(${value}))`],
 ]);
 
-/** Map WIT event resource types to their native host object wrappers. */
-const eventResourceAdapters = new Map<string, EventResourceAdapter>([
-    ['player:player', { kind: 'Player', host: 'PlayerObject' }],
-    ['world:world', { kind: 'World', host: 'WorldObject' }],
-    ['text:text-component', { kind: 'Text', host: 'TextObject' }],
-]);
-
 /** Generate native event field conversion code for resolved WIT value shapes. */
 function generateEventField(
     field: WitRecordField,
@@ -141,20 +129,13 @@ function generateRecursiveEventValue(
             return { setup, expression: `std::move(${name})` };
         }
         case 'resource': {
-            const adapter = eventResourceAdapters.get(`${type.interfaceName}:${type.name}`);
             const state = `${name}State`;
-            const resourceState = adapter
-                ? `ResourceState{ResourceKind::${adapter.kind}, ${source}.__handle, true}`
-                : `ResourceState{ResourceKind::Wit, ${source}.__handle, true, ${JSON.stringify(type.interfaceName)}, ${JSON.stringify(type.name)}}`;
-            const hostObject = adapter
-                ? `std::make_shared<${adapter.host}>(${state})`
-                : `makeWitResourceObject(${state})`;
             return {
                 setup: [
-                    `auto ${state} = std::make_shared<ResourceState>(${resourceState});`,
+                    `auto ${state} = std::make_shared<ResourceState>(ResourceState{${source}.__handle, true, ${JSON.stringify(type.interfaceName)}, ${JSON.stringify(type.name)}});`,
                     `ownedResources->push_back(${state});`,
                 ],
-                expression: `wrapResourceObject(runtime, ${hostObject})`,
+                expression: `wrapResourceObject(runtime, makeWitResourceObject(${state}))`,
             };
         }
         case 'borrow':
