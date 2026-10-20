@@ -6,12 +6,8 @@ import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import type { Logger } from '@pumpkin-plugins/plugin-kit/logger';
 import { bool, float32be } from '@pumpkin-plugins/plugin-kit/payload';
 import { disposeWasiResource } from '@pumpkin-plugins/plugin-kit/wasi-resource';
-import { PLUGIN_NAME } from '../name.ts';
 import { EXHAUSTION_CHANNEL, NATURAL_REGENERATION_CHANNEL, SATURATION_CHANNEL } from '../payload.ts';
 import { SyncTracker } from '../sync.ts';
-
-// Pumpkin leaves the logging target out of its default output, so every line names the plugin.
-const tag = ansi.named.name(PLUGIN_NAME);
 
 /**
  * Keeps AppleSkin clients in step with the server's hunger values. Vanilla tells a client about
@@ -39,7 +35,7 @@ export class PlayerSync {
         this.sent.forget(playerKey(player));
         this.lastRegeneration.delete(playerKey(player));
         this.failed.delete(playerKey(player));
-        this.log.debug(`${tag} ${ansi.named.name(player.getName())} left, forgetting their hunger.`);
+        this.log.debug(`${ansi.named.name(player.getName())} left, forgetting their hunger.`);
     }
 
     /**
@@ -61,7 +57,7 @@ export class PlayerSync {
         for (const id of this.failed) if (id !== 'unknown' && !online.has(id)) this.failed.delete(id);
         if (this.ticked) return;
         this.ticked = true;
-        this.log.debug(`${tag} Finished the first tick, syncing hunger on every tick from now on.`);
+        this.log.debug('Finished the first tick, syncing hunger on every tick from now on.');
     }
 
     /**
@@ -84,9 +80,7 @@ export class PlayerSync {
                 }
                 const sent = this.withJavaClient(player, (java) => {
                     if (joined) {
-                        this.log.debug(
-                            `${tag} ${ansi.named.name(player.getName())} joined, sending their current hunger.`,
-                        );
+                        this.log.debug(`${ansi.named.name(player.getName())} joined, sending their current hunger.`);
                         this.sendJoinRegeneration(player, key, java);
                     }
                     this.send(player, key, java);
@@ -94,7 +88,7 @@ export class PlayerSync {
                 });
                 if (joined && !sent) {
                     this.log.debug(
-                        `${tag} ${ansi.named.name(player.getName())} is not on Java Edition, so there is nothing to sync.`,
+                        `${ansi.named.name(player.getName())} is not on Java Edition, so there is nothing to sync.`,
                     );
                 }
             } finally {
@@ -107,7 +101,7 @@ export class PlayerSync {
             if (this.failed.has(key)) return;
             this.failed.add(key);
             try {
-                this.log.warn(`${tag} Could not sync player ${key}: ${String(error).slice(0, 500)}`);
+                this.log.warn(`Could not sync player ${key}: ${String(error).slice(0, 500)}`);
             } catch {
                 // Failure reporting must not prevent another player's sync or disposal.
             }
@@ -121,11 +115,11 @@ export class PlayerSync {
             const who = player.getName();
             if (update.saturation !== undefined) {
                 java.sendCustomPayload(SATURATION_CHANNEL, float32be(update.saturation));
-                this.log.debug(`${tag} ${ansi.named.name(who)}: saturation ${ansi.named.number(update.saturation)}.`);
+                this.log.debug(`${ansi.named.name(who)}: saturation ${ansi.named.number(update.saturation)}.`);
             }
             if (update.exhaustion !== undefined) {
                 java.sendCustomPayload(EXHAUSTION_CHANNEL, float32be(update.exhaustion));
-                this.log.debug(`${tag} ${ansi.named.name(who)}: exhaustion ${ansi.named.number(update.exhaustion)}.`);
+                this.log.debug(`${ansi.named.name(who)}: exhaustion ${ansi.named.number(update.exhaustion)}.`);
             }
         } catch (error) {
             // A partial send cannot establish the baseline for either hunger field.
@@ -149,7 +143,7 @@ export class PlayerSync {
         java.sendCustomPayload(NATURAL_REGENERATION_CHANNEL, bool(value.val));
         this.lastRegeneration.set(id, value.val);
         this.log.debug(
-            `${tag} ${ansi.named.name(player.getName())}: natural regeneration is ${value.val ? 'on' : 'off'} in ${ansi.named.name(rule.world.getName())}.`,
+            `${ansi.named.name(player.getName())}: natural regeneration is ${value.val ? 'on' : 'off'} in ${ansi.named.name(rule.world.getName())}.`,
         );
     }
 

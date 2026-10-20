@@ -21,7 +21,7 @@ describe(info.name, () => {
 
     it('loads and handles server ticks without runtime errors', async () => {
         await server.waitForLog(new RegExp(`Loaded ${info.name}`));
-        await server.waitForLog(/Finished the first tick, syncing hunger on every tick/);
+        await server.waitForLog(new RegExp(`${info.name} Finished the first tick, syncing hunger on every tick`));
         expect(server.errors()).toEqual([]);
     });
 });
