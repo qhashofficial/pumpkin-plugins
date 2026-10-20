@@ -17,7 +17,7 @@ Fixes were grouped into topic branches. Each branch was tested on its own, then 
 - Left for the maintainer: 3
 - Refuted in verification: 2
 - Not a problem on closer reading: 1
-- Merged pull requests: 90 (65 review fixes, 17 follow-ups, 8 CI and test fixes).
+- Merged pull requests: 94 (65 review fixes, 17 follow-ups, 12 CI and test fixes).
 
 ## Files
 
@@ -134,3 +134,7 @@ Pull requests that no finding asked for: fixes for CI jobs and flaky tests, and 
 | [#85](https://github.com/qhashofficial/pumpkin-plugins/pull/85) | `fix/docs-dead-links` | docs: fix the dead links that fail the documentation build |
 | [#86](https://github.com/qhashofficial/pumpkin-plugins/pull/86) | `ci/skip-secret-jobs-on-forks` | ci: skip jobs that need repository secrets when running in a fork |
 | [#89](https://github.com/qhashofficial/pumpkin-plugins/pull/89) | `refactor/benchmark-chart-steps` | refactor(engine-comparison): split the chart renderer into drawing steps |
+| [#91](https://github.com/qhashofficial/pumpkin-plugins/pull/91) | `fix/windows-wit-fetch` | fix: make the pinned Pumpkin WIT fetch work on Windows |
+| [#92](https://github.com/qhashofficial/pumpkin-plugins/pull/92) | `fix/hermes-build-cache-toolchain` | fix: stop cached Hermes builds from including a deleted toolchain file |
+| [#93](https://github.com/qhashofficial/pumpkin-plugins/pull/93) | `test/ci-run-all-unit-tests` | test: run every package's unit tests in CI |
+| [#94](https://github.com/qhashofficial/pumpkin-plugins/pull/94) | `fix/pumpkin-api-typecheck-order` | build(turbo): build the Static Hermes runtime before typechecking pumpkin-api |
