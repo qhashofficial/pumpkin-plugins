@@ -233,6 +233,17 @@ it('rejects refreshing a managed rename whose destination is outside the patch s
     expect(fs.existsSync(path.join(source, 'unrelated.txt'))).toBe(true);
 });
 
+it('refuses to replace a custom source checkout whose patches conflict', () => {
+    const source = repository({ 'managed.txt': 'managed\n' });
+    fs.writeFileSync(path.join(source, 'managed.txt'), 'work in progress\n');
+    const commit = git(source, ['rev-parse', 'HEAD']).trim();
+
+    expect(() =>
+        refreshHermesSource({ pin: { ...pin, commit }, source, managedSource: false, managedPaths: ['managed.txt'] }),
+    ).toThrow(/custom Hermes source/);
+    expect(fs.readFileSync(path.join(source, 'managed.txt'), 'utf8')).toBe('work in progress\n');
+});
+
 it('rejects patch application when a patch-owned rename targets an unrelated path', () => {
     const source = repository({ 'managed.txt': 'managed\n' });
     git(source, ['mv', 'managed.txt', 'unrelated.txt']);
