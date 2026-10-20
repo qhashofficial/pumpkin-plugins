@@ -454,18 +454,19 @@ it('recursively frees variant payload records without standalone wit-bindgen cle
         'void wasi_http_types_error_code_free(wasi_http_types_error_code_t *value);',
         'void wasi_http_types_option_field_size_payload_free(wasi_http_types_option_field_size_payload_t *value);',
     ].join('\n');
-    const generated = generateWitOutputs({
-        analysis,
-        apiPackage,
-        wasiInterfaces: [apiInterface],
-        pluginHeader,
-        runtimeTemplate: [
-            '/* <PUMPKIN_WASI_RUNTIME> */',
-            '/* <PUMPKIN_WASI_INITIALIZATION> */',
-            '/* <PUMPKIN_WIT_SIMPLE_METHODS> */',
-            '/* <PUMPKIN_WIT_EVENT_DISPATCH> */',
-        ].join('\n'),
-    }).runtimeSource;
+    const markers = [
+        '/* <PUMPKIN_WASI_RUNTIME> */',
+        '/* <PUMPKIN_WASI_INITIALIZATION> */',
+        '/* <PUMPKIN_WIT_SIMPLE_METHODS> */',
+        '/* <PUMPKIN_WIT_EVENT_DISPATCH> */',
+        '/* <PUMPKIN_WIT_EVENT_RESULT> */',
+    ];
+    const input = { analysis, apiPackage, wasiInterfaces: [apiInterface], pluginHeader };
+    const generated = generateWitOutputs({ ...input, runtimeTemplate: markers.join('\n') }).runtimeSource;
+    // A template without the event-result marker would silently drop blocking event results.
+    expect(() => generateWitOutputs({ ...input, runtimeTemplate: markers.slice(0, -1).join('\n') })).toThrow(
+        'PUMPKIN_WIT_EVENT_RESULT',
+    );
 
     expect(generated).toContain('wasi_http_types_error_code_free(&argument0);');
     expect(generated).toContain('plugin_option_string_free(&argument0DNSErrorRcode);');
