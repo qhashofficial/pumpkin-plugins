@@ -330,3 +330,14 @@ describe('Turbo WASM_TOOLS environment', () => {
         assert.ok(task.passThroughEnv.includes('WASM_TOOLS'));
     });
 });
+
+describe('Turbo size-limit environment', () => {
+    it('passes PUMPKIN_PLUGINS_FAIL_ON_SIZE_LIMIT to plugin and benchmark builds and keys their cache on it', () => {
+        for (const [task, packageName] of [
+            ['build', '@pumpkin-plugins/tab-display'],
+            ['benchmark:build', '@pumpkin-plugins/engine-comparison'],
+        ]) {
+            assert.ok(resolvedTurboTask(task, packageName).env.includes('PUMPKIN_PLUGINS_FAIL_ON_SIZE_LIMIT'), task);
+        }
+    });
+});
