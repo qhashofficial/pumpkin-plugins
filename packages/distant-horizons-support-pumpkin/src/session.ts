@@ -31,7 +31,6 @@ import {
     unchanged,
 } from './protocol/messages.ts';
 
-const logTag = ansi.named.name(PLUGIN_NAME);
 const INITIAL_TERRAIN_RETRY_MS = 1000;
 const MAX_TERRAIN_RETRY_MS = 30_000;
 const TERRAIN_RETRY_RETENTION_MS = 60_000;
@@ -181,12 +180,12 @@ export class Sessions {
                 if (!this.protocolWarnings.has(peer.name)) {
                     this.protocolWarnings.add(peer.name);
                     this.log.warn(
-                        `${logTag} ${ansi.named.name(peer.name)} uses DH protocol ${ansi.named.number(clientProtocol)}, but this plugin supports protocol ${ansi.named.number(PROTOCOL)} (Distant Horizons ${ansi.named.version(DH_VERSION)}); closed the DH session.`,
+                        `${ansi.named.name(peer.name)} uses DH protocol ${ansi.named.number(clientProtocol)}, but this plugin supports protocol ${ansi.named.number(PROTOCOL)} (Distant Horizons ${ansi.named.version(DH_VERSION)}); closed the DH session.`,
                     );
                 }
             } else {
                 this.log.debug(
-                    `${logTag} Closed DH session for ${ansi.named.name(peer.name)} after malformed message: ${reason}.`,
+                    `Closed DH session for ${ansi.named.name(peer.name)} after malformed message: ${reason}.`,
                 );
             }
             peer.send(closeSession(`${PLUGIN_NAME}: ${reason}`));
@@ -199,9 +198,7 @@ export class Sessions {
         }
         if (message.type === 'init') {
             if (message.dimension !== peer.dimension) {
-                this.log.debug(
-                    `${logTag} Ignored DH initialization for a dimension other than the current player dimension.`,
-                );
+                this.log.debug('Ignored DH initialization for a dimension other than the current player dimension.');
                 return;
             }
             this.announce(peer);
@@ -219,7 +216,7 @@ export class Sessions {
             if (!config.syncEnabled) this.rejectPendingRequestClass(peer, true);
             peer.send(sessionConfig(config));
             this.log.debug(
-                `${logTag} ${ansi.named.name(peer.name)} configured DH requests: generation ${config.generationPlan === 3 ? 'disabled' : 'enabled'} (${ansi.named.number(config.generationDistance)} chunks, ${ansi.named.number(config.generationRate)}/s), sync ${config.syncEnabled ? 'enabled' : 'disabled'} (${ansi.named.number(config.syncDistance)} chunks, ${ansi.named.number(config.syncRate)}/s), bandwidth ${config.bandwidthKbps === 0 ? 'unlimited' : `${ansi.named.number(config.bandwidthKbps)} KB/s`}.`,
+                `${ansi.named.name(peer.name)} configured DH requests: generation ${config.generationPlan === 3 ? 'disabled' : 'enabled'} (${ansi.named.number(config.generationDistance)} chunks, ${ansi.named.number(config.generationRate)}/s), sync ${config.syncEnabled ? 'enabled' : 'disabled'} (${ansi.named.number(config.syncDistance)} chunks, ${ansi.named.number(config.syncRate)}/s), bandwidth ${config.bandwidthKbps === 0 ? 'unlimited' : `${ansi.named.number(config.bandwidthKbps)} KB/s`}.`,
             );
             return;
         }
@@ -229,7 +226,7 @@ export class Sessions {
             if (request) {
                 this.cancelled++;
                 this.log.debug(
-                    `${logTag} Cancelled DH request ${ansi.named.number(request.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(request.level, request.section.x, request.section.z)}.`,
+                    `Cancelled DH request ${ansi.named.number(request.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(request.level, request.section.x, request.section.z)}.`,
                 );
                 this.drop(request);
             } else {
@@ -240,7 +237,7 @@ export class Sessions {
                     if (client.activeTransfer === response) client.activeTransfer = undefined;
                     client.packets.splice(responseIndex, 1);
                     this.log.debug(
-                        `${logTag} Cancelled queued DH response ${ansi.named.number(message.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(response.lod.level, response.lod.section.x, response.lod.section.z)}.`,
+                        `Cancelled queued DH response ${ansi.named.number(message.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(response.lod.level, response.lod.section.x, response.lod.section.z)}.`,
                     );
                 }
             }
@@ -252,7 +249,7 @@ export class Sessions {
             client.packets.some((response) => response.lod.tracker === message.tracker)
         ) {
             this.log.debug(
-                `${logTag} Ignored duplicate DH request ${ansi.named.number(message.tracker)} from ${ansi.named.name(peer.name)}.`,
+                `Ignored duplicate DH request ${ansi.named.number(message.tracker)} from ${ansi.named.name(peer.name)}.`,
             );
             return;
         }
@@ -261,14 +258,14 @@ export class Sessions {
             this.rejected++;
             this.lastFailure = failure.reason;
             this.log.debug(
-                `${logTag} Rejected DH request ${ansi.named.number(message.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(peer.level, message.section.x, message.section.z)}: ${failure.reason}.`,
+                `Rejected DH request ${ansi.named.number(message.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(peer.level, message.section.x, message.section.z)}: ${failure.reason}.`,
             );
             peer.send(reject(message.tracker, failure.reason, failure.kind));
             return;
         }
         const key = sectionKey(peer.level, message.section.x, message.section.z);
         this.log.debug(
-            `${logTag} Queued DH request ${ansi.named.number(message.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(peer.level, message.section.x, message.section.z)}.`,
+            `Queued DH request ${ansi.named.number(message.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(peer.level, message.section.x, message.section.z)}.`,
         );
         this.requests.push({
             name: peer.name,
@@ -318,7 +315,7 @@ export class Sessions {
                         this.rejected++;
                         this.lastFailure = failure.reason;
                         this.log.debug(
-                            `${logTag} Rejected DH request ${ansi.named.number(request.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(request.level, request.section.x, request.section.z)}: ${failure.reason}.`,
+                            `Rejected DH request ${ansi.named.number(request.tracker)} from ${ansi.named.name(peer.name)} for ${lodLocation(request.level, request.section.x, request.section.z)}: ${failure.reason}.`,
                         );
                         peer.send(reject(request.tracker, failure.reason, failure.kind));
                         this.drop(request);
@@ -339,7 +336,7 @@ export class Sessions {
                             request.cacheChecked = true;
                             cacheChecks++;
                             this.log.debug(
-                                `${logTag} LOD cache ${request.cached ? 'hit' : 'miss'} for ${ansi.named.name(request.name)} at ${lodLocation(request.level, request.section.x, request.section.z)}.`,
+                                `LOD cache ${request.cached ? 'hit' : 'miss'} for ${ansi.named.name(request.name)} at ${lodLocation(request.level, request.section.x, request.section.z)}.`,
                             );
                         }
                         const cached = request.cached ?? undefined;
@@ -414,14 +411,14 @@ export class Sessions {
                         const captured = { updated: this.now(), data: request.builder.finish(this.now()) };
                         this.cache.put(request.key, captured);
                         this.log.debug(
-                            `${logTag} Captured LOD for ${ansi.named.name(request.name)} at ${lodLocation(request.level, request.section.x, request.section.z)} (${ansi.named.number(captured.data.length)} bytes).`,
+                            `Captured LOD for ${ansi.named.name(request.name)} at ${lodLocation(request.level, request.section.x, request.section.z)} (${ansi.named.number(captured.data.length)} bytes).`,
                         );
                         this.complete(request, captured);
                     }
                 } catch (err) {
                     const reason = String(err);
                     this.log.debug(
-                        `${logTag} DH request ${ansi.named.number(request.tracker)} for ${lodLocation(request.level, request.section.x, request.section.z)} failed: ${reason}.`,
+                        `DH request ${ansi.named.number(request.tracker)} for ${lodLocation(request.level, request.section.x, request.section.z)} failed: ${reason}.`,
                     );
                     this.rejected++;
                     this.lastFailure = reason;
@@ -491,7 +488,7 @@ export class Sessions {
                     const packetCount = response.cursor?.packetCount ?? originalPacketCount;
                     const label = noChange ? 'unchanged LOD response' : cached ? 'cached LOD' : 'captured LOD';
                     this.log.debug(
-                        `${logTag} Sent ${label} to ${ansi.named.name(peer.name)} for ${lodLocation(level, section.x, section.z)} (request ${ansi.named.number(tracker)}, ${ansi.named.number(packetCount)} packet(s), ${ansi.named.number(dataBytes)} bytes).`,
+                        `Sent ${label} to ${ansi.named.name(peer.name)} for ${lodLocation(level, section.x, section.z)} (request ${ansi.named.number(tracker)}, ${ansi.named.number(packetCount)} packet(s), ${ansi.named.number(dataBytes)} bytes).`,
                     );
                 }
                 if (response.cached) cachedRemaining--;
@@ -513,7 +510,7 @@ export class Sessions {
         this.removeClient(name);
         if (client) {
             this.log.debug(
-                `${logTag} Removed DH session for ${ansi.named.name(name)}; discarded ${ansi.named.number(pending)} pending request(s) and ${ansi.named.number(queued)} queued response(s).`,
+                `Removed DH session for ${ansi.named.name(name)}; discarded ${ansi.named.number(pending)} pending request(s) and ${ansi.named.number(queued)} queued response(s).`,
             );
         }
     }
@@ -552,7 +549,7 @@ export class Sessions {
         try {
             found = peers.withPeer(name, use);
         } catch (err) {
-            this.log.warn(`${logTag} Ended DH session for ${ansi.named.name(name)} after an error: ${String(err)}.`);
+            this.log.warn(`Ended DH session for ${ansi.named.name(name)} after an error: ${String(err)}.`);
         }
         if (!found) this.endSession(name);
     }
@@ -643,19 +640,19 @@ export class Sessions {
                     const captured = { updated: this.now(), data: refresh.builder.finish(this.now()) };
                     this.cache.put(refresh.key, captured);
                     this.log.debug(
-                        `${logTag} Refreshed cached LOD for ${ansi.named.name(refresh.name)} at ${lodLocation(refresh.level, refresh.section.x, refresh.section.z)} (${ansi.named.number(captured.data.length)} bytes).`,
+                        `Refreshed cached LOD for ${ansi.named.name(refresh.name)} at ${lodLocation(refresh.level, refresh.section.x, refresh.section.z)} (${ansi.named.number(captured.data.length)} bytes).`,
                     );
                     this.finishRefresh(refresh);
                 } catch (err) {
                     this.log.debug(
-                        `${logTag} Background refresh for ${lodLocation(refresh.level, refresh.section.x, refresh.section.z)} failed: ${String(err)}.`,
+                        `Background refresh for ${lodLocation(refresh.level, refresh.section.x, refresh.section.z)} failed: ${String(err)}.`,
                     );
                     this.finishRefresh(refresh);
                 }
             });
         } catch (err) {
             this.log.debug(
-                `${logTag} Background refresh for ${lodLocation(refresh.level, refresh.section.x, refresh.section.z)} failed: ${String(err)}.`,
+                `Background refresh for ${lodLocation(refresh.level, refresh.section.x, refresh.section.z)} failed: ${String(err)}.`,
             );
         }
         if (!found) this.finishRefresh(refresh);
@@ -674,7 +671,7 @@ export class Sessions {
             if (!this.heightWarnings.has(peer.level)) {
                 this.heightWarnings.add(peer.level);
                 this.log.warn(
-                    `${logTag} World ${ansi.named.identifier(peer.level)} (${ansi.named.identifier(peer.dimension)}) has no known height, so DH sessions there are closed. Set height under [worlds."${peer.level}"] in config.toml.`,
+                    `World ${ansi.named.identifier(peer.level)} (${ansi.named.identifier(peer.dimension)}) has no known height, so DH sessions there are closed. Set height under [worlds."${peer.level}"] in config.toml.`,
                 );
             }
             peer.send(closeSession(`${PLUGIN_NAME}: no world height is configured for ${peer.level}.`));
@@ -702,7 +699,7 @@ export class Sessions {
         peer.send(levelInit(peer.dimension, this.settings.server_key, peer.level, this.now()));
         peer.send(sessionConfig(config));
         this.log.debug(
-            `${logTag} Established DH session with ${ansi.named.name(peer.name)} in ${ansi.named.identifier(peer.dimension)} / ${ansi.named.identifier(peer.level)} (generation distance ${ansi.named.number(config.generationDistance)} chunks at ${ansi.named.number(config.generationRate)}/s, sync distance ${ansi.named.number(config.syncDistance)} chunks at ${ansi.named.number(config.syncRate)}/s).`,
+            `Established DH session with ${ansi.named.name(peer.name)} in ${ansi.named.identifier(peer.dimension)} / ${ansi.named.identifier(peer.level)} (generation distance ${ansi.named.number(config.generationDistance)} chunks at ${ansi.named.number(config.generationRate)}/s, sync distance ${ansi.named.number(config.syncDistance)} chunks at ${ansi.named.number(config.syncRate)}/s).`,
         );
     }
     private complete(request: Request, value: CachedLod, cached = false): void {
@@ -747,7 +744,7 @@ export class Sessions {
             this.terrainRetries.delete(oldestKey);
         }
         this.log.debug(
-            `${logTag} Deferred DH request ${ansi.named.number(request.tracker)} from ${ansi.named.name(request.name)} for ${lodLocation(request.level, request.section.x, request.section.z)}: ${reason}; retrying in ${ansi.named.number(delay)} ms.`,
+            `Deferred DH request ${ansi.named.number(request.tracker)} from ${ansi.named.name(request.name)} for ${lodLocation(request.level, request.section.x, request.section.z)}: ${reason}; retrying in ${ansi.named.number(delay)} ms.`,
         );
     }
     private pruneTerrainRetries(): void {

@@ -11,6 +11,7 @@ import type { IpcMessage, PluginId } from 'pumpkin:plugin/ipc@0.1.0';
 import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import { WasiDataDir } from '@pumpkin-plugins/plugin-kit/data-dir';
 import { hostLogger } from '@pumpkin-plugins/plugin-kit/host';
+import { taggedLogger } from '@pumpkin-plugins/plugin-kit/logger';
 import { PluginBase, registerPlugin } from '@pumpkin-plugins/plugin-kit/plugin';
 import { registerCommands } from '@pumpkin-plugins/plugin-kit/register-commands';
 import { monotonicMs } from '@pumpkin-plugins/plugin-kit/wasi-clock';
@@ -27,7 +28,7 @@ import { invalidateBlockGrow, invalidateBlockSpread } from './platform/world-mut
 import { CHANNEL, PROTOCOL } from './protocol/messages.ts';
 import { Sessions } from './session.ts';
 
-const logTag = ansi.named.name(PLUGIN_NAME);
+const log = taggedLogger(ansi.named.name(PLUGIN_NAME), hostLogger);
 
 /** Serves Distant Horizons requests from loaded chunks and previously captured terrain. */
 class DistantHorizonsSupportPumpkin extends PluginBase {
@@ -52,20 +53,19 @@ class DistantHorizonsSupportPumpkin extends PluginBase {
     }
 
     private initializePlugin(ctx: Context, files: WasiDataDir): void {
-        const settings = readSettings(files, hostLogger);
+        const settings = readSettings(files, log);
         const cache = new LodCache(
             files,
             settings.memory_cache_entries,
             settings.disk_cache_entries,
             settings.memory_cache_mb * 1024 * 1024,
         );
-        const sessions = new Sessions(settings, cache, hostLogger, Date.now, monotonicMs);
+        const sessions = new Sessions(settings, cache, log, Date.now, monotonicMs);
         this.placeholders = new DistantHorizonsPlaceholderService({
             sessions,
             cache,
             now: monotonicMs,
-            onTransition: (state) =>
-                hostLogger.info(`${logTag} PumpkinPIE provider is ${ansi.named.value(state.kind)}`),
+            onTransition: (state) => log.info(`PumpkinPIE provider is ${ansi.named.value(state.kind)}`),
         });
         registerCommands(ctx, commands, commandHandlers(sessions, cache, settings));
         this.registerEvent(ctx, 'player-custom-payload-event', (_server, event: PlayerCustomPayloadEventData) => {
@@ -75,7 +75,7 @@ class DistantHorizonsSupportPumpkin extends PluginBase {
             } catch (err) {
                 const name = event.player.getName();
                 sessions.endSession(name);
-                hostLogger.warn(`${logTag} DH message from ${ansi.named.name(name)} failed: ${String(err)}`);
+                log.warn(`DH message from ${ansi.named.name(name)} failed: ${String(err)}`);
             }
         });
         this.registerEvent(ctx, 'player-leave-event', (_server, event: PlayerLeaveEventData) => {
@@ -86,7 +86,7 @@ class DistantHorizonsSupportPumpkin extends PluginBase {
             try {
                 this.placeholders?.tick();
             } catch (err) {
-                hostLogger.warn(`${logTag} PumpkinPIE session tick failed: ${String(err)}`);
+                log.warn(`PumpkinPIE session tick failed: ${String(err)}`);
             }
         });
         this.registerEvent(ctx, 'block-place-event', (_server, event: BlockPlaceEventData) => {
@@ -113,8 +113,8 @@ class DistantHorizonsSupportPumpkin extends PluginBase {
         this.registerEvent(ctx, 'block-spread-event', (_server, event: BlockSpreadEventData) => {
             invalidateBlockSpread(sessions, event);
         });
-        hostLogger.info(
-            `${logTag} serving DH protocol ${ansi.named.number(PROTOCOL)} from loaded chunks and cached terrain. This plugin cannot load saved chunks or request normal terrain generation; see the README's Compatibility and terrain section.`,
+        log.info(
+            `serving DH protocol ${ansi.named.number(PROTOCOL)} from loaded chunks and cached terrain. This plugin cannot load saved chunks or request normal terrain generation; see the README's Compatibility and terrain section.`,
         );
     }
 
@@ -130,7 +130,7 @@ class DistantHorizonsSupportPumpkin extends PluginBase {
         try {
             placeholders?.stop();
         } catch (err) {
-            hostLogger.warn(`${logTag} failed to stop PumpkinPIE session: ${String(err)}`);
+            log.warn(`failed to stop PumpkinPIE session: ${String(err)}`);
         }
     }
 

@@ -1,9 +1,7 @@
-import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import { MemoryFiles, MemoryLogger } from '@pumpkin-plugins/plugin-kit/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { readSettings } from './config/load.ts';
 import { LodCache } from './lod/cache.ts';
-import { PLUGIN_NAME } from './name.ts';
 import { Reader, Writer } from './protocol/bytes.ts';
 import { encodeSection, packet } from './protocol/messages.ts';
 import { type Peer, Sessions } from './session.ts';
@@ -257,9 +255,7 @@ describe('DH protocol contracts', () => {
         f.sessions.receive(f.peer, packet(3).string(dimension).finish());
 
         const message = f.log.of('debug').at(-1) ?? '';
-        expect(message).toBe(
-            `${ansi.named.name(PLUGIN_NAME)} Ignored DH initialization for a dimension other than the current player dimension.`,
-        );
+        expect(message).toBe('Ignored DH initialization for a dimension other than the current player dimension.');
     });
 
     it('continues cached delivery while forced capture work is active', () => {
