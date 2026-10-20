@@ -1,5 +1,5 @@
 {
-    "name": "tab-display-pie-expansion-fixture",
+    "name": "pumpkin-pie-session-fixture",
     "version": "0.0.0",
     "private": true,
     "keywords": [
@@ -11,11 +11,11 @@
     ],
     "type": "module",
     "dependencies": {
-        "@pumpkin-plugins/pumpkin-api": "catalog:"
+        "@pumpkin-plugins/pumpkin-api": "workspace:*"
     },
     "pumpkinPlugin": {
         "entry": "src/plugin.ts",
-        "output": "tab-display-pie-expansion-fixture.wasm",
+        "output": "pumpkin-pie-session-fixture.wasm",
         "engine": "quickjs",
         "wasi": []
     }
