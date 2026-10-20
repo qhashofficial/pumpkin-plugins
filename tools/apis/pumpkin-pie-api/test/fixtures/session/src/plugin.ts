@@ -5,14 +5,14 @@ import * as logging from 'pumpkin:plugin/logging@0.1.0';
 import type { PluginMetadata } from 'pumpkin:plugin/metadata@0.1.0';
 import { ipcSend } from '@pumpkin-plugins/plugin-kit/ipc';
 import { handleIpcMessage as apiHandleIpcMessage, Plugin, registerPlugin } from '@pumpkin-plugins/pumpkin-api';
-import { PieSession, UnavailableError } from '@pumpkin-plugins/pumpkin-pie-api';
 import { strFromU8, strToU8 } from 'fflate';
+import { PieSession, UnavailableError } from '../../../../src/index.ts';
 
-const fixtureName = 'TabDisplayPIEFixture';
+const fixtureName = 'PieSessionFixture';
 let session: PieSession | undefined;
 
-/** Minimal guest fixture that registers an argument-aware expansion with the real provider. */
-class PieExpansionFixture extends Plugin {
+/** Drives a PieSession over real host IPC: registers an argument-aware expansion and stops on command. */
+class PieSessionFixture extends Plugin {
     private taskId: number | undefined;
 
     metadata(): PluginMetadata {
@@ -20,7 +20,7 @@ class PieExpansionFixture extends Plugin {
             name: fixtureName,
             version: __PLUGIN_VERSION__,
             authors: [],
-            description: 'TabDisplay PumpkinPIE expansion integration fixture',
+            description: 'PumpkinPIE session integration fixture',
             dependencies: [],
             permissions: [],
         };
@@ -29,13 +29,13 @@ class PieExpansionFixture extends Plugin {
     override onLoad(ctx: Context): void {
         super.onLoad(ctx);
         session = new PieSession({ send: ipcSend, now: () => 0 });
-        session.registerExpansion('tabdisplayfixture', {
+        session.registerExpansion('piesession', {
             echo: ({ viewer, argument }) => `${viewer ?? 'server'}:${argument ?? 'none'}`,
             decline: () => undefined,
         });
         this.taskId = this.scheduleRepeatingTask(1, 10, () => this.verifyProvider());
 
-        const command = new Command(['piefixture'], 'Stop the PumpkinPIE integration fixture');
+        const command = new Command(['piesession'], 'Stop the PumpkinPIE session fixture');
         this.registerCommand(ctx, command, (_sender, _server, _args) => {
             session?.stop();
             logging.log('info', `${fixtureName}: session stopped`);
@@ -68,18 +68,18 @@ class PieExpansionFixture extends Plugin {
                 return;
             }
             const batch = current.client.resolveBatch([
-                { text: 'left=%tabdisplayfixture_echo%', viewer: 'Casey' },
-                { text: 'right=%tabdisplayfixture_echo%', viewer: 'Morgan' },
-                { text: '%tabdisplayfixture_decline%', viewer: 'Casey' },
-                { text: '%missing_tabdisplay_value%', viewer: 'Casey' },
+                { text: 'left=%piesession_echo%', viewer: 'Casey' },
+                { text: 'right=%piesession_echo%', viewer: 'Morgan' },
+                { text: '%piesession_decline%', viewer: 'Casey' },
+                { text: '%missing_piesession_value%', viewer: 'Casey' },
             ]);
-            const argument = current.client.getValue('tabdisplayfixture_echo', 'ArgViewer', 'argument-value');
+            const argument = current.client.getValue('piesession_echo', 'ArgViewer', 'argument-value');
             const forged = current.router.handle(
                 'UntrustedPlugin',
                 strToU8(
                     JSON.stringify({
                         op: 'on_request',
-                        namespace: 'tabdisplayfixture',
+                        namespace: 'piesession',
                         id: 'fixture',
                         name: 'echo',
                         viewer: 'Spoofed',
@@ -99,7 +99,7 @@ class PieExpansionFixture extends Plugin {
     }
 }
 
-registerPlugin(new PieExpansionFixture());
+registerPlugin(new PieSessionFixture());
 
 export { handleTask } from '@pumpkin-plugins/pumpkin-api';
 
