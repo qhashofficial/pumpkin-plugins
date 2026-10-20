@@ -244,13 +244,20 @@ export class ForcedLodGeneration {
                     job.skippedOutsideBorder++;
                     continue;
                 }
-                // Validate cache blobs within the existing per-tick section budget, never during admission.
-                if (this.cache.get(key)) {
-                    job.skippedAlreadyGenerated++;
-                    continue;
-                }
                 target = { coordinate, key, invalidated: false };
                 job.current = target;
+                // Validate cache blobs within the existing per-tick section budget, never during admission.
+                // A failed read skips only this section; escaping here would end the whole job.
+                try {
+                    if (this.cache.get(key)) {
+                        job.skippedAlreadyGenerated++;
+                        job.current = undefined;
+                        continue;
+                    }
+                } catch (err) {
+                    this.skip(job, String(err));
+                    continue;
+                }
             }
             if (target.invalidated) {
                 this.log.debug(

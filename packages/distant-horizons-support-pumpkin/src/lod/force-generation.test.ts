@@ -170,6 +170,24 @@ describe('forced LOD generation', () => {
         expect(f.reports.at(-1)).toContain('complete: 8 built, 1 skipped (1 already generated)');
     });
 
+    it('skips a section whose cache entry cannot be read and keeps generating the others', () => {
+        const f = fixture();
+        f.cache.put('world:0:0', { updated: 1, data: new Uint8Array(64) });
+        f.cache.clearMemory();
+        const [unreadable] = f.files.list('cache');
+        const stat = f.files.stat.bind(f.files);
+        vi.spyOn(f.files, 'stat').mockImplementation((path) => {
+            if (path === `cache/${unreadable}`) throw new Error('stat failed');
+            return stat(path);
+        });
+
+        f.generation.start(f.peer, 32, 32, 1);
+        f.generation.tick(f.peers);
+
+        expect(f.generation.status()).toBeUndefined();
+        expect(f.reports.at(-1)).toContain('complete: 8 built, 1 skipped (0 already generated)');
+    });
+
     it('reports an entirely cached selection after worker verification', () => {
         const f = fixture();
         f.cache.put('world:0:0', { updated: 1, data: new Uint8Array(64) });
