@@ -31,7 +31,10 @@ one tick; a delayed task may use a delay of zero. `cancelTask` stops either kind
 callback. If scheduling fails, the kit releases the callback; when a delayed callback runs, it
 releases it before execution.
 
-Use `hostLogger` to write to the server log. Format values worth scanning, such as names, file
+Use `hostLogger` to write to the server log. Pumpkin prints a plugin's messages as
+`[plugin] <message>` without saying which plugin wrote them, so wrap it with `taggedLogger` from
+`/logger` and log through the result: ``taggedLogger(`${ansi.named.name(PLUGIN_NAME)}:`, hostLogger)``
+starts every line with the plugin's name. Format values worth scanning, such as names, file
 names, URLs and versions, with `ansi.named` from `@pumpkin-plugins/minecraft-colors`, as the
 [console color convention](../../../docs/code-style.md#color-in-console-logs) describes.
 

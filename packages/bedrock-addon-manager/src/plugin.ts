@@ -1,13 +1,17 @@
 import type { Context } from 'pumpkin:plugin/context@0.1.0';
+import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import { WasiDataDir } from '@pumpkin-plugins/plugin-kit/data-dir';
 import { cancelTask, hostLogger, scheduleRepeating } from '@pumpkin-plugins/plugin-kit/host';
 import { ipcSend } from '@pumpkin-plugins/plugin-kit/ipc';
+import { taggedLogger } from '@pumpkin-plugins/plugin-kit/logger';
 import { PluginBase, registerPlugin } from '@pumpkin-plugins/plugin-kit/plugin';
 import { disposeWasiResource } from '@pumpkin-plugins/plugin-kit/wasi-resource';
 import { registerCommands } from './commands/register.ts';
 import { info } from './info.ts';
 import { PackManager } from './manager.ts';
 import { TcpWebServer } from './web/tcp-server.ts';
+
+const log = taggedLogger(`${ansi.named.name(info.name)}:`, hostLogger);
 
 /** Serves Bedrock resource packs over HTTP. */
 class BedrockAddonManager extends PluginBase {
@@ -23,8 +27,8 @@ class BedrockAddonManager extends PluginBase {
     protected onPluginLoad(ctx: Context): void {
         const files = WasiDataDir.open();
         if (!files) {
-            hostLogger.error(
-                `${info.name} cannot reach its data folder. Grant it the fs.read.data and fs.write.data permissions and restart the server.`,
+            log.error(
+                'Cannot reach the data folder. Grant this plugin the fs.read.data and fs.write.data permissions and restart the server.',
             );
             return;
         }
@@ -32,8 +36,8 @@ class BedrockAddonManager extends PluginBase {
 
         const manager = new PackManager(
             files,
-            hostLogger,
-            (index) => new TcpWebServer((name) => index.open(name), hostLogger),
+            log,
+            (index) => new TcpWebServer((name) => index.open(name), log),
             ipcSend,
         );
         manager.start();
