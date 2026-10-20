@@ -43,7 +43,8 @@ pnpm gen --args my-plugin MyPlugin "Does a thing"
 
 The new `packages/<folder>/` directory contains the files you need to begin:
 
-- `package.json`, `tsconfig.json`, and `vitest.config.ts` configure the package, build, and tests.
+- `package.json`, `tsconfig.json`, `vitest.config.ts`, and `turbo.json` configure the package, build,
+  tests, and the Turbo typecheck cache.
 - `src/name.ts`, `src/info.ts`, `src/commands/spec.ts`, and `src/plugin.ts` define the plugin name,
   metadata, starter command, and behavior. The plugin name and command permission each have one
   source declaration.
