@@ -61,6 +61,12 @@ metadata includes the repository's standard license and repository fields. `pnpm
 the description, those fields, and both release registrations. See [Registering a plugin for
 releases](ci-and-releases.md#registering-a-plugin-for-releases) for how the first-release pin works.
 
+The generator doesn't add the package's `plugin: <Name>` label. Add one to `.github/labels.yml`,
+naming `packages/<folder>/` in its `ai_apply_when` like the existing plugin labels, then run
+`node .github/scripts/coderabbit-labels.mjs` and commit both files. The issue form and label
+validation workflow fails for a plugin package without a label. See
+[Label management](ci-and-releases.md#label-management) for the catalog.
+
 After writing the files, the generator runs `pnpm install`, fills the plugin README from `src/info.ts`,
 adds its docs-site API reference link, updates the root README package list, and formats the new files
 with Biome. The `🧬 Generator` CI job also creates a throwaway plugin and typechecks, builds, and
