@@ -70,7 +70,7 @@ Settings live in `plugins/data/DistantHorizonsSupportPumpkin/config.toml`. The p
 | `support.pending_requests` | integer | `16` | Maximum in-flight DH requests and queued responses across all players. |
 | `support.blocks_per_tick` | integer | `8192` | Maximum block samples per server tick across all LOD requests. Actual work adapts to server MSPT. |
 | `support.packets_per_tick` | integer | `2` | Maximum transfer packets for newly captured LODs per server tick across all players. |
-| `support.cached_requests_per_tick` | integer | `8` | Maximum cached LOD requests checked per server tick across all players. |
+| `support.cached_requests_per_tick` | integer | `8` | Maximum LOD cache lookups per server tick across all players. The same number separately limits terrain availability checks for requests the cache cannot answer. |
 | `support.cached_packets_per_tick` | integer | `64` | Maximum transfer packets for cached LODs per server tick across all players. |
 | `support.memory_cache_entries` | integer | `512` | Maximum LOD sections cached in memory. Set to 0 to disable; any negative value means unlimited. |
 | `support.memory_cache_mb` | integer | `64` | Maximum megabytes of LOD data cached in memory; memory_cache_entries also applies. A complex section can take about 1 MB. |
@@ -116,7 +116,8 @@ blocks_per_tick = 8192
 # Maximum transfer packets for newly captured LODs per server tick across all players.
 packets_per_tick = 2
 
-# Maximum cached LOD requests checked per server tick across all players.
+# Maximum LOD cache lookups per server tick across all players. The same number separately limits
+# terrain availability checks for requests the cache cannot answer.
 cached_requests_per_tick = 8
 
 # Maximum transfer packets for cached LODs per server tick across all players.
