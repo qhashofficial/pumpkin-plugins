@@ -1,6 +1,6 @@
 import { ansi } from '@pumpkin-plugins/minecraft-colors';
 import type { Logger } from '@pumpkin-plugins/plugin-kit/logger';
-import { AdaptiveWorkBudget, type TerrainSource } from '@pumpkin-plugins/terrain';
+import { AdaptiveWorkBudget } from '@pumpkin-plugins/terrain';
 import type { Settings } from './config/schema.ts';
 import { ByteCredit } from './flow/byte-credit.ts';
 import { TransferCursor } from './flow/transfer-cursor.ts';
@@ -13,7 +13,7 @@ import {
     type ForcedLodRecovery,
     type ForcedLodStart,
 } from './lod/force-generation.ts';
-import { sectionKey } from './lod/generation.ts';
+import { sectionKey, sectionRegion } from './lod/generation.ts';
 import { lodLocation } from './lod/location.ts';
 import { PLUGIN_NAME } from './name.ts';
 import { CHUNK_SIZE_BLOCKS, SECTION_DETAIL, SECTION_SIZE_BLOCKS } from './protocol/constants.ts';
@@ -367,14 +367,7 @@ export class Sessions {
                             return;
                         }
                     }
-                    const region = {
-                        originX: request.section.x * SECTION_SIZE_BLOCKS,
-                        originZ: request.section.z * SECTION_SIZE_BLOCKS,
-                        width: SECTION_SIZE_BLOCKS,
-                        depth: SECTION_SIZE_BLOCKS,
-                        minY: peer.terrain.minY,
-                        height: peer.terrain.height,
-                    };
+                    const region = sectionRegion(request.section, peer.terrain);
                     const retry = this.terrainRetries.get(request.key);
                     if (retry && this.now() < retry.retryAt) return;
                     if (availabilityChecks >= this.settings.cached_requests_per_tick) return;
@@ -407,11 +400,11 @@ export class Sessions {
                     }
                     builderStepped = true;
                     request.builder ??= new LodBuilder(request.section, peer.terrain.minY, peer.terrain.height);
-                    const measured = measureTerrainSource(peer.terrain);
+                    const sampledBefore = request.builder.samples();
                     const started = this.measureNow();
-                    const complete = request.builder.step(measured.source, blocksBudget);
+                    const complete = request.builder.step(peer.terrain, blocksBudget);
                     // Charge only sampling to the cost estimate, not the terrain recheck or cache write.
-                    this.workBudget.observe(measured.samples(), this.measureNow() - started);
+                    this.workBudget.observe(request.builder.samples() - sampledBefore, this.measureNow() - started);
                     if (complete) {
                         let stillLoaded: ReturnType<NonNullable<typeof peer.terrain.prepare>> | undefined;
                         try {
@@ -640,14 +633,7 @@ export class Sessions {
                     return;
                 }
                 try {
-                    const region = {
-                        originX: refresh.section.x * SECTION_SIZE_BLOCKS,
-                        originZ: refresh.section.z * SECTION_SIZE_BLOCKS,
-                        width: SECTION_SIZE_BLOCKS,
-                        depth: SECTION_SIZE_BLOCKS,
-                        minY: peer.terrain.minY,
-                        height: peer.terrain.height,
-                    };
+                    const region = sectionRegion(refresh.section, peer.terrain);
                     const prepared = peer.terrain.prepare?.(region);
                     if (prepared?.status === 'pending') {
                         this.refreshes.delete(refresh.key);
@@ -656,11 +642,11 @@ export class Sessions {
                     }
                     if (prepared && prepared.status !== 'ready') throw new Error(prepared.reason);
                     refresh.builder ??= new LodBuilder(refresh.section, peer.terrain.minY, peer.terrain.height);
-                    const measured = measureTerrainSource(peer.terrain);
+                    const sampledBefore = refresh.builder.samples();
                     const started = this.measureNow();
-                    const complete = refresh.builder.step(measured.source, blocksBudget);
+                    const complete = refresh.builder.step(peer.terrain, blocksBudget);
                     stepped = true;
-                    this.workBudget.observe(measured.samples(), this.measureNow() - started);
+                    this.workBudget.observe(refresh.builder.samples() - sampledBefore, this.measureNow() - started);
                     if (!complete) return;
                     const stillLoaded = peer.terrain.prepare?.(region);
                     if (stillLoaded?.status === 'pending') return;
@@ -887,17 +873,3 @@ export class Sessions {
 }
 
 export { sectionKey } from './lod/generation.ts';
-
-function measureTerrainSource(source: TerrainSource): { source: TerrainSource; samples: () => number } {
-    let samples = 0;
-    const measured: TerrainSource = {
-        minY: source.minY,
-        height: source.height,
-        sample: (x, y, z) => {
-            samples++;
-            return source.sample(x, y, z);
-        },
-    };
-    if (source.top) measured.top = source.top.bind(source);
-    return { source: measured, samples: () => samples };
-}
