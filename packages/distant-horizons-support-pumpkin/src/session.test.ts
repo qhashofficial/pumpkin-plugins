@@ -767,6 +767,7 @@ describe('DH sessions', () => {
 
         expect(f.sessions.status()).not.toContain('Forced LOD capture');
         expect(f.log.of('warn').join('\n')).toContain('world unavailable');
+        expect(f.log.of('info').join('\n')).not.toContain('no longer available');
     });
     it('keeps forced work running when only the DH protocol session closes', () => {
         const f = fixture();
