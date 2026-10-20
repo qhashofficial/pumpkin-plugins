@@ -66,7 +66,7 @@ describe(info.name, () => {
         expect(unexpectedErrors()).toEqual([]);
     });
 
-    it('registers double coordinate commands and rejects console administration cleanly', async () => {
+    it('registers double coordinate commands and keeps creation player-only', async () => {
         const from = server.lines.length;
         server.command('wp create "Console Test" 12.375 64.5 -8.25');
         await server.waitForLog(/This command can only be used by a player\./, 5000, from);
@@ -74,6 +74,25 @@ describe(info.name, () => {
         const usageFrom = server.lines.length;
         server.command('wp create');
         await server.waitForLog(/Usage: \/wp create <name> \[<x> <y> <z>\]\./, 5000, usageFrom);
+        expect(unexpectedErrors()).toEqual([]);
+    });
+
+    it('lets the console administer an existing waypoint', async () => {
+        await server.waitForLog(new RegExp(`Loaded ${info.name}`));
+        const run = async (command: string, reply: RegExp) => {
+            const from = server.lines.length;
+            server.command(command);
+            await server.waitForLog(reply, 5000, from);
+        };
+
+        await run('wp set label Spawn Town square', /Updated label for Spawn\./);
+        await run('wp disable Spawn', /Disabled waypoint Spawn\./);
+        await run('wp get Spawn', /Label: Town square;/);
+        const stored = JSON.parse(readFileSync(join(server.pluginDataDir(info.name), 'waypoints.json'), 'utf8'));
+        expect(stored.waypoints[0]).toMatchObject({ name: 'Spawn', label: 'Town square', enabled: false });
+
+        await run('wp enable Spawn', /Enabled waypoint Spawn\./);
+        await run('wp reset label Spawn', /Reset label for Spawn\./);
         expect(unexpectedErrors()).toEqual([]);
     });
 
