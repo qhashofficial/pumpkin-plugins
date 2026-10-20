@@ -8,7 +8,9 @@ import {
     buildHermes,
     hermesBuildFingerprint,
     hermesCMakeCommands,
+    isHermesBuildCacheCurrent,
     requiredHermesArtifacts,
+    saveHermesBuildCache,
     withHermesBuildLock,
 } from './build.ts';
 import { type HermesFileSystem, type HermesProcessRunner, hermesFileSystem } from './system.ts';
@@ -456,6 +458,43 @@ it('omits GNU-only host compiler flags when configuring Hermes with MSVC', async
     const hostConfigure = cmakeCalls(calls).find(({ args }) => args[0] === '-S' && args[3] === options.hostBuild);
     expect(hostConfigure?.args).toContain('-DCMAKE_CXX_FLAGS_RELEASE=-Os -DNDEBUG');
     expect(hostConfigure?.args).not.toContain('-DCMAKE_CXX_FLAGS_RELEASE=-Os -DNDEBUG -Wno-unused-template');
+});
+
+it('validates and atomically saves the build cache fingerprint', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'static-hermes-build-cache-'));
+    directories.push(root);
+    const artifact = path.join(root, 'hermesvm.a');
+    const state = path.join(root, 'prepared-build.json');
+    fs.writeFileSync(artifact, 'archive');
+    saveHermesBuildCache('a'.repeat(64), state, root);
+
+    expect(isHermesBuildCacheCurrent('a'.repeat(64), state, [artifact])).toBe(true);
+    expect(isHermesBuildCacheCurrent('b'.repeat(64), state, [artifact])).toBe(false);
+    fs.writeFileSync(state, '{ invalid json');
+    expect(isHermesBuildCacheCurrent('a'.repeat(64), state, [artifact])).toBe(false);
+});
+
+it('removes stale build locks, waits for live owners, and times out cleanly', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'static-hermes-build-cache-'));
+    directories.push(root);
+    const staleLock = path.join(root, 'stale.lock');
+    fs.writeFileSync(staleLock, JSON.stringify({ pid: 99999999, startedAt: 1 }));
+    await acquireHermesBuildLock(staleLock, { isProcessAlive: () => false, wait: async () => undefined });
+    expect(JSON.parse(fs.readFileSync(staleLock, 'utf8')).pid).toBe(process.pid);
+
+    const liveLock = path.join(root, 'live.lock');
+    fs.writeFileSync(liveLock, JSON.stringify({ pid: 2, startedAt: 1 }));
+    let time = 0;
+    await expect(
+        acquireHermesBuildLock(liveLock, {
+            timeoutMs: 250,
+            isProcessAlive: () => true,
+            now: () => time,
+            wait: async (delay) => {
+                time += delay;
+            },
+        }),
+    ).rejects.toThrow(`Timed out waiting for Hermes build lock: ${liveLock}`);
 });
 
 function fixture({ failBuild = false }: { failBuild?: boolean } = {}): {
