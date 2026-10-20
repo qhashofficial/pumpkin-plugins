@@ -149,7 +149,7 @@ export function compareBenchmarkResults(
 
 /** Formats a timing change percentage to one decimal place for the PR comment and chart. */
 export function formatSignedPercent(value: number): string {
-    return `${value > 0 ? '+' : value < 0 ? '−' : ''}${value.toFixed(1)}%`;
+    return `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value).toFixed(1)}%`;
 }
 
 function indexEngines(engines: readonly EngineResult[], revision: string): Map<string, EngineResult> {
