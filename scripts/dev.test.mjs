@@ -184,6 +184,50 @@ describe('resolveLatestPumpkinBinary', () => {
         assert.equal(typeof metadata.fetchedAt, 'number');
     });
 
+    it('downloads the musl build on musl Linux', async () => {
+        const root = tempDir();
+        const bytes = Buffer.from('musl pumpkin binary');
+        const digest = createHash('sha256').update(bytes).digest('hex');
+        const calls = [];
+        const fetchImpl = async (url) => {
+            calls.push(url);
+            if (url.endsWith('/releases/latest')) {
+                return {
+                    ok: true,
+                    json: async () => ({
+                        ...release,
+                        assets: [
+                            ...release.assets,
+                            {
+                                name: 'pumpkin-X64-Linux-musl',
+                                browser_download_url: 'https://example.test/pumpkin-musl',
+                            },
+                        ],
+                    }),
+                };
+            }
+            if (url.endsWith('/checksums')) {
+                return { ok: true, text: async () => `${digest}  pumpkin-X64-Linux-musl\n` };
+            }
+            return {
+                ok: true,
+                arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+            };
+        };
+
+        const result = await resolveLatestPumpkinBinary({
+            root,
+            platform: 'linux',
+            arch: 'x64',
+            musl: true,
+            env: {},
+            fetchImpl,
+        });
+
+        assert.equal(path.basename(result.binary), '0.2.0-pumpkin-X64-Linux-musl');
+        assert.ok(calls.includes('https://example.test/pumpkin-musl'));
+    });
+
     it('resolves the nightly tag and uses its asset id for the binary cache key', async () => {
         const root = tempDir();
         const bytes = Buffer.from('nightly pumpkin binary');

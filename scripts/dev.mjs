@@ -8,7 +8,7 @@ import { Command } from 'commander';
 // Import the harness modules directly: its index also loads instance.ts, which Node can't strip.
 import { resolvePumpkinBinary as resolvePinnedPumpkinBinary } from '../tools/test-harness/src/binary.ts';
 import { PUMPKIN_RELEASE } from '../tools/test-harness/src/pumpkin-version.ts';
-import { assetName, parseChecksums } from '../tools/test-harness/src/util.ts';
+import { assetName, isMuslLinux, parseChecksums } from '../tools/test-harness/src/util.ts';
 
 const REPOSITORY = 'Pumpkin-MC/Pumpkin';
 const RELEASES_API = `https://api.github.com/repos/${REPOSITORY}/releases/latest`;
@@ -187,6 +187,7 @@ export async function resolveLatestPumpkinBinary({
     root,
     platform = process.platform,
     arch = process.arch,
+    musl = isMuslLinux(),
     env = process.env,
     fetchImpl = fetch,
     now = Date.now,
@@ -222,7 +223,7 @@ export async function resolveLatestPumpkinBinary({
             release = cachedMetadata.release;
         }
     }
-    const assetFile = assetName(platform, arch);
+    const assetFile = assetName(platform, arch, musl);
     const binaryAsset = releaseAsset(release, assetFile);
     if (nightly && !Number.isSafeInteger(binaryAsset.id)) {
         throw new Error(`Pumpkin nightly asset ${assetFile} is missing its release asset ID`);
