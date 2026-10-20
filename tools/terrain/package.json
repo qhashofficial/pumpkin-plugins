@@ -38,8 +38,7 @@
     "type": "module",
     "exports": {
         ".": "./src/index.ts",
-        "./capture": "./src/capture.ts",
-        "./chunks": "./src/chunks.ts"
+        "./capture": "./src/capture.ts"
     },
     "module": "./src/index.ts",
     "types": "./src/index.ts",
