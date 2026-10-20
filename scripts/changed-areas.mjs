@@ -4,7 +4,8 @@
 import { spawnSync } from 'node:child_process';
 import { appendFileSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
-import { ignoredCommitShas } from './utils/ignored-commits.mjs';
+import { COMMIT_LOG_ARGS, parseCommitLog } from './utils/commit-log.mjs';
+import { changedLockfileImporters, readGitFile, workspaceLayoutChanged } from './utils/workspace-changes.mjs';
 
 /** A changed file matching any of these is documentation, which nothing that builds or tests reads. */
 const DOCS = [/\.md$/, /^docs\//, /^LICENSE$/, /^(packages|tools|actions|extensions)\/[^/]+\/docs(?:\/|$)/];
@@ -333,77 +334,6 @@ function externalConsumerInputs(packageByDirectory, workflowFiles) {
     );
 }
 
-/** Reads a tracked file at a revision, returning undefined when that revision has no such file. */
-function readGitFile(revision, file) {
-    const result = spawnSync('git', ['show', `${revision}:${file}`], {
-        cwd: repositoryRoot,
-        encoding: 'utf8',
-    });
-    if (result.status === 0) return result.stdout;
-    return undefined;
-}
-
-/** Reads each workspace importer block from a pnpm lockfile. */
-function lockfileImporters(contents) {
-    const importers = new Map();
-    let inImporters = false;
-    let currentImporter;
-    for (const line of contents.split('\n')) {
-        if (!inImporters) {
-            if (line === 'importers:') inImporters = true;
-            continue;
-        }
-        if (line && !line.startsWith(' ')) {
-            inImporters = false;
-            currentImporter = undefined;
-            continue;
-        }
-        const entry = line.match(/^ {2}([^ ].*?):(?:\s*(.*))?$/);
-        if (entry) {
-            currentImporter = entry[1].replace(/^['"]|['"]$/g, '');
-            importers.set(currentImporter, [line]);
-        } else if (currentImporter) {
-            importers.get(currentImporter).push(line);
-        }
-    }
-    return new Map([...importers].map(([key, lines]) => [key, lines.join('\n')]));
-}
-
-/** Returns the importer directories whose lockfile entries changed between two revisions. */
-function changedLockfileImporters(base, head) {
-    const before = readGitFile(base, 'pnpm-lock.yaml');
-    const after = readGitFile(head, 'pnpm-lock.yaml');
-    if (before === undefined || after === undefined) return undefined;
-    const previousImporters = lockfileImporters(before);
-    const currentImporters = lockfileImporters(after);
-    const changedImporters = new Set([...previousImporters.keys(), ...currentImporters.keys()]);
-    return [...changedImporters]
-        .filter((importer) => previousImporters.get(importer) !== currentImporters.get(importer))
-        .map((importer) => (importer === '.' ? importer : path.posix.normalize(importer)));
-}
-
-/** Returns workspace configuration with catalog entries removed. */
-function workspaceLayout(contents) {
-    let insideCatalogs = false;
-    const retainedLines = [];
-    for (const line of contents.split('\n')) {
-        if (/^catalogs?:\s*$/.test(line)) {
-            insideCatalogs = true;
-            continue;
-        }
-        if (insideCatalogs && line && !line.startsWith(' ')) insideCatalogs = false;
-        if (!insideCatalogs) retainedLines.push(line);
-    }
-    return retainedLines.join('\n').trim();
-}
-
-/** Checks whether workspace configuration changed outside its catalogs. */
-function workspaceLayoutChanged(base, head) {
-    const before = readGitFile(base, 'pnpm-workspace.yaml');
-    const after = readGitFile(head, 'pnpm-workspace.yaml');
-    return before === undefined || after === undefined || workspaceLayout(before) !== workspaceLayout(after);
-}
-
 /** Finds the actions whose source imports the shared `actions/common/` helpers. */
 function commonConsumers() {
     const tracked = spawnSync('git', ['ls-files', '-z', 'actions'], { cwd: repositoryRoot, encoding: 'utf8' });
@@ -446,32 +376,14 @@ if (configOnlyMode) {
     process.exit(0);
 }
 
-const commitLog = spawnSync(
-    'git',
-    ['log', '--format=%H%x09%s', '--name-only', '--no-renames', '--diff-merges=first-parent', `${base}..${head}`],
-    { encoding: 'utf8' },
-);
+const commitLog = spawnSync('git', [...COMMIT_LOG_ARGS, `${base}..${head}`], { encoding: 'utf8' });
 if (commitLog.status !== 0) {
     console.error(`Could not read commits between ${base} and ${head}: ${commitLog.stderr.trim()}`);
     process.exit(1);
 }
-const changedByNonIgnoredCommits = new Set();
-const subjects = [];
-let currentSha;
-let generatedReadmes = false;
-for (const line of commitLog.stdout.split('\n')) {
-    const separator = line.indexOf('\t');
-    if (separator !== -1 && /^[a-f\d]{40}$/.test(line.slice(0, separator))) {
-        currentSha = line.slice(0, separator);
-        const subject = line.slice(separator + 1);
-        subjects.push(subject);
-        if (!ignoredCommitShas.has(currentSha) && subject === GENERATED_READMES_SUBJECT) {
-            generatedReadmes = true;
-        }
-        continue;
-    }
-    if (currentSha && !ignoredCommitShas.has(currentSha) && line) changedByNonIgnoredCommits.add(line);
-}
+const { commits, files: changedByNonIgnoredCommits } = parseCommitLog(commitLog.stdout);
+const subjects = commits.map(({ subject }) => subject);
+const generatedReadmes = commits.some(({ subject, ignored }) => !ignored && subject === GENERATED_READMES_SUBJECT);
 const isRelease = (subject) => RELEASE_PR_SUBJECTS.release.some((pattern) => pattern.test(subject));
 const isFollowUp = (subject) => RELEASE_PR_SUBJECTS.followUp.some((pattern) => pattern.test(subject));
 // A merged release PR only bumps versions and regenerates files from commits that already passed
@@ -520,13 +432,14 @@ const isGlobalInput = (file) =>
     [...(integrationRelevant?.globalFiles ?? [])].some((input) => path.posix.matchesGlob(file, input));
 const lockfileChanged = code.includes('pnpm-lock.yaml');
 const workspaceConfigChanged = code.includes('pnpm-workspace.yaml');
-const lockfileImporterDirectories = lockfileChanged ? changedLockfileImporters(base, head) : [];
+const lockfileImporterDirectories = lockfileChanged ? changedLockfileImporters(repositoryRoot, base, head) : [];
 const lockfileWideChanged =
     lockfileChanged &&
     (!lockfileImporterDirectories ||
         lockfileImporterDirectories.length === 0 ||
         lockfileImporterDirectories.includes('.'));
-const workspaceLayoutChangedForIntegration = workspaceConfigChanged && workspaceLayoutChanged(base, head);
+const workspaceLayoutChangedForIntegration =
+    workspaceConfigChanged && workspaceLayoutChanged(repositoryRoot, base, head);
 /** Keep the benchmark comparison scoped to its dedicated real-server workflow. */
 const benchmarkOnly = code.length > 0 && code.every((file) => file.startsWith('benchmarks/engine-comparison/'));
 const integrationRuntimeChanged = Boolean(
@@ -585,7 +498,7 @@ if (integrationScope === 'affected') {
         if (!changedPackage && !changedImporter) continue;
         let name = integrationRelevant.packageByDirectory.get(directory)?.name;
         if (!name && changedImporter) {
-            const previousManifest = readGitFile(base, `${directory}/package.json`);
+            const previousManifest = readGitFile(repositoryRoot, base, `${directory}/package.json`);
             try {
                 name = JSON.parse(previousManifest ?? '').name;
             } catch {
