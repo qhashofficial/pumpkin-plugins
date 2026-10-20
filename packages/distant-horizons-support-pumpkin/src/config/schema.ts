@@ -72,7 +72,8 @@ export const schema = defineConfig(PLUGIN_NAME, {
                 max: 1024,
             }),
             cached_requests_per_tick: int({
-                description: 'Maximum cached LOD requests checked per server tick across all players.',
+                description:
+                    'Maximum LOD cache lookups per server tick across all players. The same number separately limits terrain availability checks for requests the cache cannot answer.',
                 default: 8,
                 min: 1,
                 max: 2048,
