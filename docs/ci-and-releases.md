@@ -95,8 +95,8 @@ component sizes and the signed artifact download. Its signing note says the arti
 key. The Build smoke test doesn't create a separate Vitest report. Extension
 checks link the VSIX download, the Docs workflow links the published site, release orchestration
 lists released components and release PR counts, and upstream-pin jobs link the source diff. Before
-expensive checks start, the selected-checks summary explains why each job is in scope. Expand a
-workflow step to tell a failure, cancellation, intentional skip or tolerated error apart.
+expensive checks start, the selected-checks summary explains why each job is in scope. Step
+failures, cancellations and skips appear in the job's step list, not in the summary.
 
 `scripts/ci-run.mjs` captures summaries from child processes while keeping their console output,
 annotations and command failures. `scripts/ci-summary.mjs` and `.github/common/job-summary` can then

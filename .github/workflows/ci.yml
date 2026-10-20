@@ -134,7 +134,6 @@ jobs:
               uses: ./.github/common/job-summary
               with:
                   title: Selected CI checks
-                  steps: ${{ toJSON(steps) }}
                   facts: ${{ toJSON(steps.classify.outputs) }}
 
     commits:
@@ -180,7 +179,6 @@ jobs:
               uses: ./.github/common/job-summary
               with:
                   title: Repository lint
-                  steps: ${{ toJSON(steps) }}
 
     typecheck:
         name: ✅ Typecheck
@@ -207,7 +205,6 @@ jobs:
               uses: ./.github/common/job-summary
               with:
                   title: Workspace typecheck
-                  steps: ${{ toJSON(steps) }}
 
     test:
         name: 🧪 Test
@@ -258,7 +255,6 @@ jobs:
               uses: ./.github/common/job-summary
               with:
                   title: Behavior tests and coverage
-                  steps: ${{ toJSON(steps) }}
                   tests: 'true'
 
     extension-tests:
@@ -299,7 +295,6 @@ jobs:
               uses: ./.github/common/job-summary
               with:
                   title: Documentation and configuration
-                  steps: ${{ toJSON(steps) }}
 
     build:
         name: 🔨 Build
@@ -427,7 +422,6 @@ jobs:
               uses: ./.github/common/job-summary
               with:
                   title: Plugin build
-                  steps: ${{ toJSON(steps) }}
                   artifact-url: ${{ steps.upload-signed-plugins.outputs.artifact-url }}
                   link-label: Download signed plugins and SHA-256 checksums
                   plugins-manifest: ${{ runner.temp }}/plugins.json
@@ -528,7 +522,6 @@ jobs:
               uses: ./.github/common/job-summary
               with:
                   title: Real-server integration tests
-                  steps: ${{ toJSON(steps) }}
                   tests: 'true'
 
     generator:
@@ -615,7 +608,6 @@ jobs:
               uses: ./.github/common/job-summary
               with:
                   title: Generator smoke tests
-                  steps: ${{ toJSON(steps) }}
                   tests: 'true'
 
     # The single required status check: it fails when a job the change needs did not pass, or when
