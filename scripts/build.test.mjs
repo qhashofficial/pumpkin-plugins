@@ -341,3 +341,11 @@ describe('Turbo size-limit environment', () => {
         }
     });
 });
+
+describe('Turbo builder typecheck', () => {
+    it('builds the Static Hermes runtime first, because its declarations come from dist', () => {
+        const task = resolvedTurboTask('typecheck', '@pumpkin-plugins/build');
+
+        assert.ok(task.dependsOn.includes('@pumpkin-plugins/static-hermes-runtime#build'));
+    });
+});
