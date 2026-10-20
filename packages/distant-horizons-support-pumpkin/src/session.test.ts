@@ -63,6 +63,21 @@ function fixture(measureNow = () => 1000, now = () => 1000) {
     return { files, settings, cache, sessions, peer, peers, sent, reports, request, ids, log, reads: () => reads };
 }
 
+/** Adds a second Java player in the fixture's world, with its own DH session and sent packets. */
+function joinPlayer(f: ReturnType<typeof fixture>, name: string) {
+    const sent: Uint8Array[] = [];
+    const player: Peer = { ...f.peer, name, send: (bytes) => sent.push(bytes) };
+    const withPeer = (peerName: string, use: (peer: Peer) => void) => {
+        const peer = peerName === f.peer.name ? f.peer : peerName === name ? player : undefined;
+        if (!peer) return false;
+        use(peer);
+        return true;
+    };
+    f.sessions.receive(player, packet(3).string(player.dimension).finish());
+    sent.length = 0;
+    return { player, sent, peers: { withPeer, withTerrain: withPeer } };
+}
+
 function clientConfig(
     options: {
         plan?: number;
@@ -976,6 +991,44 @@ describe('DH sessions', () => {
         expect(f.files.list('cache')).toHaveLength(2);
         expect(f.ids().filter((id) => id === 8)).toHaveLength(2);
     });
+    it('captures a section once when its player asks for it again during the capture', () => {
+        const f = fixture();
+        f.settings.blocks_per_tick = 1024;
+        f.sessions.receive(f.peer, f.request(1));
+        f.sessions.tick(f.peers);
+        f.sessions.receive(f.peer, f.request(2));
+
+        for (let tick = 0; tick < 8; tick++) f.sessions.tick(f.peers);
+
+        expect(answered(f.sent)).toEqual([1, 2]);
+        expect(f.reads()).toBe(4096);
+    });
+    it('captures a section once when two players ask for it', () => {
+        const f = fixture();
+        f.settings.blocks_per_tick = 1024;
+        const bob = joinPlayer(f, 'Bob');
+        f.sessions.receive(f.peer, f.request(1));
+        f.sessions.receive(bob.player, f.request(2));
+
+        for (let tick = 0; tick < 8; tick++) f.sessions.tick(bob.peers);
+
+        expect(answered(f.sent)).toEqual([1]);
+        expect(answered(bob.sent)).toEqual([2]);
+        expect(f.reads()).toBe(4096);
+    });
+    it('captures for a waiting request when the capture it waited for is cancelled', () => {
+        const f = fixture();
+        f.settings.blocks_per_tick = 1024;
+        const bob = joinPlayer(f, 'Bob');
+        f.sessions.receive(f.peer, f.request(1));
+        f.sessions.receive(bob.player, f.request(2));
+        f.sessions.tick(bob.peers);
+        f.sessions.receive(f.peer, packet(5).int(1).finish());
+
+        for (let tick = 0; tick < 8; tick++) f.sessions.tick(bob.peers);
+
+        expect(answered(bob.sent)).toEqual([2]);
+    });
     it('scales capture work with server MSPT and the measured cost of block samples', () => {
         const times = [0, 0, 0, 0, 5, 5, 5, 5, 10, 10];
         const f = fixture(() => times.shift() ?? 10);
@@ -1334,6 +1387,15 @@ describe('DH sessions', () => {
         expect(f.sessions.status()).toContain('0 Distant Horizons client');
     });
 });
+
+/** Trackers of the final LOD responses in sent packets, in send order. */
+function answered(sent: Uint8Array[]): number[] {
+    return sent.flatMap((bytes) => {
+        const input = new Reader(bytes);
+        input.short();
+        return input.short() === 8 ? [input.int()] : [];
+    });
+}
 
 function readFragment(bytes: Uint8Array): { buffer: number; data: Uint8Array; first: boolean } {
     const input = new Reader(bytes);
