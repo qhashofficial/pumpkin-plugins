@@ -10,6 +10,7 @@ import { afterEach, describe, it } from 'node:test';
 import { runInNewContext } from 'node:vm';
 import { parse } from 'yaml';
 import { selectJobs } from './ci-gate.mjs';
+import { discoverWorkspace } from './utils/workspace-discovery.mjs';
 
 const scripts = import.meta.dirname;
 const dirs = [];
@@ -525,6 +526,36 @@ describe('CI job selection and release prerequisites', () => {
             '["minecraft-terms"]',
         );
         assert.ok(extensions.jobs.verify.steps.some((step) => step.run?.includes('run package')));
+    });
+});
+
+describe('test job', () => {
+    const ci = parse(fs.readFileSync(path.join(scripts, '../.github/workflows/ci.yml'), 'utf8'));
+    const step = (id) => ci.jobs.test.steps.find((candidate) => candidate.id === id);
+
+    it("runs every package's unit tests and keeps their coverage reports", () => {
+        assert.match(step('unit-tests-with-coverage').run, /-- pnpm run coverage$/);
+        const evidence = step('preserve-coverage-evidence')
+            .with.path.split('\n')
+            .map((line) => line.trim())
+            .filter((line) => line !== '' && !line.startsWith('!'));
+        // Extensions run their tests in the reusable extension workflow.
+        const tested = [...discoverWorkspace(path.join(scripts, '..')).packages.values()].filter(
+            ({ directory, manifest }) => manifest.scripts?.test && !directory.startsWith('extensions/'),
+        );
+        assert.ok(tested.length > 0, 'no workspace package has unit tests');
+        assert.deepEqual(
+            tested.filter(({ manifest }) => !manifest.scripts['test:coverage']).map(({ directory }) => directory),
+            [],
+            'packages without a test:coverage script, whose tests CI skips',
+        );
+        assert.deepEqual(
+            tested
+                .map(({ directory }) => `${directory}/coverage/lcov.info`)
+                .filter((report) => !evidence.some((glob) => path.posix.matchesGlob(report, glob))),
+            [],
+            'coverage reports missing from the coverage evidence',
+        );
     });
 });
 
