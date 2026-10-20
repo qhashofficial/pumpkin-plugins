@@ -1,9 +1,7 @@
 import { expect, it } from 'vitest';
-import {
-    compareBenchmarkResults,
-    formatBenchmarkChangeSvgs,
-    formatBenchmarkComment,
-} from '../src/benchmark-regression.ts';
+import { formatBenchmarkChangeSvgs } from '../src/benchmark-chart.ts';
+import { formatBenchmarkComment } from '../src/benchmark-comment.ts';
+import { compareBenchmarkResults } from '../src/benchmark-regression.ts';
 import type { EngineResult } from '../src/benchmark-results.ts';
 import type { BenchmarkWorkload } from '../src/benchmark-workloads.ts';
 
